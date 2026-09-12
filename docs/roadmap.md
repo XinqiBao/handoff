@@ -26,8 +26,8 @@ documents and Git.
 | S1 | complete | Basic bounded SPSC | Fixed inline slots, exact usable capacity, non-blocking FIFO operations, and conservative publication ordering. |
 | B1 | complete | Baseline SPSC workloads | Shared throughput and ping-pong workloads, trials, summaries, CSV output, and optional affinity. |
 | S2 | complete | Cache-line-separated SPSC | A preserved variant changing only producer/consumer counter placement. |
-| H1 | next | Benchmark source decomposition | Split the benchmark executable by direct responsibility without changing workload or result behavior. |
-| H2 | queued | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
+| H1 | complete | Benchmark source decomposition | Split the benchmark executable by direct responsibility without changing workload or result behavior. |
+| H2 | next | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
 | C1 | queued | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
 | S3 | queued | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
 | S4 | queued | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
@@ -53,29 +53,33 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: H1
+## Next stage: H2
 
-Goal: reduce the 823-line benchmark translation unit into a few locally understandable internal
-modules without changing CLI, workload, timing, or result behavior.
+Goal: make benchmark option failures, result fields, and run metadata reliable enough for later
+controlled experiments without changing queue or workload behavior.
 
 Required work:
 
-- split `apps/handoff-bench/main.cpp` into a few direct-responsibility files for options/dispatch,
-  shared result types, throughput, ping-pong, and output where the existing code supports those
-  boundaries;
-- retain explicit switch- or table-based dispatch; do not add registries, abstract queue bases,
-  factories, a benchmark DSL, or a general configuration framework;
-- keep internal APIs concrete and private to the executable;
-- prove behavior preservation through the existing test and smoke commands before making the H2
-  behavior changes.
+- diagnose an unknown option correctly even when no value follows, and reject options that are
+  incompatible with the selected benchmark;
+- represent a zero elapsed duration without reporting a synthetic rate;
+- add integration coverage for the CSV schema and deterministic invalid Linux-affinity paths;
+- record git revision and dirty state, compiler name and version, build mode, CPU model, requested
+  and effective placement, affinity outcome, and the selected waiting behavior where available;
+- gather changing run facts at execution time or otherwise prevent stale configure-time metadata;
+- describe fixed-slot capacity in slots and remove the misleading payload-bytes-times-slots native
+  byte-capacity value;
+- retain the current yield waiting behavior and explicit switch dispatch.
 
-Non-goals: CLI or schema changes, new metadata, a new waiting strategy, queue changes, a public
-benchmark library, performance conclusions, or opportunistic behavior fixes.
+Non-goals: queue or workload changes, new mechanisms, a new waiting strategy, architecture-specific
+pause instructions, a general configuration framework, performance measurements, or performance
+conclusions.
 
-Validation: Debug and Release tests, ASan/UBSan, practical TSan, clang-format, clang-tidy, benchmark
-smoke runs, CSV inspection, documentation-link checks, complete diff review, push, and required CI.
+Validation: focused CLI, CSV, metadata, and affinity tests; Debug and Release tests; ASan/UBSan;
+practical TSan; clang-format; clang-tidy; benchmark smoke runs and CSV inspection on supported
+platforms; documentation-link checks; complete diff review; push; and required CI.
 
-## Direction after H1
+## Direction after H2
 
 Each mechanism stage follows the same sequence:
 
@@ -95,19 +99,6 @@ targets. Their stages should reproduce named structural ideas while excluding su
 runtimes, allocators, networking, and platform infrastructure.
 
 ## Queued acceptance constraints
-
-H2 must address these evidence-backed gaps:
-
-- diagnose an unknown option correctly even when no value follows and reject incompatible options;
-- do not report a synthetic rate when an elapsed duration is zero;
-- test the CSV schema and deterministic invalid Linux-affinity paths;
-- record git revision and dirty state, compiler and version, build mode, CPU model, requested and
-  effective placement, affinity outcome, and the selected waiting behavior where available;
-- gather changing run facts at execution time or otherwise prevent stale configure-time metadata;
-- describe fixed-slot capacity in slots and never present payload bytes times slots as native byte
-  capacity or complete object footprint;
-- retain the current yield behavior unless a separate experiment motivates busy spin, and do not
-  add architecture-specific pause instructions in this hardening stage.
 
 C1 must test move-only and resource-owning payloads where the declared constraints permit them,
 failed rvalue push behavior, and unchanged failed-pop output for both existing rings. Its mechanism

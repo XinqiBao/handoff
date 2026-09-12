@@ -30,6 +30,7 @@ file(
   GLOB_RECURSE HANDOFF_FORMAT_SOURCES
   CONFIGURE_DEPENDS
   "${PROJECT_SOURCE_DIR}/apps/*.cpp"
+  "${PROJECT_SOURCE_DIR}/apps/*.hpp"
   "${PROJECT_SOURCE_DIR}/include/*.hpp"
   "${PROJECT_SOURCE_DIR}/src/*.cpp"
   "${PROJECT_SOURCE_DIR}/tests/*.cpp")
