@@ -45,13 +45,14 @@ SystemInfo current_system_info() {
 
 AffinityResult pin_current_thread(unsigned int cpu) {
 #if defined(__linux__)
-  if (cpu >= CPU_SETSIZE) {
+  if (cpu >= static_cast<unsigned int>(CPU_SETSIZE)) {
     return {.status = AffinityStatus::invalid_cpu, .message = "CPU index exceeds CPU_SETSIZE"};
   }
 
+  const auto cpu_index = static_cast<int>(cpu);
   cpu_set_t set;
   CPU_ZERO(&set);
-  CPU_SET(cpu, &set);
+  CPU_SET(cpu_index, &set);
   const int error = pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
   if (error != 0) {
     return {.status = AffinityStatus::system_error, .message = std::strerror(error)};
