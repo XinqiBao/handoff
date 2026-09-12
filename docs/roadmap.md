@@ -16,7 +16,9 @@ Bootstrap infrastructure and the first mechanism are complete:
 - a fixed-slot bounded SPSC baseline with compile-time exact usable capacity, non-blocking
   operations, conservative acquire/release publication, and bounded-FIFO correctness coverage;
 - steady-state throughput and ping-pong RTT workloads with warmup, multiple trials, validation,
-  median summaries, CSV output, and optional CPU affinity.
+  median summaries, CSV output, and optional CPU affinity;
+- planned bounded baseline throughput and ping-pong experiments, with macOS plumbing validation and
+  controlled Linux execution intentionally pending.
 
 ## Near term
 
