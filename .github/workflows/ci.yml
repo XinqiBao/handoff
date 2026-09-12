@@ -44,7 +44,17 @@ jobs:
           ./build/release/apps/handoff-bench/handoff-bench run smoke \
             --iterations 1000 --warmup 100 --trials 1 \
             --output "${RUNNER_TEMP}/handoff-smoke.csv"
+          ./build/release/apps/handoff-bench/handoff-bench run throughput \
+            --implementation basic --payload-bytes 8 --capacity 64 \
+            --iterations 1000 --warmup 100 --trials 2 \
+            --output "${RUNNER_TEMP}/handoff-throughput-smoke.csv"
+          ./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+            --implementation basic --payload-bytes 8 --capacity 64 \
+            --iterations 1000 --warmup 100 --trials 2 \
+            --output "${RUNNER_TEMP}/handoff-ping-pong-smoke.csv"
           test -s "${RUNNER_TEMP}/handoff-smoke.csv"
+          test -s "${RUNNER_TEMP}/handoff-throughput-smoke.csv"
+          test -s "${RUNNER_TEMP}/handoff-ping-pong-smoke.csv"
 
   quality:
     name: Format and clang-tidy

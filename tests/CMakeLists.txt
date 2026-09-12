@@ -19,3 +19,14 @@ add_test(NAME benchmark.list COMMAND handoff-bench list)
 add_test(
   NAME benchmark.smoke
   COMMAND handoff-bench run smoke --iterations 1000 --warmup 100 --trials 1)
+add_test(
+  NAME benchmark.throughput-smoke
+  COMMAND handoff-bench run throughput --implementation basic --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.ping-pong-smoke
+  COMMAND handoff-bench run ping-pong --implementation basic --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(NAME benchmark.invalid-capacity
+         COMMAND handoff-bench run throughput --capacity 63 --iterations 1 --warmup 0 --trials 1)
+set_tests_properties(benchmark.invalid-capacity PROPERTIES WILL_FAIL TRUE)

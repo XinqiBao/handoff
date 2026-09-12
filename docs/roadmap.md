@@ -14,17 +14,17 @@ Bootstrap infrastructure and the first mechanism are complete:
 - benchmark, architecture, design-space, and reproducibility conventions;
 - lightweight Linux/macOS CI validation;
 - a fixed-slot bounded SPSC baseline with compile-time exact usable capacity, non-blocking
-  operations, conservative acquire/release publication, and bounded-FIFO correctness coverage.
+  operations, conservative acquire/release publication, and bounded-FIFO correctness coverage;
+- steady-state throughput and ping-pong RTT workloads with warmup, multiple trials, validation,
+  median summaries, CSV output, and optional CPU affinity.
 
 ## Near term
 
-1. **Baseline workloads**: steady-state throughput and ping-pong round-trip latency with explicit
-   phases, warmup, trials, validation, affinity requests, and CSV metadata.
-2. **Cache-aware SPSC**: preserve the baseline and isolate cache-line placement as a separate
+1. **Cache-aware SPSC**: preserve the baseline and isolate cache-line placement as a separate
    implementation.
-3. **Memory-order experiments**: vary ordering only where a written happens-before argument permits.
-4. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
-5. **Batching**: study per-message versus batched publication under controlled workloads.
+2. **Memory-order experiments**: vary ordering only where a written happens-before argument permits.
+3. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
+4. **Batching**: study per-message versus batched publication under controlled workloads.
 
 Each mechanism must have a local note and appropriate correctness tests before comparison.
 

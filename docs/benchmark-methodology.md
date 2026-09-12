@@ -97,11 +97,15 @@ is expected to include, where meaningful:
 
 ```text
 benchmark, implementation, payload_bytes, capacity_slots, capacity_bytes,
-batch_size, iterations, trial, elapsed_ns, messages_per_second, latency_ns
+batch_size, iterations, trial, elapsed_ns, messages_per_second, latency_ns,
+latency_p95_ns, latency_p99_ns, checksum
 ```
 
 Fields that do not apply remain empty rather than receiving misleading sentinel values. Schema
 changes must be deliberate because historical data may depend on them.
+
+For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
+RTT values. Throughput leaves all latency columns empty.
 
 Lightweight run metadata should accompany results as CSV comments or a simple adjacent file. Record
 at least git revision, compiler and version, build mode, OS, CPU model, selected CPUs, warmup, and

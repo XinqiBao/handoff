@@ -55,3 +55,28 @@ or weakening these acquire/release pairs belongs in later, separately documented
 Tests cover empty and full behavior, exact usable capacity, FIFO order, wraparound, repeated
 fill/drain cycles, message integrity, and a million-message concurrent run that detects loss,
 duplication, reordering, and torn payload observations.
+
+## Benchmark workloads
+
+The explicit CLI supports 8, 64, and 256 byte fixed payloads and capacities of 64 or 1024 exact
+usable slots. This bounded set maps directly to compile-time ring instantiations. Unsupported values
+are rejected rather than rounded or routed through a runtime queue abstraction.
+
+Each trial constructs its ring and threads before measurement. The worker threads apply requested
+affinity, complete an untimed warmup, drain the warmup messages, and wait at a start barrier. The
+main thread takes the start timestamp immediately before releasing that barrier. Throughput stops
+when the consumer has received and inspected the final message. Ping-pong uses two identical rings
+and stops when the producer receives and inspects the final response. Thread teardown and full
+result validation occur after the stop timestamp.
+
+Payload generation, sequence checks, and checksum accumulation are deliberately identical across
+implementations of a workload. They occur inside the timed region because producing and observing
+the fixed payload is part of each handoff. Queue construction, storage initialization, expected
+checksum calculation, thread creation, affinity setup, warmup, formatting, and CSV output remain
+outside it.
+
+Throughput reports completed messages per second. Ping-pong preallocates sample storage, measures
+every request/response exchange, and reports the median, p95, and p99 RTT for each trial plus the
+median of trial medians. Clock reads are therefore part of the latency workload, while sample
+sorting remains outside the timed phase. Its displayed RTT/2 value is only a symmetry-based proxy,
+not a measured one-way latency. These minimum-ish ping-pong results are not offered-load latency.

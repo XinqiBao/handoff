@@ -9,9 +9,9 @@ IPC framework, a universal queue library, or an attempt to name one queue as uni
 
 ## Status
 
-The repository contains a readable fixed-slot bounded SPSC ring, correctness tests, a C++23 build,
-a small platform capability layer, and benchmark-harness smoke plumbing. Queue workloads have not
-yet been integrated into the benchmark CLI.
+The repository contains a readable fixed-slot bounded SPSC ring, correctness tests, steady-state
+throughput and ping-pong round-trip latency workloads, a C++23 build, and a small platform
+capability layer.
 
 ## Requirements
 
@@ -42,10 +42,17 @@ presets are documented in [Reproducibility](docs/reproducibility.md).
 ./build/debug/apps/handoff-bench/handoff-bench list
 ./build/debug/apps/handoff-bench/handoff-bench run smoke \
   --iterations 1000 --warmup 100 --trials 1
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation basic --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5
+./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+  --implementation basic --payload-bytes 64 --capacity 1024 \
+  --iterations 100000 --warmup 10000 --trials 5
 ```
 
 The `smoke` command checks timing, CLI, and result-output plumbing. Its timing is not a handoff
-performance result.
+The SPSC commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output` arguments.
+Run `handoff-bench help` for the supported payload sizes and capacities.
 
 ## Documentation
 

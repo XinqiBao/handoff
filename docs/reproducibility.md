@@ -49,9 +49,18 @@ low-level design to obtain a clean run.
 ./build/release/apps/handoff-bench/handoff-bench run smoke \
   --iterations 1000 --warmup 100 --trials 1 \
   --output /tmp/handoff-smoke.csv
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation basic --payload-bytes 8 --capacity 64 \
+  --iterations 1000 --warmup 100 --trials 2 \
+  --output /tmp/handoff-throughput-smoke.csv
+./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+  --implementation basic --payload-bytes 8 --capacity 64 \
+  --iterations 1000 --warmup 100 --trials 2 \
+  --output /tmp/handoff-ping-pong-smoke.csv
 ```
 
-This confirms CLI, timing, and CSV plumbing only. It is intentionally not a queue benchmark.
+These small runs confirm CLI, timing, queue-workload validation, and CSV plumbing only. Their
+timings are not performance evidence.
 
 ## Preparing a measurement run
 
