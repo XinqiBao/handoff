@@ -47,8 +47,8 @@ belong in [inspiration notes](inspirations/README.md).
 
 Current targets are deliberately small:
 
-- `handoff_core`: bootstrap version and platform capabilities;
-- `handoff-bench`: explicit CLI and smoke plumbing;
+- `handoff_core`: version and platform capabilities, with header-only mechanism implementations;
+- `handoff-bench`: explicit CLI, smoke plumbing, and SPSC throughput and ping-pong workloads;
 - `handoff_tests`: Catch2-based correctness checks.
 
 Catch2 is fetched only for test-enabled builds and pinned to a commit. The project does not use a
@@ -56,8 +56,8 @@ general package manager.
 
 ## Benchmark data flow
 
-A future benchmark command will validate its options, construct state, create and place threads,
-perform warmup, synchronize the timed phase, validate observable work, and only then format or write
+A benchmark command validates its options, constructs state, creates and places threads, performs
+warmup, synchronizes the timed phase, validates observable work, and only then formats or writes
 results. The timed-region exclusions and result fields are defined in
 [Benchmark Methodology](benchmark-methodology.md).
 

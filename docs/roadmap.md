@@ -20,13 +20,17 @@ Bootstrap infrastructure and the initial SPSC layout mechanisms are complete:
 - planned bounded baseline throughput and ping-pong experiments, with macOS plumbing validation and
   controlled Linux execution intentionally pending;
 - a cache-line-separated SPSC variant with equivalent correctness coverage and shared benchmark
-  workloads, preserving the basic baseline unchanged.
+  workloads, preserving the basic baseline unchanged;
+- a prepared mechanism-isolation comparison of adjacent versus separated counters, with the full
+  paired matrix smoke-validated on macOS and performance execution pending on controlled Linux.
 
 ## Near term
 
-1. **Memory-order experiments**: vary ordering only where a written happens-before argument permits.
-2. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
-3. **Batching**: study per-message versus batched publication under controlled workloads.
+1. **Controlled Linux comparison**: execute the prepared cache-layout record with confirmed
+   same-NUMA, distinct-core affinity and retain all trial rows before drawing a conditional result.
+2. **Memory-order refinement**: vary ordering only where a written happens-before argument permits.
+3. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
+4. **Batching**: study per-message versus batched publication under controlled workloads.
 
 Each mechanism must have a local note and appropriate correctness tests before comparison.
 

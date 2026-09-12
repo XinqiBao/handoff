@@ -90,8 +90,8 @@ Record:
 - warmup, iterations, trials, and workload-specific dimensions;
 - relevant system tuning and diagnostic commands.
 
-The bootstrap system summary is intentionally small and does not yet collect all metadata. Until
-the harness grows, record missing items beside the CSV or in the experiment document.
+The executable's system summary is intentionally small and does not collect all metadata. Record
+missing items beside the CSV or in the experiment document.
 
 Raw local output belongs under the ignored `results/` directory by convention. Commit concise
 experiment records and selected data only when they are needed to reproduce a conclusion.
