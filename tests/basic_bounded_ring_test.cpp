@@ -61,7 +61,7 @@ TEST_CASE("a basic bounded SPSC ring preserves messages in a long concurrent run
   std::atomic<bool> producer_done{false};
   std::atomic<bool> valid{true};
 
-  std::jthread producer([&] {
+  std::thread producer([&] {
     for (std::uint64_t sequence = 0; sequence < message_count; ++sequence) {
       const Message message{.sequence = sequence, .inverse = ~sequence};
       while (!ring.try_push(message)) {
@@ -71,7 +71,7 @@ TEST_CASE("a basic bounded SPSC ring preserves messages in a long concurrent run
     producer_done.store(true, std::memory_order_release);
   });
 
-  std::jthread consumer([&] {
+  std::thread consumer([&] {
     std::uint64_t expected = 0;
     Message message;
     while (expected < message_count) {
