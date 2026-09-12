@@ -16,7 +16,8 @@ Read additional documents according to the task instead of loading the entire re
 Tracked repository documents are the canonical source for architecture, semantics, methodology,
 and roadmap state. The ignored `.context/` directory may hold current local status or bounded work
 notes; it must not override tracked project truth. Do not commit prompts, session transcripts,
-routine reports, or `.context/` contents.
+routine reports, or `.context/` contents. If local status disagrees with Git, CI, or the tracked
+roadmap, trust the inspected evidence and tracked documents, then correct the local status.
 
 ## Engineering rules
 
@@ -49,12 +50,15 @@ After each stage:
 
 1. Run the relevant builds, tests, sanitizers, formatting, static analysis, and smoke commands.
 2. Review the complete diff and `git status` for scope, readability, and documentation accuracy.
-3. Mark only completed work in `docs/roadmap.md`; identify exactly one next executable stage when
-   work remains.
-4. Create one coherent commit, push it, and wait for the required CI checks.
+3. Mark only completed work in `docs/roadmap.md`; identify exactly one next executable stage and
+   replace its detailed `Next stage` contract when work remains. Do not accumulate completed stage
+   packets in the roadmap.
+4. Create coherent Conventional Commit(s) with a visible stage boundary, push them, and wait for
+   the required CI checks.
 5. Update local `.context/` status when present, then continue to the next eligible roadmap stage.
 
 Stop at a clean stage boundary only when the requested roadmap scope is exhausted, a semantic
-choice materially needs user input, external measurement hardware is required, CI remains red after
-reasonable repair attempts, or the next stage proves materially larger or riskier than documented.
-Do not leave several mechanisms half-implemented merely to continue the session.
+choice materially needs user input, external measurement hardware is required, or CI remains red
+after reasonable repair attempts. If a future stage is too large but its semantics are clear, split
+it into smaller roadmap stages rather than stopping or implementing it as one opaque change. Do not
+leave several mechanisms half-implemented merely to continue the session.

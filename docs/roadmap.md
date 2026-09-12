@@ -4,6 +4,12 @@ This file is the canonical execution queue and completion record. It expresses t
 not dates. Earlier findings may reorder later stages, but changes should preserve explicit
 dependencies and keep one stage marked `next`.
 
+Only the unique `next` stage receives a full execution contract below. Queued stages retain a
+one-line outcome and only the acceptance constraints needed to preserve an existing decision. When
+the next stage completes, replace its contract with one for its successor instead of retaining a
+growing archive of stage plans. Mechanism and experiment history belongs in their respective
+documents and Git.
+
 ## Status meanings
 
 - `complete`: implemented, validated, documented, committed, and pushed;
@@ -20,49 +26,51 @@ dependencies and keep one stage marked `next`.
 | S1 | complete | Basic bounded SPSC | Fixed inline slots, exact usable capacity, non-blocking FIFO operations, and conservative publication ordering. |
 | B1 | complete | Baseline SPSC workloads | Shared throughput and ping-pong workloads, trials, summaries, CSV output, and optional affinity. |
 | S2 | complete | Cache-line-separated SPSC | A preserved variant changing only producer/consumer counter placement. |
-| H1 | next | Harness and contract hardening | Split the benchmark executable by direct responsibility; complete metadata, CLI validation, and current payload-contract tests. |
+| H1 | next | Benchmark source decomposition | Split the benchmark executable by direct responsibility without changing workload or result behavior. |
+| H2 | queued | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
+| C1 | queued | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
 | S3 | queued | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
 | S4 | queued | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
-| D1 | queued | DPDK-inspired SP/SC | Study separate head reservation and tail publication, fixed-count bulk, best-effort burst, and staged direct access in a small SP/SC mechanism. |
+| D1 | queued | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
+| D2 | queued | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
 | Q1 | queued | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
-| Q2 | queued | Disruptor-inspired fan-out | Add independent reliable consumers, slowest-reader gating, and explicit dependency semantics. |
+| Q2 | queued | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
+| Q3 | queued | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
 | R1 | queued | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
 | R2 | queued | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
 | R3 | queued | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
-| F1 | queued | Firedancer-inspired metadata/data handoff | Combine sequence-addressed metadata, chunk-addressed payload, consumer progress, broadcast, and detectable overwrite semantics. |
+| F1 | queued | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
+| F2 | queued | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
 | W1 | queued | Load-shape workloads | Add burst, imbalance, temporary-stall, and offered-load latency experiments only as required by implemented mechanisms. |
 | L1 | blocked-external | Controlled Linux measurements | Run pinned same-NUMA comparisons, verify effective affinity, collect host metadata, and use external `perf` where justified. |
 | M1 | deferred | Bounded MPSC | Reconsider after the single-producer mechanism families establish specific multi-producer questions. |
 | M2 | deferred | Multi-producer sequencing | Study selected availability or synchronization ideas only when motivated by MPSC findings. |
 | M3 | deferred | SPMC work sharing and MPMC | Keep distinct from broadcast and attempt only with a concrete research question. |
 
-The active path is `H1 -> S3 -> S4 -> D1 -> Q1 -> Q2 -> R1 -> R2 -> R3 -> F1 -> W1`.
+The active path is
+`H1 -> H2 -> C1 -> S3 -> S4 -> D1 -> D2 -> Q1 -> Q2 -> Q3 -> R1 -> R2 -> R3 -> F1 -> F2 -> W1`.
 `L1` can run when a suitable Linux host is available and does not block portable mechanism work.
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
 ## Next stage: H1
 
-Goal: make the existing harness and contracts strong enough to add several mechanism families
-without turning the benchmark executable into a framework.
+Goal: reduce the 823-line benchmark translation unit into a few locally understandable internal
+modules without changing CLI, workload, timing, or result behavior.
 
 Required work:
 
 - split `apps/handoff-bench/main.cpp` into a few direct-responsibility files for options/dispatch,
-  throughput, ping-pong, and output or metadata where the existing code supports that boundary;
+  shared result types, throughput, ping-pong, and output where the existing code supports those
+  boundaries;
 - retain explicit switch- or table-based dispatch; do not add registries, abstract queue bases,
   factories, a benchmark DSL, or a general configuration framework;
-- add lightweight result metadata for git revision and dirty state, compiler and version, build
-  mode, CPU model, requested and effective CPU placement, and affinity outcome where available;
-- clarify that `capacity_bytes` describes nominal payload bytes in slots, not the full object
-  footprint, renaming the field only if migration is documented;
-- document and test the current default-constructed, assignment-reused payload lifetime contract;
-- strengthen CLI and CSV integration tests for invalid and incompatible input;
-- keep workload semantics and timed regions unchanged unless a concrete defect requires a focused
-  correction.
+- keep internal APIs concrete and private to the executable;
+- prove behavior preservation through the existing test and smoke commands before making the H2
+  behavior changes.
 
-Non-goals: a new queue mechanism, explicit-lifetime storage, a generic harness architecture,
-performance conclusions, Linux topology discovery, or low-level timer changes.
+Non-goals: CLI or schema changes, new metadata, a new waiting strategy, queue changes, a public
+benchmark library, performance conclusions, or opportunistic behavior fixes.
 
 Validation: Debug and Release tests, ASan/UBSan, practical TSan, clang-format, clang-tidy, benchmark
 smoke runs, CSV inspection, documentation-link checks, complete diff review, push, and required CI.
@@ -86,9 +94,28 @@ DPDK, LMAX Disruptor, and Firedancer remain high-priority inspirations, not port
 targets. Their stages should reproduce named structural ideas while excluding surrounding APIs,
 runtimes, allocators, networking, and platform infrastructure.
 
+## Queued acceptance constraints
+
+H2 must address these evidence-backed gaps:
+
+- diagnose an unknown option correctly even when no value follows and reject incompatible options;
+- do not report a synthetic rate when an elapsed duration is zero;
+- test the CSV schema and deterministic invalid Linux-affinity paths;
+- record git revision and dirty state, compiler and version, build mode, CPU model, requested and
+  effective placement, affinity outcome, and the selected waiting behavior where available;
+- gather changing run facts at execution time or otherwise prevent stale configure-time metadata;
+- describe fixed-slot capacity in slots and never present payload bytes times slots as native byte
+  capacity or complete object footprint;
+- retain the current yield behavior unless a separate experiment motivates busy spin, and do not
+  add architecture-specific pause instructions in this hardening stage.
+
+C1 must test move-only and resource-owning payloads where the declared constraints permit them,
+failed rvalue push behavior, and unchanged failed-pop output for both existing rings. Its mechanism
+notes must distinguish ring-owned fixed storage from allocations that `T` assignment may perform.
+
 ## Completion criteria
 
 A stage is complete only when its documented semantics and implementation agree, required
 correctness and quality checks pass, benchmark claims match the measurement method, the complete
-diff contains no accidental scope, one coherent commit is pushed, and required CI is green. A
-conversation may complete several such stages; stage boundaries must remain visible in history.
+diff contains no accidental scope, its coherent commit history is pushed, and required CI is green.
+A conversation may complete several such stages; stage boundaries must remain visible in history.
