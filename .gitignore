@@ -1,0 +1,14 @@
+.DS_Store
+.cache/
+.context/
+.idea/
+.vscode/
+
+build/
+build-*/
+cmake-build-*/
+compile_commands.json
+
+*.dSYM/
+*.profraw
+*.profdata
