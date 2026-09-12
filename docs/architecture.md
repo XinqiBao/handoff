@@ -28,8 +28,8 @@ process infrastructure is planned.
   the benchmark harness.
 - **Benchmark code** owns workloads, phases, validation, timing, summaries, and result output. It
   adapts directly to the small set of mechanisms under study.
-- **Platform code** exposes only narrow optional capabilities such as system identification and
-  current-thread CPU affinity.
+- **Platform code** exposes only narrow optional capabilities such as system and CPU identification
+  and current-thread CPU affinity.
 - **Tests** establish common bounded-FIFO invariants and mechanism-specific semantics according to
   the [testing strategy](testing-strategy.md) before a mechanism enters comparisons.
 - **Documentation** records intent, exact mechanism semantics, experiment questions, and provenance.

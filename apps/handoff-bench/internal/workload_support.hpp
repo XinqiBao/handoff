@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 
 namespace handoff::bench {
 
@@ -78,9 +79,12 @@ inline PlacementResult apply_affinity(std::optional<unsigned int> cpu) {
   if (!cpu) {
     return {
         .requested = std::nullopt,
+        .effective = std::nullopt,
         .outcome = {.status = platform::AffinityStatus::unsupported, .message = "not requested"}};
   }
-  return {.requested = cpu, .outcome = platform::pin_current_thread(*cpu)};
+  auto outcome = platform::pin_current_thread(*cpu);
+  const auto effective = outcome.status == platform::AffinityStatus::applied ? cpu : std::nullopt;
+  return {.requested = cpu, .effective = effective, .outcome = std::move(outcome)};
 }
 
 inline bool affinity_failed(const PlacementResult& placement) {

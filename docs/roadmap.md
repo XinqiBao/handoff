@@ -27,8 +27,8 @@ documents and Git.
 | B1 | complete | Baseline SPSC workloads | Shared throughput and ping-pong workloads, trials, summaries, CSV output, and optional affinity. |
 | S2 | complete | Cache-line-separated SPSC | A preserved variant changing only producer/consumer counter placement. |
 | H1 | complete | Benchmark source decomposition | Split the benchmark executable by direct responsibility without changing workload or result behavior. |
-| H2 | next | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
-| C1 | queued | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
+| H2 | complete | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
+| C1 | next | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
 | S3 | queued | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
 | S4 | queued | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
 | D1 | queued | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
@@ -53,33 +53,33 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: H2
+## Next stage: C1
 
-Goal: make benchmark option failures, result fields, and run metadata reliable enough for later
-controlled experiments without changing queue or workload behavior.
+Goal: complete the payload and lifetime contract evidence for both existing fixed-slot SPSC rings
+without changing their APIs, storage model, or synchronization.
 
 Required work:
 
-- diagnose an unknown option correctly even when no value follows, and reject options that are
-  incompatible with the selected benchmark;
-- represent a zero elapsed duration without reporting a synthetic rate;
-- add integration coverage for the CSV schema and deterministic invalid Linux-affinity paths;
-- record git revision and dirty state, compiler name and version, build mode, CPU model, requested
-  and effective placement, affinity outcome, and the selected waiting behavior where available;
-- gather changing run facts at execution time or otherwise prevent stale configure-time metadata;
-- describe fixed-slot capacity in slots and remove the misleading payload-bytes-times-slots native
-  byte-capacity value;
-- retain the current yield waiting behavior and explicit switch dispatch.
+- apply shared contract tests to `BasicBoundedRing` and `CacheLineBoundedRing` rather than
+  duplicating behavior-specific suites;
+- cover default-initializable move-only payloads and resource-owning payloads whose operations meet
+  the rings' declared assignment requirements;
+- verify that a failed rvalue push leaves its source unchanged and that a failed pop leaves its
+  output unchanged;
+- exercise successful slot reuse with resource-owning values and make the observable assignment and
+  retention behavior explicit;
+- update both mechanism notes to distinguish allocation-free ring storage from allocations that
+  `T` construction or assignment may perform.
 
-Non-goals: queue or workload changes, new mechanisms, a new waiting strategy, architecture-specific
-pause instructions, a general configuration framework, performance measurements, or performance
-conclusions.
+Non-goals: raw or uninitialized slot storage, explicit per-element construction and destruction,
+broader payload constraints, API or memory-order changes, benchmark changes, performance
+measurements, or performance conclusions.
 
-Validation: focused CLI, CSV, metadata, and affinity tests; Debug and Release tests; ASan/UBSan;
-practical TSan; clang-format; clang-tidy; benchmark smoke runs and CSV inspection on supported
-platforms; documentation-link checks; complete diff review; push; and required CI.
+Validation: focused compile-time and deterministic payload/lifetime tests for both rings; existing
+concurrent integrity tests; Debug and Release tests; ASan/UBSan; practical TSan; clang-format;
+clang-tidy; documentation-link checks; complete diff review; push; and required CI.
 
-## Direction after H2
+## Direction after C1
 
 Each mechanism stage follows the same sequence:
 
@@ -97,12 +97,6 @@ of a specific mechanism with a written C++ happens-before argument.
 DPDK, LMAX Disruptor, and Firedancer remain high-priority inspirations, not ports or compatibility
 targets. Their stages should reproduce named structural ideas while excluding surrounding APIs,
 runtimes, allocators, networking, and platform infrastructure.
-
-## Queued acceptance constraints
-
-C1 must test move-only and resource-owning payloads where the declared constraints permit them,
-failed rvalue push behavior, and unchanged failed-pop output for both existing rings. Its mechanism
-notes must distinguish ring-owned fixed storage from allocations that `T` assignment may perform.
 
 ## Completion criteria
 

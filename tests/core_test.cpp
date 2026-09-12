@@ -11,6 +11,8 @@ TEST_CASE("system information identifies the build environment") {
   CHECK_FALSE(info.operating_system.empty());
   CHECK_FALSE(info.architecture.empty());
   CHECK_FALSE(info.compiler.empty());
+  CHECK_FALSE(info.compiler_version.empty());
+  CHECK_FALSE(info.cpu_model.empty());
 }
 
 #if defined(__APPLE__)

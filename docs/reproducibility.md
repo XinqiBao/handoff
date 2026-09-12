@@ -90,8 +90,11 @@ Record:
 - warmup, iterations, trials, and workload-specific dimensions;
 - relevant system tuning and diagnostic commands.
 
-The executable's system summary is intentionally small and does not collect all metadata. Record
-missing items beside the CSV or in the experiment document.
+CSV output records baseline run metadata when the command starts. Git fields are reported as
+`unavailable` when the source checkout or Git executable cannot be queried. Effective CPU fields are
+available only after a requested affinity operation succeeds. Record system tuning, topology
+details, external diagnostics, and any other missing experiment-specific facts beside the CSV or in
+the experiment document.
 
 Raw local output belongs under the ignored `results/` directory by convention. Commit concise
 experiment records and selected data only when they are needed to reproduce a conclusion.

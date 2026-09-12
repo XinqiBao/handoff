@@ -1,10 +1,11 @@
 #include "command.hpp"
 
 #include "output.hpp"
+#include "rate.hpp"
+#include "run_metadata.hpp"
 #include "types.hpp"
 #include "workloads.hpp"
 
-#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cstddef>
@@ -42,11 +43,30 @@ template <typename Integer> std::optional<Integer> parse_integer(std::string_vie
   return value;
 }
 
+bool is_known_option(std::string_view option) {
+  return option == "--iterations" || option == "--warmup" || option == "--trials" ||
+         option == "--output" || option == "--implementation" || option == "--payload-bytes" ||
+         option == "--capacity" || option == "--producer-cpu" || option == "--consumer-cpu";
+}
+
+bool applies_to_smoke(std::string_view option) {
+  return option == "--iterations" || option == "--warmup" || option == "--trials" ||
+         option == "--output";
+}
+
 std::optional<Options> parse_options(std::span<char*> arguments, Benchmark benchmark,
                                      std::ostream& errors) {
   Options options;
   for (std::size_t index = 0; index < arguments.size(); ++index) {
     const std::string_view argument = arguments[index];
+    if (!is_known_option(argument)) {
+      errors << "unknown option: " << argument << '\n';
+      return std::nullopt;
+    }
+    if (benchmark == Benchmark::smoke && !applies_to_smoke(argument)) {
+      errors << "option " << argument << " does not apply to smoke\n";
+      return std::nullopt;
+    }
     if (index + 1 >= arguments.size()) {
       errors << "missing value for " << argument << '\n';
       return std::nullopt;
@@ -80,9 +100,6 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.output = std::filesystem::path(value);
-    } else if (benchmark == Benchmark::smoke) {
-      errors << "option " << argument << " does not apply to smoke\n";
-      return std::nullopt;
     } else if (argument == "--implementation") {
       if (value == "basic") {
         options.implementation = Implementation::basic;
@@ -120,9 +137,6 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.consumer_cpu = parsed;
-    } else {
-      errors << "unknown option: " << argument << '\n';
-      return std::nullopt;
     }
   }
 
@@ -152,14 +166,13 @@ RunResults run_smoke(const Options& options) {
     checksum = smoke_work(options.iterations, checksum);
     const auto stop = Clock::now();
     const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
-    const double rate = static_cast<double>(options.iterations) * 1'000'000'000.0 /
-                        static_cast<double>(std::max<std::int64_t>(elapsed, 1));
+    const auto rate = rate_per_second(options.iterations, elapsed);
     results.trials.push_back({.trial = trial,
                               .elapsed_ns = elapsed,
                               .messages_per_second = rate,
-                              .latency_ns = 0.0,
-                              .latency_p95_ns = 0.0,
-                              .latency_p99_ns = 0.0,
+                              .latency_ns = std::nullopt,
+                              .latency_p95_ns = std::nullopt,
+                              .latency_p99_ns = std::nullopt,
                               .checksum = checksum});
   }
   return results;
@@ -171,6 +184,7 @@ int run_benchmark_command(Benchmark benchmark, std::span<char*> arguments) {
     return 2;
   }
 
+  const auto metadata = collect_run_metadata();
   RunResults results;
   switch (benchmark) {
   case Benchmark::smoke:
@@ -183,8 +197,8 @@ int run_benchmark_command(Benchmark benchmark, std::span<char*> arguments) {
     results = run_ping_pong(*options);
     break;
   }
-  print_results(benchmark, *options, results);
-  if (options->output && !write_csv(*options->output, benchmark, *options, results)) {
+  print_results(benchmark, *options, results, metadata);
+  if (options->output && !write_csv(*options->output, benchmark, *options, results, metadata)) {
     return 1;
   }
   return 0;

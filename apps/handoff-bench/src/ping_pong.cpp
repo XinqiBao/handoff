@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -152,7 +153,7 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
   const auto latency = summarize_latency(std::move(rtt_samples));
   return {.trial = trial,
           .elapsed_ns = elapsed,
-          .messages_per_second = 0.0,
+          .messages_per_second = std::nullopt,
           .latency_ns = latency.median_ns,
           .latency_p95_ns = latency.p95_ns,
           .latency_p99_ns = latency.p99_ns,

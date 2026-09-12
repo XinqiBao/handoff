@@ -1,13 +1,14 @@
+#include "rate.hpp"
 #include "workload_support.hpp"
 #include "workloads.hpp"
 
 #include "handoff/spsc/basic_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
 
-#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -102,15 +103,13 @@ TrialResult run_throughput_trial(const Options& options, unsigned int trial,
     throw std::runtime_error("throughput payload validation failed");
   }
   const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
-  const auto safe_elapsed = std::max<std::int64_t>(elapsed, 1);
-  const double rate =
-      static_cast<double>(options.iterations) * 1'000'000'000.0 / static_cast<double>(safe_elapsed);
+  const auto rate = rate_per_second(options.iterations, elapsed);
   return {.trial = trial,
           .elapsed_ns = elapsed,
           .messages_per_second = rate,
-          .latency_ns = 0.0,
-          .latency_p95_ns = 0.0,
-          .latency_p99_ns = 0.0,
+          .latency_ns = std::nullopt,
+          .latency_p95_ns = std::nullopt,
+          .latency_p99_ns = std::nullopt,
           .checksum = checksum};
 }
 

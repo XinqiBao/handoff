@@ -28,15 +28,16 @@ struct Options {
 struct TrialResult {
   unsigned int trial;
   std::int64_t elapsed_ns;
-  double messages_per_second;
-  double latency_ns;
-  double latency_p95_ns;
-  double latency_p99_ns;
+  std::optional<double> messages_per_second;
+  std::optional<double> latency_ns;
+  std::optional<double> latency_p95_ns;
+  std::optional<double> latency_p99_ns;
   std::uint64_t checksum;
 };
 
 struct PlacementResult {
   std::optional<unsigned int> requested;
+  std::optional<unsigned int> effective;
   platform::AffinityResult outcome;
 };
 

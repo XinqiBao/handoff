@@ -7,7 +7,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 set_property(TARGET Catch2 PROPERTY SYSTEM ON)
 
-add_executable(handoff_tests basic_bounded_ring_test.cpp core_test.cpp)
+add_executable(handoff_tests basic_bounded_ring_test.cpp benchmark_support_test.cpp core_test.cpp)
+target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
 target_link_libraries(handoff_tests PRIVATE handoff::core Catch2::Catch2WithMain)
 handoff_configure_target(handoff_tests)
 
@@ -16,6 +17,24 @@ include(Catch)
 catch_discover_tests(handoff_tests DISCOVERY_MODE PRE_TEST)
 
 add_test(NAME benchmark.list COMMAND handoff-bench list)
+add_test(
+  NAME benchmark.cli
+  COMMAND
+    "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench> -P
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_cli_test.cmake")
+add_test(
+  NAME benchmark.csv
+  COMMAND
+    "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench>
+    -DTEST_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR} -DEXPECTED_BUILD_MODE=$<CONFIG> -P
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_csv_test.cmake")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_test(
+    NAME benchmark.invalid-linux-affinity
+    COMMAND
+      "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench> -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_affinity_test.cmake")
+endif()
 add_test(
   NAME benchmark.smoke
   COMMAND handoff-bench run smoke --iterations 1000 --warmup 100 --trials 1)

@@ -92,12 +92,19 @@ latency_p95_ns, latency_p99_ns, checksum
 Fields that do not apply remain empty rather than receiving misleading sentinel values. Schema
 changes must be deliberate because historical data may depend on them.
 
+`capacity_slots` is the native capacity for fixed-slot rings. Their `capacity_bytes` field remains
+empty: payload bytes times slots describes neither the complete object footprint nor a native byte
+capacity. Byte-oriented mechanisms may populate that field when they define capacity in bytes.
+
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
-RTT values. Throughput leaves all latency columns empty.
+RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,
+the corresponding rate is unavailable and remains empty rather than being synthesized from a
+one-nanosecond denominator.
 
 Lightweight run metadata should accompany results as CSV comments or a simple adjacent file. Record
-at least git revision, compiler and version, build mode, OS, CPU model, selected CPUs, warmup, and
-trial count.
+at least git revision and dirty state, compiler and version, build mode, OS, CPU model, requested and
+effective CPUs, affinity outcomes, waiting behavior, warmup, and trial count. Facts that can change
+after configuration, including Git state, must be collected when the command starts.
 
 ## Interpretation and CI
 
