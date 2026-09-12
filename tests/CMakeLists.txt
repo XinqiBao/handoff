@@ -7,7 +7,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 set_property(TARGET Catch2 PROPERTY SYSTEM ON)
 
-add_executable(handoff_tests core_test.cpp)
+add_executable(handoff_tests basic_bounded_ring_test.cpp core_test.cpp)
 target_link_libraries(handoff_tests PRIVATE handoff::core Catch2::Catch2WithMain)
 handoff_configure_target(handoff_tests)
 

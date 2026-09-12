@@ -1,7 +1,8 @@
 # Mechanism Notes
 
-This directory documents mechanisms implemented by `handoff`. There are no substantive mechanisms
-in the bootstrap state.
+This directory documents mechanisms implemented by `handoff`.
+
+- [Basic bounded SPSC ring](basic-bounded-spsc.md)
 
 Each future note should state:
 

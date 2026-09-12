@@ -9,9 +9,9 @@ IPC framework, a universal queue library, or an attempt to name one queue as uni
 
 ## Status
 
-The repository currently contains bootstrap infrastructure only: a C++23 build, tests, a small
-platform capability layer, and a benchmark-harness smoke command. No substantive queue or ring
-mechanism is implemented yet. The first implementation stage is a basic bounded SPSC ring.
+The repository contains a readable fixed-slot bounded SPSC ring, correctness tests, a C++23 build,
+a small platform capability layer, and benchmark-harness smoke plumbing. Queue workloads have not
+yet been integrated into the benchmark CLI.
 
 ## Requirements
 
