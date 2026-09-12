@@ -2,12 +2,11 @@
 #include "handoff/platform/thread_affinity.hpp"
 
 #include <string>
+#include <system_error>
 
 #if defined(__linux__)
 #include <pthread.h>
 #include <sched.h>
-
-#include <cstring>
 #endif
 
 namespace handoff::platform {
@@ -55,7 +54,8 @@ AffinityResult pin_current_thread(unsigned int cpu) {
   CPU_SET(cpu_index, &set);
   const int error = pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
   if (error != 0) {
-    return {.status = AffinityStatus::system_error, .message = std::strerror(error)};
+    return {.status = AffinityStatus::system_error,
+            .message = std::system_category().message(error)};
   }
   return {.status = AffinityStatus::applied, .message = "thread affinity applied"};
 #else
