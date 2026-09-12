@@ -1,6 +1,7 @@
 #include "handoff/platform/system_info.hpp"
 #include "handoff/platform/thread_affinity.hpp"
 #include "handoff/spsc/basic_bounded_ring.hpp"
+#include "handoff/spsc/cache_line_bounded_ring.hpp"
 
 #include <algorithm>
 #include <array>
@@ -29,12 +30,13 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 enum class Benchmark { smoke, throughput, ping_pong };
+enum class Implementation { basic, cache_line };
 
 struct Options {
   std::uint64_t iterations{1'000'000};
   std::uint64_t warmup{10'000};
   unsigned int trials{3};
-  std::string implementation{"basic"};
+  Implementation implementation{Implementation::basic};
   std::size_t payload_bytes{64};
   std::size_t capacity_slots{1'024};
   std::optional<unsigned int> producer_cpu;
@@ -79,7 +81,8 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench list\n"
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
-            "  handoff-bench run <throughput|ping-pong> [--implementation basic] "
+            "  handoff-bench run <throughput|ping-pong> "
+            "[--implementation basic|cache-line] "
             "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
@@ -136,7 +139,14 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       errors << "option " << argument << " does not apply to smoke\n";
       return std::nullopt;
     } else if (argument == "--implementation") {
-      options.implementation = value;
+      if (value == "basic") {
+        options.implementation = Implementation::basic;
+      } else if (value == "cache-line") {
+        options.implementation = Implementation::cache_line;
+      } else {
+        errors << "--implementation must be one of: basic, cache-line\n";
+        return std::nullopt;
+      }
     } else if (argument == "--payload-bytes") {
       const auto parsed = parse_integer<std::size_t>(value);
       if (!parsed || (*parsed != 8 && *parsed != 64 && *parsed != 256)) {
@@ -171,10 +181,6 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     }
   }
 
-  if (benchmark != Benchmark::smoke && options.implementation != "basic") {
-    errors << "--implementation must be: basic\n";
-    return std::nullopt;
-  }
   if (options.producer_cpu && options.consumer_cpu &&
       *options.producer_cpu == *options.consumer_cpu) {
     errors << "producer and consumer CPUs must be different\n";
@@ -332,12 +338,12 @@ void validate_affinity_or_cancel(TrialControl& control, std::thread& producer,
   throw std::runtime_error(role + " affinity failed: " + failed.outcome.message);
 }
 
-template <std::size_t Bytes, std::size_t Capacity>
+template <template <typename, std::size_t> typename Ring, std::size_t Bytes, std::size_t Capacity>
 TrialResult run_throughput_trial(const Options& options, unsigned int trial,
                                  PlacementResult& producer_placement,
                                  PlacementResult& consumer_placement) {
-  using Ring = handoff::spsc::BasicBoundedRing<Payload<Bytes>, Capacity>;
-  Ring ring;
+  using Queue = Ring<Payload<Bytes>, Capacity>;
+  Queue ring;
   TrialControl control;
   Clock::time_point stop;
   std::uint64_t checksum = 0;
@@ -431,13 +437,13 @@ TrialResult run_throughput_trial(const Options& options, unsigned int trial,
           .checksum = checksum};
 }
 
-template <std::size_t Bytes, std::size_t Capacity>
+template <template <typename, std::size_t> typename Ring, std::size_t Bytes, std::size_t Capacity>
 TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
                                 PlacementResult& producer_placement,
                                 PlacementResult& consumer_placement) {
-  using Ring = handoff::spsc::BasicBoundedRing<Payload<Bytes>, Capacity>;
-  Ring requests;
-  Ring responses;
+  using Queue = Ring<Payload<Bytes>, Capacity>;
+  Queue requests;
+  Queue responses;
   TrialControl control;
   Clock::time_point stop;
   std::uint64_t checksum = 0;
@@ -554,7 +560,7 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
           .checksum = checksum};
 }
 
-template <std::size_t Bytes, std::size_t Capacity>
+template <template <typename, std::size_t> typename Ring, std::size_t Bytes, std::size_t Capacity>
 RunResults run_spsc(const Options& options, Benchmark benchmark) {
   RunResults results;
   results.trials.reserve(options.trials);
@@ -562,9 +568,9 @@ RunResults run_spsc(const Options& options, Benchmark benchmark) {
     PlacementResult producer_placement;
     PlacementResult consumer_placement;
     TrialResult result = benchmark == Benchmark::throughput
-                             ? run_throughput_trial<Bytes, Capacity>(
+                             ? run_throughput_trial<Ring, Bytes, Capacity>(
                                    options, trial, producer_placement, consumer_placement)
-                             : run_ping_pong_trial<Bytes, Capacity>(
+                             : run_ping_pong_trial<Ring, Bytes, Capacity>(
                                    options, trial, producer_placement, consumer_placement);
     if (trial == 1) {
       results.producer_placement = std::move(producer_placement);
@@ -575,29 +581,40 @@ RunResults run_spsc(const Options& options, Benchmark benchmark) {
   return results;
 }
 
-template <std::size_t Bytes>
+template <template <typename, std::size_t> typename Ring, std::size_t Bytes>
 RunResults dispatch_capacity(const Options& options, Benchmark benchmark) {
   switch (options.capacity_slots) {
   case 64:
-    return run_spsc<Bytes, 64>(options, benchmark);
+    return run_spsc<Ring, Bytes, 64>(options, benchmark);
   case 1'024:
-    return run_spsc<Bytes, 1'024>(options, benchmark);
+    return run_spsc<Ring, Bytes, 1'024>(options, benchmark);
   default:
     throw std::logic_error("validated capacity was not dispatched");
   }
 }
 
-RunResults run_spsc_benchmark(const Options& options, Benchmark benchmark) {
+template <template <typename, std::size_t> typename Ring>
+RunResults dispatch_payload(const Options& options, Benchmark benchmark) {
   switch (options.payload_bytes) {
   case 8:
-    return dispatch_capacity<8>(options, benchmark);
+    return dispatch_capacity<Ring, 8>(options, benchmark);
   case 64:
-    return dispatch_capacity<64>(options, benchmark);
+    return dispatch_capacity<Ring, 64>(options, benchmark);
   case 256:
-    return dispatch_capacity<256>(options, benchmark);
+    return dispatch_capacity<Ring, 256>(options, benchmark);
   default:
     throw std::logic_error("validated payload size was not dispatched");
   }
+}
+
+RunResults run_spsc_benchmark(const Options& options, Benchmark benchmark) {
+  switch (options.implementation) {
+  case Implementation::basic:
+    return dispatch_payload<handoff::spsc::BasicBoundedRing>(options, benchmark);
+  case Implementation::cache_line:
+    return dispatch_payload<handoff::spsc::CacheLineBoundedRing>(options, benchmark);
+  }
+  throw std::logic_error("unknown implementation");
 }
 
 double median(std::vector<double> values) {
@@ -619,6 +636,16 @@ std::string_view benchmark_name(Benchmark benchmark) {
     return "ping-pong";
   }
   throw std::logic_error("unknown benchmark");
+}
+
+std::string_view implementation_name(Implementation implementation) {
+  switch (implementation) {
+  case Implementation::basic:
+    return "basic";
+  case Implementation::cache_line:
+    return "cache-line";
+  }
+  throw std::logic_error("unknown implementation");
 }
 
 std::string placement_value(const PlacementResult& placement) {
@@ -664,8 +691,8 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
       output << "smoke,harness,,,,," << options.iterations << ',' << result.trial << ','
              << result.elapsed_ns << ",,,,," << result.checksum << '\n';
     } else {
-      output << benchmark_name(benchmark) << ',' << options.implementation << ','
-             << options.payload_bytes << ',' << options.capacity_slots << ','
+      output << benchmark_name(benchmark) << ',' << implementation_name(options.implementation)
+             << ',' << options.payload_bytes << ',' << options.capacity_slots << ','
              << options.payload_bytes * options.capacity_slots << ",," << options.iterations << ','
              << result.trial << ',' << result.elapsed_ns << ',';
       if (benchmark == Benchmark::throughput) {
@@ -691,8 +718,8 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
   if (benchmark == Benchmark::smoke) {
     std::cout << " (harness plumbing only; not a handoff benchmark)";
   } else {
-    std::cout << " / " << options.implementation << " / " << options.payload_bytes << " B / "
-              << options.capacity_slots << " slots";
+    std::cout << " / " << implementation_name(options.implementation) << " / "
+              << options.payload_bytes << " B / " << options.capacity_slots << " slots";
   }
   std::cout << "\nsystem: " << info.operating_system << ", " << info.architecture << ", "
             << info.compiler << '\n';

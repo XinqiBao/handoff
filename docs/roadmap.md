@@ -5,7 +5,7 @@ earlier correctness work and experiments reveal better questions.
 
 ## Current
 
-Bootstrap infrastructure and the first mechanism are complete:
+Bootstrap infrastructure and the initial SPSC layout mechanisms are complete:
 
 - C++23 Clang/CMake/Ninja build presets;
 - Catch2 test integration and warning, format, tidy, ASan/UBSan, and TSan paths;
@@ -18,15 +18,15 @@ Bootstrap infrastructure and the first mechanism are complete:
 - steady-state throughput and ping-pong RTT workloads with warmup, multiple trials, validation,
   median summaries, CSV output, and optional CPU affinity;
 - planned bounded baseline throughput and ping-pong experiments, with macOS plumbing validation and
-  controlled Linux execution intentionally pending.
+  controlled Linux execution intentionally pending;
+- a cache-line-separated SPSC variant with equivalent correctness coverage and shared benchmark
+  workloads, preserving the basic baseline unchanged.
 
 ## Near term
 
-1. **Cache-aware SPSC**: preserve the baseline and isolate cache-line placement as a separate
-   implementation.
-2. **Memory-order experiments**: vary ordering only where a written happens-before argument permits.
-3. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
-4. **Batching**: study per-message versus batched publication under controlled workloads.
+1. **Memory-order experiments**: vary ordering only where a written happens-before argument permits.
+2. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
+3. **Batching**: study per-message versus batched publication under controlled workloads.
 
 Each mechanism must have a local note and appropriate correctness tests before comparison.
 

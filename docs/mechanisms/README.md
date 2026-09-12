@@ -3,6 +3,7 @@
 This directory documents mechanisms implemented by `handoff`.
 
 - [Basic bounded SPSC ring](basic-bounded-spsc.md)
+- [Cache-line-separated bounded SPSC ring](cache-line-bounded-spsc.md)
 
 Each future note should state:
 

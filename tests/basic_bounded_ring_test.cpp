@@ -1,24 +1,31 @@
 #include "handoff/spsc/basic_bounded_ring.hpp"
+#include "handoff/spsc/cache_line_bounded_ring.hpp"
 
 #include <atomic>
 #include <cstdint>
 #include <thread>
 
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 namespace {
 
-using Ring = handoff::spsc::BasicBoundedRing<std::uint64_t, 4>;
+using BasicIntegerRing = handoff::spsc::BasicBoundedRing<std::uint64_t, 4>;
+using CacheLineIntegerRing = handoff::spsc::CacheLineBoundedRing<std::uint64_t, 4>;
 
 struct Message {
   std::uint64_t sequence{};
   std::uint64_t inverse{};
 };
 
+using BasicMessageRing = handoff::spsc::BasicBoundedRing<Message, 1'024>;
+using CacheLineMessageRing = handoff::spsc::CacheLineBoundedRing<Message, 1'024>;
+
 } // namespace
 
-TEST_CASE("a basic bounded SPSC ring reports empty and exact full capacity") {
-  Ring ring;
+TEMPLATE_TEST_CASE("bounded SPSC rings report empty and exact full capacity", "[spsc]",
+                   BasicIntegerRing, CacheLineIntegerRing) {
+  TestType ring;
   std::uint64_t value = 99;
 
   CHECK_FALSE(ring.try_pop(value));
@@ -37,8 +44,9 @@ TEST_CASE("a basic bounded SPSC ring reports empty and exact full capacity") {
   CHECK_FALSE(ring.try_push(15));
 }
 
-TEST_CASE("a basic bounded SPSC ring preserves FIFO order through wraparound") {
-  Ring ring;
+TEMPLATE_TEST_CASE("bounded SPSC rings preserve FIFO order through wraparound", "[spsc]",
+                   BasicIntegerRing, CacheLineIntegerRing) {
+  TestType ring;
   std::uint64_t value = 0;
 
   for (std::uint64_t cycle = 0; cycle < 1'000; ++cycle) {
@@ -55,9 +63,10 @@ TEST_CASE("a basic bounded SPSC ring preserves FIFO order through wraparound") {
   }
 }
 
-TEST_CASE("a basic bounded SPSC ring preserves messages in a long concurrent run") {
+TEMPLATE_TEST_CASE("bounded SPSC rings preserve messages in a long concurrent run", "[spsc]",
+                   BasicMessageRing, CacheLineMessageRing) {
   constexpr std::uint64_t message_count = 1'000'000;
-  handoff::spsc::BasicBoundedRing<Message, 1'024> ring;
+  TestType ring;
   std::atomic<bool> producer_done{false};
   std::atomic<bool> valid{true};
 
@@ -90,4 +99,10 @@ TEST_CASE("a basic bounded SPSC ring preserves messages in a long concurrent run
   consumer.join();
   CHECK(producer_done.load(std::memory_order_acquire));
   CHECK(valid.load(std::memory_order_relaxed));
+}
+
+TEST_CASE("the cache-line SPSC ring isolates its shared state blocks") {
+  using Ring = handoff::spsc::CacheLineBoundedRing<std::uint64_t, 4>;
+  STATIC_CHECK(Ring::state_alignment() == 128);
+  STATIC_CHECK(alignof(Ring) >= Ring::state_alignment());
 }

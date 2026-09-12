@@ -27,6 +27,14 @@ add_test(
   NAME benchmark.ping-pong-smoke
   COMMAND handoff-bench run ping-pong --implementation basic --payload-bytes 8 --capacity 64
           --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.cache-line-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation cache-line --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.cache-line-ping-pong-smoke
+  COMMAND handoff-bench run ping-pong --implementation cache-line --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
 add_test(NAME benchmark.invalid-capacity
          COMMAND handoff-bench run throughput --capacity 63 --iterations 1 --warmup 0 --trials 1)
 set_tests_properties(benchmark.invalid-capacity PROPERTIES WILL_FAIL TRUE)
