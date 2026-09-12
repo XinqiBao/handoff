@@ -46,11 +46,4 @@ struct RunResults {
   PlacementResult consumer_placement;
 };
 
-RunResults run_throughput(const Options& options);
-RunResults run_ping_pong(const Options& options);
-bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Options& options,
-               const RunResults& results);
-void print_results(Benchmark benchmark, const Options& options, const RunResults& results);
-int run(int argc, char* argv[]);
-
 } // namespace handoff::bench

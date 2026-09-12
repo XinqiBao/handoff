@@ -1,5 +1,8 @@
-#include "benchmark.hpp"
-#include "workload.hpp"
+#include "command.hpp"
+
+#include "output.hpp"
+#include "types.hpp"
+#include "workloads.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -14,6 +17,8 @@
 
 namespace handoff::bench {
 namespace {
+
+using Clock = std::chrono::steady_clock;
 
 void print_usage(std::ostream& stream) {
   stream << "Usage:\n"

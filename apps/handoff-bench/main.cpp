@@ -1,4 +1,4 @@
-#include "benchmark.hpp"
+#include "command.hpp"
 
 #include <exception>
 #include <iostream>

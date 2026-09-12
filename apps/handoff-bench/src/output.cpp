@@ -1,4 +1,4 @@
-#include "benchmark.hpp"
+#include "output.hpp"
 
 #include "handoff/platform/system_info.hpp"
 

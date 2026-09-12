@@ -1,8 +1,10 @@
-#include "workload.hpp"
+#include "workload_support.hpp"
+#include "workloads.hpp"
 
 #include "handoff/spsc/basic_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -13,6 +15,26 @@
 
 namespace handoff::bench {
 namespace {
+
+struct LatencySummary {
+  double median_ns;
+  double p95_ns;
+  double p99_ns;
+};
+
+LatencySummary summarize_latency(std::vector<std::int64_t> samples) {
+  std::ranges::sort(samples);
+  const auto middle = samples.size() / 2;
+  const double median_ns =
+      samples.size() % 2 == 1
+          ? static_cast<double>(samples[middle])
+          : (static_cast<double>(samples[middle - 1]) + static_cast<double>(samples[middle])) / 2.0;
+  const auto p95_index = (samples.size() - 1) * 95 / 100;
+  const auto p99_index = (samples.size() - 1) * 99 / 100;
+  return {.median_ns = median_ns,
+          .p95_ns = static_cast<double>(samples[p95_index]),
+          .p99_ns = static_cast<double>(samples[p99_index])};
+}
 
 template <template <typename, std::size_t> typename Ring, std::size_t Bytes, std::size_t Capacity>
 TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,

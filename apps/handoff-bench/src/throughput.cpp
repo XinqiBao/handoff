@@ -1,4 +1,5 @@
-#include "workload.hpp"
+#include "workload_support.hpp"
+#include "workloads.hpp"
 
 #include "handoff/spsc/basic_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"

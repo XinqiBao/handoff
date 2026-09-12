@@ -51,6 +51,11 @@ Current targets are deliberately small:
 - `handoff-bench`: explicit CLI, smoke plumbing, and SPSC throughput and ping-pong workloads;
 - `handoff_tests`: Catch2-based correctness checks.
 
+Within `handoff-bench`, the application root holds only the process entry point and target build
+description. `src/` holds responsibility-specific implementation files, while `internal/` holds
+target-private types, interfaces, and header-only workload support. Those headers are not a public
+benchmark API and are not installed or exposed to other targets.
+
 Catch2 is fetched only for test-enabled builds and pinned to a commit. The project does not use a
 general package manager.
 
