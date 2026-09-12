@@ -1,65 +1,94 @@
 # Roadmap
 
-This roadmap expresses technical order, not dates or commitments. Later stages may change when
-earlier correctness work and experiments reveal better questions.
+This file is the canonical execution queue and completion record. It expresses technical order,
+not dates. Earlier findings may reorder later stages, but changes should preserve explicit
+dependencies and keep one stage marked `next`.
 
-## Current
+## Status meanings
 
-Bootstrap infrastructure and the initial SPSC layout mechanisms are complete:
+- `complete`: implemented, validated, documented, committed, and pushed;
+- `next`: the next locally executable stage;
+- `queued`: ordered future work whose prerequisites are not yet complete;
+- `blocked-external`: ready in principle but requires an unavailable environment or evidence;
+- `deferred`: intentionally outside the active path and reconsidered only after higher-value work.
 
-- C++23 Clang/CMake/Ninja build presets;
-- Catch2 test integration and warning, format, tidy, ASan/UBSan, and TSan paths;
-- portable system summary plus optional Linux current-thread affinity;
-- explicit `handoff-bench` CLI with a non-mechanism smoke workload and CSV plumbing;
-- benchmark, architecture, design-space, and reproducibility conventions;
-- lightweight Linux/macOS CI validation;
-- a fixed-slot bounded SPSC baseline with compile-time exact usable capacity, non-blocking
-  operations, conservative acquire/release publication, and bounded-FIFO correctness coverage;
-- steady-state throughput and ping-pong RTT workloads with warmup, multiple trials, validation,
-  median summaries, CSV output, and optional CPU affinity;
-- planned bounded baseline throughput and ping-pong experiments, with macOS plumbing validation and
-  controlled Linux execution intentionally pending;
-- a cache-line-separated SPSC variant with equivalent correctness coverage and shared benchmark
-  workloads, preserving the basic baseline unchanged;
-- a prepared mechanism-isolation comparison of adjacent versus separated counters, with the full
-  paired matrix smoke-validated on macOS and performance execution pending on controlled Linux.
+## Execution queue
 
-## Near term
+| ID | Status | Stage | Outcome |
+| --- | --- | --- | --- |
+| B0 | complete | Repository bootstrap | Portable C++23 build, tests, tooling, CI, platform skeleton, and project documentation. |
+| S1 | complete | Basic bounded SPSC | Fixed inline slots, exact usable capacity, non-blocking FIFO operations, and conservative publication ordering. |
+| B1 | complete | Baseline SPSC workloads | Shared throughput and ping-pong workloads, trials, summaries, CSV output, and optional affinity. |
+| S2 | complete | Cache-line-separated SPSC | A preserved variant changing only producer/consumer counter placement. |
+| H1 | next | Harness and contract hardening | Split the benchmark executable by direct responsibility; complete metadata, CLI validation, and current payload-contract tests. |
+| S3 | queued | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
+| S4 | queued | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
+| D1 | queued | DPDK-inspired SP/SC | Study separate head reservation and tail publication, fixed-count bulk, best-effort burst, and staged direct access in a small SP/SC mechanism. |
+| Q1 | queued | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
+| Q2 | queued | Disruptor-inspired fan-out | Add independent reliable consumers, slowest-reader gating, and explicit dependency semantics. |
+| R1 | queued | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
+| R2 | queued | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
+| R3 | queued | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
+| F1 | queued | Firedancer-inspired metadata/data handoff | Combine sequence-addressed metadata, chunk-addressed payload, consumer progress, broadcast, and detectable overwrite semantics. |
+| W1 | queued | Load-shape workloads | Add burst, imbalance, temporary-stall, and offered-load latency experiments only as required by implemented mechanisms. |
+| L1 | blocked-external | Controlled Linux measurements | Run pinned same-NUMA comparisons, verify effective affinity, collect host metadata, and use external `perf` where justified. |
+| M1 | deferred | Bounded MPSC | Reconsider after the single-producer mechanism families establish specific multi-producer questions. |
+| M2 | deferred | Multi-producer sequencing | Study selected availability or synchronization ideas only when motivated by MPSC findings. |
+| M3 | deferred | SPMC work sharing and MPMC | Keep distinct from broadcast and attempt only with a concrete research question. |
 
-1. **Controlled Linux comparison**: execute the prepared cache-layout record with confirmed
-   same-NUMA, distinct-core affinity and retain all trial rows before drawing a conditional result.
-2. **Memory-order refinement**: vary ordering only where a written happens-before argument permits.
-3. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
-4. **Batching**: study per-message versus batched publication under controlled workloads.
+The active path is `H1 -> S3 -> S4 -> D1 -> Q1 -> Q2 -> R1 -> R2 -> R3 -> F1 -> W1`.
+`L1` can run when a suitable Linux host is available and does not block portable mechanism work.
+Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
+single-producer broadcast/fan-out.
 
-Each mechanism must have a local note and appropriate correctness tests before comparison.
+## Next stage: H1
 
-## Later
+Goal: make the existing harness and contracts strong enough to add several mechanism families
+without turning the benchmark executable into a framework.
 
-- sequence-based publication, producer cursors, and consumer gating;
-- Disruptor-inspired independent consumers, dependency graphs, and fan-out;
-- fixed header-plus-payload slot layouts;
-- variable record byte rings with alignment, padding records, commit, and contiguous wrap handling;
-- descriptor rings with separate payload storage;
-- Firedancer-inspired metadata/data separation, sequence-addressed metadata, chunk-addressed payload,
-  consumer progress, overrun detection, and explicit lossy broadcast semantics;
-- DPDK-inspired SP/SC head reservation, publication, bulk/burst, and staged
-  reserve/write/finish operations;
-- bounded MPSC and selected multi-producer sequencing or synchronization ideas.
+Required work:
 
-These are simplified educational mechanisms, not compatibility projects.
+- split `apps/handoff-bench/main.cpp` into a few direct-responsibility files for options/dispatch,
+  throughput, ping-pong, and output or metadata where the existing code supports that boundary;
+- retain explicit switch- or table-based dispatch; do not add registries, abstract queue bases,
+  factories, a benchmark DSL, or a general configuration framework;
+- add lightweight result metadata for git revision and dirty state, compiler and version, build
+  mode, CPU model, requested and effective CPU placement, and affinity outcome where available;
+- clarify that `capacity_bytes` describes nominal payload bytes in slots, not the full object
+  footprint, renaming the field only if migration is documented;
+- document and test the current default-constructed, assignment-reused payload lifetime contract;
+- strengthen CLI and CSV integration tests for invalid and incompatible input;
+- keep workload semantics and timed regions unchanged unless a concrete defect requires a focused
+  correction.
 
-## Exploratory
+Non-goals: a new queue mechanism, explicit-lifetime storage, a generic harness architecture,
+performance conclusions, Linux topology discovery, or low-level timer changes.
 
-- SPMC work-sharing variants distinct from broadcast;
-- selected multi-producer availability tracking;
-- MPMC mechanisms after simpler topologies establish useful questions;
-- producer/consumer imbalance, temporary stalls, and offered-load latency;
-- selected reference implementation comparisons added only on demand.
+Validation: Debug and Release tests, ASan/UBSan, practical TSan, clang-format, clang-tidy, benchmark
+smoke runs, CSV inspection, documentation-link checks, complete diff review, push, and required CI.
 
-## Stage completion criteria
+## Direction after H1
 
-A stage is complete when its semantics and non-goals are documented, correctness tests cover the
-relevant common and mechanism-specific invariants, required checks pass, benchmark claims match the
-measurement method, the complete diff is reviewed, and a coherent commit is pushed. Merely compiling
-does not complete a concurrency stage.
+Each mechanism stage follows the same sequence:
+
+1. State semantics, invariants, ownership, memory-order argument, and non-goals in a mechanism note.
+2. Implement the smallest locally understandable mechanism and preserve meaningful baselines.
+3. Pass common and mechanism-specific correctness gates from the testing strategy.
+4. Integrate only the benchmark dimensions needed for the stage and smoke-test the plumbing.
+5. Create a question-led planned experiment; do not claim performance without controlled evidence.
+6. Review, update this queue, commit, push, wait for CI, and continue when the next stage is eligible.
+
+Existing SPSC acquire/release ordering is already the conservative correct baseline. Do not invent a
+weaker `memory-order refinement` variant merely to fill a roadmap item; change ordering only as part
+of a specific mechanism with a written C++ happens-before argument.
+
+DPDK, LMAX Disruptor, and Firedancer remain high-priority inspirations, not ports or compatibility
+targets. Their stages should reproduce named structural ideas while excluding surrounding APIs,
+runtimes, allocators, networking, and platform infrastructure.
+
+## Completion criteria
+
+A stage is complete only when its documented semantics and implementation agree, required
+correctness and quality checks pass, benchmark claims match the measurement method, the complete
+diff contains no accidental scope, one coherent commit is pushed, and required CI is green. A
+conversation may complete several such stages; stage boundaries must remain visible in history.

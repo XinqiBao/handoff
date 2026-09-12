@@ -61,6 +61,7 @@ capacities.
 
 - [Architecture](docs/architecture.md)
 - [Design space](docs/design-space.md)
+- [Testing strategy](docs/testing-strategy.md)
 - [Benchmark methodology](docs/benchmark-methodology.md)
 - [Reproducibility](docs/reproducibility.md)
 - [Roadmap](docs/roadmap.md)

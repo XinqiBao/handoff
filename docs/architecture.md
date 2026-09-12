@@ -30,8 +30,8 @@ process infrastructure is planned.
   adapts directly to the small set of mechanisms under study.
 - **Platform code** exposes only narrow optional capabilities such as system identification and
   current-thread CPU affinity.
-- **Tests** establish common bounded-FIFO invariants and mechanism-specific semantics before a
-  mechanism enters comparisons.
+- **Tests** establish common bounded-FIFO invariants and mechanism-specific semantics according to
+  the [testing strategy](testing-strategy.md) before a mechanism enters comparisons.
 - **Documentation** records intent, exact mechanism semantics, experiment questions, and provenance.
 
 Dependencies should point from executables and tests toward mechanisms and small utilities, never

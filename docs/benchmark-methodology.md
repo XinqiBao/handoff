@@ -66,21 +66,9 @@ mixing queueing latency from an offered-load test into the minimum-ish ping-pong
 
 ## Correctness gates
 
-Common bounded FIFO checks include:
-
-- empty and full behavior;
-- FIFO order, wraparound, and repeated fill/drain;
-- no loss or duplication;
-- long producer/consumer runs with payload integrity checks.
-
-Mechanism-specific checks supplement rather than replace common invariants. Variable record rings
-need length, alignment, exact-boundary, padding, wrap, and almost-full coverage. Broadcast needs
-independent-reader and slow-reader semantics. Lossy designs need sequence-based overrun detection and
-must reject stale data.
-
-Sanitizers and tests support these arguments but do not prove a concurrency algorithm correct.
-ThreadSanitizer limitations should be documented rather than worked around by changing otherwise
-correct semantics solely to satisfy the tool.
+The canonical [testing strategy](testing-strategy.md) defines common invariants, mechanism-specific
+checks, payload contracts, and tool roles. Sanitizers and passing executions support but do not
+prove a concurrency algorithm's memory-model argument.
 
 ## CPU placement
 
