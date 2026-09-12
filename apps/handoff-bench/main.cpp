@@ -134,10 +134,14 @@ bool write_csv(const std::filesystem::path& path, std::uint64_t iterations,
 
   output << "benchmark,implementation,payload_bytes,capacity_slots,capacity_bytes,batch_size,"
             "iterations,trial,elapsed_ns,messages_per_second,latency_ns,checksum\n";
-  output << std::setprecision(17);
   for (const auto& result : results) {
     output << "smoke,harness,,,,," << iterations << ',' << result.trial << ',' << result.elapsed_ns
-           << ',' << result.operations_per_second << ",," << result.checksum << '\n';
+           << ",,," << result.checksum << '\n';
+  }
+  output.flush();
+  if (!output) {
+    std::cerr << "unable to write output file: " << path << '\n';
+    return false;
   }
   return true;
 }

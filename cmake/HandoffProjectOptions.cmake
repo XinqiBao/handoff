@@ -40,6 +40,7 @@ function(handoff_define_project_options)
 endfunction()
 
 function(handoff_configure_target target)
+  set_property(TARGET ${target} PROPERTY CXX_EXTENSIONS OFF)
   target_link_libraries(${target} PRIVATE handoff_project_options handoff_project_warnings)
 
   if(HANDOFF_ENABLE_CLANG_TIDY)
