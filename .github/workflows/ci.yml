@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable:
+    name: Release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes clang ninja-build
+      - name: Show toolchain
+        run: |
+          uname -a
+          clang++ --version
+          cmake --version
+          ninja --version
+      - name: Configure
+        run: cmake --preset release
+      - name: Build
+        run: cmake --build --preset release --parallel 2
+      - name: Test
+        run: ctest --preset release --no-tests=error
+      - name: Benchmark smoke
+        run: |
+          ./build/release/apps/handoff-bench/handoff-bench list
+          ./build/release/apps/handoff-bench/handoff-bench run smoke \
+            --iterations 1000 --warmup 100 --trials 1 \
+            --output "${RUNNER_TEMP}/handoff-smoke.csv"
+          test -s "${RUNNER_TEMP}/handoff-smoke.csv"
+
+  quality:
+    name: Format and clang-tidy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install --yes clang clang-format clang-tidy ninja-build
+      - name: Configure
+        run: cmake --preset tidy
+      - name: Check formatting
+        run: cmake --build --preset tidy --target format-check
+      - name: Run clang-tidy build
+        run: cmake --build --preset tidy --parallel 2
+
+  sanitizers:
+    name: ${{ matrix.preset }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [asan-ubsan, tsan]
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install --yes clang ninja-build
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }} --parallel 2
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }} --no-tests=error
