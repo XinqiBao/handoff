@@ -1,0 +1,61 @@
+# Roadmap
+
+This roadmap expresses technical order, not dates or commitments. Later stages may change when
+earlier correctness work and experiments reveal better questions.
+
+## Current
+
+Bootstrap infrastructure is complete:
+
+- C++23 Clang/CMake/Ninja build presets;
+- Catch2 test integration and warning, format, tidy, ASan/UBSan, and TSan paths;
+- portable system summary plus optional Linux current-thread affinity;
+- explicit `handoff-bench` CLI with a non-mechanism smoke workload and CSV plumbing;
+- benchmark, architecture, design-space, and reproducibility conventions;
+- lightweight Linux/macOS CI validation.
+
+No substantive queue or ring implementation exists.
+
+## Near term
+
+1. **Basic bounded SPSC**: a readable fixed-slot head/tail ring with conservative correct memory
+   ordering and complete bounded-FIFO tests.
+2. **Baseline workloads**: steady-state throughput and ping-pong round-trip latency with explicit
+   phases, warmup, trials, validation, affinity requests, and CSV metadata.
+3. **Cache-aware SPSC**: preserve the baseline and isolate cache-line placement as a separate
+   implementation.
+4. **Memory-order experiments**: vary ordering only where a written happens-before argument permits.
+5. **Cached remote indices**: isolate reduced shared-index reads from layout and ordering changes.
+6. **Batching**: study per-message versus batched publication under controlled workloads.
+
+Each mechanism must have a local note and appropriate correctness tests before comparison.
+
+## Later
+
+- sequence-based publication, producer cursors, and consumer gating;
+- Disruptor-inspired independent consumers, dependency graphs, and fan-out;
+- fixed header-plus-payload slot layouts;
+- variable record byte rings with alignment, padding records, commit, and contiguous wrap handling;
+- descriptor rings with separate payload storage;
+- Firedancer-inspired metadata/data separation, sequence-addressed metadata, chunk-addressed payload,
+  consumer progress, overrun detection, and explicit lossy broadcast semantics;
+- DPDK-inspired SP/SC head reservation, publication, bulk/burst, and staged
+  reserve/write/finish operations;
+- bounded MPSC and selected multi-producer sequencing or synchronization ideas.
+
+These are simplified educational mechanisms, not compatibility projects.
+
+## Exploratory
+
+- SPMC work-sharing variants distinct from broadcast;
+- selected multi-producer availability tracking;
+- MPMC mechanisms after simpler topologies establish useful questions;
+- producer/consumer imbalance, temporary stalls, and offered-load latency;
+- selected reference implementation comparisons added only on demand.
+
+## Stage completion criteria
+
+A stage is complete when its semantics and non-goals are documented, correctness tests cover the
+relevant common and mechanism-specific invariants, required checks pass, benchmark claims match the
+measurement method, the complete diff is reviewed, and a coherent commit is pushed. Merely compiling
+does not complete a concurrency stage.

@@ -1,0 +1,59 @@
+# handoff
+
+`handoff` is a C++ laboratory for studying and benchmarking bounded in-memory message handoff
+mechanisms. It favors small, readable implementations that isolate ownership, publication,
+sequencing, memory layout, batching, backpressure, fan-out, and contention.
+
+This project is for controlled experiments and systems-programming study. It is not a production
+IPC framework, a universal queue library, or an attempt to name one queue as universally fastest.
+
+## Status
+
+The repository currently contains bootstrap infrastructure only: a C++23 build, tests, a small
+platform capability layer, and a benchmark-harness smoke command. No substantive queue or ring
+mechanism is implemented yet. The first implementation stage is a basic bounded SPSC ring.
+
+## Requirements
+
+- Clang with C++23 support
+- CMake 3.28 or newer
+- Ninja
+- Git for fetching the pinned Catch2 test dependency
+- clang-format and clang-tidy for the optional quality checks
+
+Linux is the primary performance-analysis platform. macOS is supported for normal development,
+correctness tests, and benchmark plumbing. Platform-specific capabilities degrade explicitly when
+they are unavailable.
+
+## Build and test
+
+```sh
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug --no-tests=error
+```
+
+The first test-enabled configuration fetches Catch2 at a pinned commit. Release and sanitizer
+presets are documented in [Reproducibility](docs/reproducibility.md).
+
+## Benchmark skeleton
+
+```sh
+./build/debug/apps/handoff-bench/handoff-bench list
+./build/debug/apps/handoff-bench/handoff-bench run smoke \
+  --iterations 1000 --warmup 100 --trials 1
+```
+
+The `smoke` command checks timing, CLI, and result-output plumbing. Its timing is not a handoff
+performance result.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Design space](docs/design-space.md)
+- [Benchmark methodology](docs/benchmark-methodology.md)
+- [Reproducibility](docs/reproducibility.md)
+- [Roadmap](docs/roadmap.md)
+- [Mechanism notes](docs/mechanisms/README.md)
+- [External inspirations](docs/inspirations/README.md)
+- [Experiment records](docs/experiments/README.md)
