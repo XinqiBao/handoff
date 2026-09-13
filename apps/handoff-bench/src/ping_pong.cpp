@@ -22,6 +22,9 @@ namespace {
 
 enum class QueueOperation { push_pop, sequence };
 
+template <typename T, std::size_t Capacity>
+using BenchmarkSequenceRing = sequence::BoundedSequenceRing<T, Capacity>;
+
 struct LatencySummary {
   double median_ns;
   double p95_ns;
@@ -260,7 +263,7 @@ RunResults run_ping_pong(const Options& options) {
   case Implementation::cached_index:
     return dispatch_payload<QueueOperation::push_pop, spsc::CachedIndexBoundedRing>(options);
   case Implementation::sequence:
-    return dispatch_payload<QueueOperation::sequence, sequence::BoundedSequenceRing>(options);
+    return dispatch_payload<QueueOperation::sequence, BenchmarkSequenceRing>(options);
   case Implementation::staged:
     throw std::logic_error("staged implementation is not a ping-pong mode");
   }

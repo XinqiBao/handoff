@@ -25,6 +25,9 @@ namespace {
 
 enum class GroupOperation { scalar, batch, bulk, burst, sequence, staged };
 
+template <typename T, std::size_t Capacity>
+using BenchmarkSequenceRing = sequence::BoundedSequenceRing<T, Capacity>;
+
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void push_messages(Queue& ring, std::uint64_t count) {
   if constexpr (Operation == GroupOperation::sequence) {
@@ -318,7 +321,7 @@ RunResults run_throughput(const Options& options) {
   case Implementation::cached_index:
     return dispatch_payload<GroupOperation::scalar, spsc::CachedIndexBoundedRing>(options);
   case Implementation::sequence:
-    return dispatch_payload<GroupOperation::sequence, sequence::BoundedSequenceRing>(options);
+    return dispatch_payload<GroupOperation::sequence, BenchmarkSequenceRing>(options);
   case Implementation::staged:
     return dispatch_payload<GroupOperation::staged, spsc::StagedBoundedRing>(options);
   }
