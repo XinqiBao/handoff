@@ -2,7 +2,7 @@
 
 This file is the canonical execution queue and completion record. It expresses technical order,
 not dates. Earlier findings may reorder later stages, but changes should preserve explicit
-dependencies and keep one stage marked `next`.
+dependencies and keep one stage marked `next` while locally executable work remains.
 
 Only the unique `next` stage receives a full execution contract below. Queued stages retain a
 one-line outcome and only the acceptance constraints needed to preserve an existing decision. When
@@ -41,7 +41,7 @@ documents and Git.
 | R3 | complete | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
 | F1 | complete | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
 | F2 | complete | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
-| W1 | next | Load-shape workloads | Add burst, imbalance, temporary-stall, and offered-load latency experiments only as required by implemented mechanisms. |
+| W1 | complete | Load-shape workloads | Add one F2 offered-load workload covering unpaced pressure, producer pacing, and temporary observer stalls. |
 | L1 | blocked-external | Controlled Linux measurements | Run pinned same-NUMA comparisons, verify effective affinity, collect host metadata, and use external `perf` where justified. |
 | M1 | deferred | Bounded MPSC | Reconsider after the single-producer mechanism families establish specific multi-producer questions. |
 | M2 | deferred | Multi-producer sequencing | Study selected availability or synchronization ideas only when motivated by MPSC findings. |
@@ -53,43 +53,11 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: W1
+## Active stopping boundary
 
-Goal: add one workload that measures the offered and observed behavior of the lossy
-sequence-addressed payload ring without recasting it as a lossless queue.
-
-Required work:
-
-- add an `offered-load` benchmark command for only the F2 mechanism. Use a fixed publication count
-  and explicit producer pacing interval, with zero meaning no pacing. Keep the consumer continuously
-  observing by caller-owned sequence and resynchronizing to the oldest candidate after an overwrite;
-- add an optional periodic consumer stall expressed as an event interval and stall duration. Zero
-  disables the stall. This single controlled shape covers sustained imbalance, producer bursts when
-  unpaced, and repeatable temporary stalls without introducing a general traffic-script language;
-- report offered, observed, and overwritten publication counts, retry attempts, observed payload
-  bytes, checksum, elapsed observation window, and effective offered/observed rates. Preserve raw
-  trial values and summaries; never substitute offered count for completed observations;
-- define overwrite count as the exact skipped sequence distance selected by the documented
-  resynchronization policy. Ensure every offered publication is accounted as observed or overwritten
-  when a trial ends, including a final drain after the producer stops;
-- extend CLI validation, help/list text, result types, console output, and CSV with fields that are
-  unambiguous for this workload. Keep non-applicable fields empty and preserve existing output
-  contracts. Use deliberate supported payload, capacity, pacing, and stall ranges instead of an
-  unrestricted combinatorial surface;
-- validate deterministic accounting and checksum behavior without timing assertions. Add smoke
-  commands only to exercise synchronization and output plumbing on macOS/Linux and in hosted CI;
-  label every such timing as non-performance evidence;
-- add a question-led planned experiment record that distinguishes no-pacing pressure, producer
-  pacing, and temporary observer stalls. Controlled performance conclusions remain blocked on L1.
-
-Non-goals: changing F2 delivery semantics, hidden backpressure, reliable replay, multiple
-observers in one trial, arbitrary arrival distributions, percentile histograms, scheduler or pause
-instruction tuning, adaptive pacing, platform timers beyond the current portable timing layer,
-deferred multi-producer work, controlled measurements on this host, or performance conclusions.
-
-Validation: mechanism-specific and existing regression tests; Debug and Release tests; ASan/UBSan;
-practical TSan; clang-format; clang-tidy; documentation-link checks; complete diff review; push; and
-required CI.
+The portable single-producer path through W1 is complete. No locally executable stage remains:
+controlled measurements are `blocked-external` on L1, and M1 through M3 remain deliberately
+deferred until a concrete multi-producer research question justifies reopening that path.
 
 ## Direction after Q3
 

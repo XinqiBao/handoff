@@ -52,7 +52,7 @@ Current targets are deliberately small:
   grouped under `spsc`, `sequence`, `record`, and `descriptor`;
 - `handoff-bench`: explicit CLI, smoke plumbing, SPSC throughput and ping-pong workloads, plus
   two-consumer fan-out, fixed two-stage pipeline, fixed-record, variable-record, and split
-  descriptor/payload workloads;
+  descriptor/payload workloads, and one lossy sequence-payload offered-load workload;
 - `handoff_tests`: Catch2-based correctness checks.
 
 Within `handoff-bench`, the application root holds only the process entry point and target build

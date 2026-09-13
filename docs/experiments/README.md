@@ -23,3 +23,4 @@ Do not commit routine smoke timings as experimental evidence.
 - [Generic payload versus fixed record slots](011-fixed-record-comparison.md)
 - [Fixed slots versus a variable-record byte ring](012-variable-record-comparison.md)
 - [Record descriptor and payload separation](013-descriptor-payload-comparison.md)
+- [Lossy sequence-payload behavior under offered load](014-sequence-payload-offered-load.md)

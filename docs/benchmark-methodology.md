@@ -86,7 +86,10 @@ is expected to include, where meaningful:
 ```text
 benchmark, implementation, payload_bytes, capacity_slots, capacity_bytes,
 batch_size, iterations, trial, elapsed_ns, messages_per_second, latency_ns,
-latency_p95_ns, latency_p99_ns, checksum
+latency_p95_ns, latency_p99_ns, checksum, producer_interval_ns,
+consumer_stall_every, consumer_stall_ns, offered_messages, observed_messages,
+overwritten_messages, retry_attempts, observed_payload_bytes,
+offered_messages_per_second, observed_messages_per_second
 ```
 
 Fields that do not apply remain empty rather than receiving misleading sentinel values. Schema
@@ -146,6 +149,27 @@ so CSV populates `capacity_slots` and `capacity_bytes`; neither may be converted
 Supported benchmark pairs are 64 descriptors with 4096 payload bytes and 1024 descriptors with
 65536 payload bytes. The pairing limits the experiment matrix; it does not claim equal effective
 message capacity across payload sizes or storage layouts.
+
+The `sequence-payload` implementation appears only in `offered-load`. `iterations` is the fixed
+number of timed publications offered by the producer. A zero producer interval is unpaced;
+positive intervals place publications on successive absolute `steady_clock` deadlines so scheduler
+delay does not accumulate through repeated relative sleeps. A consumer stall occurs after every N
+successful timed observations and is disabled only when both the interval and duration are zero.
+The same shape applies during untimed warmup, which is fully accounted before the timed phase.
+
+The consumer owns its requested sequence. After `overwritten`, it selects
+`max(requested + 1, available_range.oldest)`, capped just past the phase's final offered sequence,
+and counts the exact selected distance as overwritten. It retries unstable snapshots without
+advancing. After the producer finishes, the observer drains until every timed offer is either
+observed or overwritten, enforcing `offered_messages = observed_messages + overwritten_messages`.
+The checksum covers only payloads actually observed, and `observed_payload_bytes` sums their
+logical lengths.
+
+`elapsed_ns` spans the complete timed observation window, from phase release through final drain.
+Both offered and observed rates use that same denominator. The generic `messages_per_second` and
+all latency fields remain empty because producer publication completion is not separately timed and
+the workload does not collect per-publication latency. Pacing and stall dimensions and all raw
+accounting fields are present only on offered-load rows; they remain empty elsewhere.
 
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,

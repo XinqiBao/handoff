@@ -97,6 +97,30 @@ Descriptor/payload plumbing can be exercised with:
 These are plumbing checks, not performance evidence. Descriptor slots and payload bytes are
 independent native limits even though the benchmark exposes only two deliberate capacity pairs.
 
+Sequence-payload offered-load plumbing can be exercised in three deliberate shapes:
+
+```sh
+# Unpaced pressure
+./build/release/apps/handoff-bench/handoff-bench run offered-load \
+  --implementation sequence-payload --payload-bytes 64 --capacity 1024 \
+  --producer-interval-ns 0 --iterations 1000000 --warmup 10000 --trials 5
+
+# Paced producer
+./build/release/apps/handoff-bench/handoff-bench run offered-load \
+  --implementation sequence-payload --payload-bytes 64 --capacity 1024 \
+  --producer-interval-ns 1000 --iterations 1000000 --warmup 10000 --trials 5
+
+# Periodic observer stalls
+./build/release/apps/handoff-bench/handoff-bench run offered-load \
+  --implementation sequence-payload --payload-bytes 64 --capacity 1024 \
+  --producer-interval-ns 1000 --consumer-stall-every 1024 \
+  --consumer-stall-ns 100000 --iterations 1000000 --warmup 10000 --trials 5
+```
+
+These command shapes are not controlled performance evidence when run on macOS, a development
+host, or a GitHub-hosted runner. Controlled conclusions require the Linux placement and host
+controls described below.
+
 ASan/UBSan and TSan are separate because these runtimes are not combined. TSan availability and
 behavior vary by platform and toolchain; report a concrete limitation rather than weakening a valid
 low-level design to obtain a clean run.

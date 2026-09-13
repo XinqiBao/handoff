@@ -10,7 +10,7 @@
 
 namespace handoff::bench {
 
-enum class Benchmark { smoke, throughput, ping_pong };
+enum class Benchmark { smoke, throughput, ping_pong, offered_load };
 enum class Implementation {
   basic,
   batch,
@@ -24,6 +24,7 @@ enum class Implementation {
   fixed_record,
   pipeline,
   sequence,
+  sequence_payload,
   staged
 };
 
@@ -39,6 +40,9 @@ struct Options {
   std::size_t capacity_slots{1'024};
   std::optional<std::size_t> capacity_bytes;
   std::size_t batch_size{1};
+  std::uint64_t producer_interval_ns{0};
+  std::uint64_t consumer_stall_every{0};
+  std::uint64_t consumer_stall_ns{0};
   std::optional<unsigned int> producer_cpu;
   std::optional<unsigned int> consumer_cpu;
   std::optional<std::filesystem::path> output;
@@ -52,6 +56,13 @@ struct TrialResult {
   std::optional<double> latency_p95_ns;
   std::optional<double> latency_p99_ns;
   std::uint64_t checksum;
+  std::optional<std::uint64_t> offered_messages;
+  std::optional<std::uint64_t> observed_messages;
+  std::optional<std::uint64_t> overwritten_messages;
+  std::optional<std::uint64_t> retry_attempts;
+  std::optional<std::uint64_t> observed_payload_bytes;
+  std::optional<double> offered_messages_per_second;
+  std::optional<double> observed_messages_per_second;
 };
 
 struct PlacementResult {

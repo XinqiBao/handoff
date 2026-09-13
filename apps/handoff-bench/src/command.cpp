@@ -28,6 +28,13 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench list\n"
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
+            "  handoff-bench run offered-load [--implementation sequence-payload] "
+            "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
+            "      [--producer-interval-ns 0..1000000] "
+            "[--consumer-stall-every 0..1000000] "
+            "[--consumer-stall-ns 0..1000000000]\n"
+            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+            "[--consumer-cpu N] [--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
             "[--implementation "
             "basic|batch|bulk|burst|byte-record|cache-line|cached-index|descriptor-record|fan-out|"
@@ -51,7 +58,9 @@ bool is_known_option(std::string_view option) {
   return option == "--iterations" || option == "--warmup" || option == "--trials" ||
          option == "--output" || option == "--implementation" || option == "--payload-bytes" ||
          option == "--capacity" || option == "--capacity-bytes" || option == "--batch-size" ||
-         option == "--producer-cpu" || option == "--consumer-cpu";
+         option == "--producer-cpu" || option == "--consumer-cpu" ||
+         option == "--producer-interval-ns" || option == "--consumer-stall-every" ||
+         option == "--consumer-stall-ns";
 }
 
 bool applies_to_smoke(std::string_view option) {
@@ -62,6 +71,9 @@ bool applies_to_smoke(std::string_view option) {
 std::optional<Options> parse_options(std::span<char*> arguments, Benchmark benchmark,
                                      std::ostream& errors) {
   Options options;
+  if (benchmark == Benchmark::offered_load) {
+    options.implementation = Implementation::sequence_payload;
+  }
   bool slot_capacity_specified = false;
   bool byte_capacity_specified = false;
   for (std::size_t index = 0; index < arguments.size(); ++index) {
@@ -76,6 +88,16 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     }
     if (benchmark == Benchmark::ping_pong && argument == "--batch-size") {
       errors << "option --batch-size does not apply to ping-pong\n";
+      return std::nullopt;
+    }
+    if (benchmark == Benchmark::offered_load && argument == "--batch-size") {
+      errors << "option --batch-size does not apply to offered-load\n";
+      return std::nullopt;
+    }
+    if (benchmark != Benchmark::offered_load &&
+        (argument == "--producer-interval-ns" || argument == "--consumer-stall-every" ||
+         argument == "--consumer-stall-ns")) {
+      errors << "option " << argument << " applies only to offered-load\n";
       return std::nullopt;
     }
     if (index + 1 >= arguments.size()) {
@@ -136,12 +158,14 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::pipeline;
       } else if (value == "sequence") {
         options.implementation = Implementation::sequence;
+      } else if (value == "sequence-payload") {
+        options.implementation = Implementation::sequence_payload;
       } else if (value == "staged") {
         options.implementation = Implementation::staged;
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, byte-record, "
                   "cache-line, cached-index, descriptor-record, fan-out, fixed-record, pipeline, "
-                  "sequence, staged\n";
+                  "sequence, sequence-payload, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -188,9 +212,45 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.consumer_cpu = parsed;
+    } else if (argument == "--producer-interval-ns") {
+      const auto parsed = parse_integer<std::uint64_t>(value);
+      if (!parsed || *parsed > 1'000'000) {
+        errors << "--producer-interval-ns must be in the range 0..1000000\n";
+        return std::nullopt;
+      }
+      options.producer_interval_ns = *parsed;
+    } else if (argument == "--consumer-stall-every") {
+      const auto parsed = parse_integer<std::uint64_t>(value);
+      if (!parsed || *parsed > 1'000'000) {
+        errors << "--consumer-stall-every must be in the range 0..1000000\n";
+        return std::nullopt;
+      }
+      options.consumer_stall_every = *parsed;
+    } else if (argument == "--consumer-stall-ns") {
+      const auto parsed = parse_integer<std::uint64_t>(value);
+      if (!parsed || *parsed > 1'000'000'000) {
+        errors << "--consumer-stall-ns must be in the range 0..1000000000\n";
+        return std::nullopt;
+      }
+      options.consumer_stall_ns = *parsed;
     }
   }
 
+  if (benchmark == Benchmark::offered_load &&
+      options.implementation != Implementation::sequence_payload) {
+    errors << "offered-load requires implementation sequence-payload\n";
+    return std::nullopt;
+  }
+  if (benchmark != Benchmark::offered_load &&
+      options.implementation == Implementation::sequence_payload) {
+    errors << "implementation sequence-payload applies only to offered-load\n";
+    return std::nullopt;
+  }
+  if ((options.consumer_stall_every == 0) != (options.consumer_stall_ns == 0)) {
+    errors << "--consumer-stall-every and --consumer-stall-ns must both be zero or both be "
+              "positive\n";
+    return std::nullopt;
+  }
   if (options.implementation == Implementation::byte_record) {
     if (slot_capacity_specified) {
       errors << "--capacity does not apply to byte-record; use --capacity-bytes\n";
@@ -260,6 +320,13 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     errors << "--iterations plus --warmup exceeds the sequence range\n";
     return std::nullopt;
   }
+  constexpr auto payload_sequence_limit = std::numeric_limits<std::uint64_t>::max() - 1;
+  if (options.implementation == Implementation::sequence_payload &&
+      (options.iterations > payload_sequence_limit ||
+       options.warmup > payload_sequence_limit - options.iterations)) {
+    errors << "--iterations plus --warmup exceeds the sequence-payload range\n";
+    return std::nullopt;
+  }
   return options;
 }
 
@@ -311,6 +378,9 @@ int run_benchmark_command(Benchmark benchmark, std::span<char*> arguments) {
   case Benchmark::ping_pong:
     results = run_ping_pong(*options);
     break;
+  case Benchmark::offered_load:
+    results = run_offered_load(*options);
+    break;
   }
   print_results(benchmark, *options, results, metadata);
   if (options->output && !write_csv(*options->output, benchmark, *options, results, metadata)) {
@@ -332,7 +402,8 @@ int run(int argc, char* argv[]) {
   if (std::string_view(arguments.front()) == "list") {
     std::cout << "smoke\tHarness timing and result-output plumbing check\n"
                  "throughput\tSteady-state completed handoffs\n"
-                 "ping-pong\tSPSC round-trip latency (RTT; RTT/2 is a proxy)\n";
+                 "ping-pong\tSPSC round-trip latency (RTT; RTT/2 is a proxy)\n"
+                 "offered-load\tLossy offered and observed sequence-payload publications\n";
     return 0;
   }
 
@@ -350,6 +421,9 @@ int run(int argc, char* argv[]) {
     }
     if (name == "ping-pong") {
       return run_benchmark_command(Benchmark::ping_pong, arguments.subspan(2));
+    }
+    if (name == "offered-load") {
+      return run_benchmark_command(Benchmark::offered_load, arguments.subspan(2));
     }
     std::cerr << "unknown benchmark: " << name << '\n';
     return 2;

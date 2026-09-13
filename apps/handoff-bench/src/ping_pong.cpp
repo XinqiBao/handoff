@@ -396,6 +396,8 @@ RunResults run_ping_pong(const Options& options) {
     throw std::logic_error("pipeline implementation is not a ping-pong mode");
   case Implementation::sequence:
     return dispatch_payload<QueueOperation::sequence, BenchmarkSequenceRing>(options);
+  case Implementation::sequence_payload:
+    throw std::logic_error("sequence-payload implementation is not a ping-pong mode");
   case Implementation::staged:
     throw std::logic_error("staged implementation is not a ping-pong mode");
   }

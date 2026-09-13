@@ -33,6 +33,9 @@ catch_discover_tests(handoff_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME benchmark.list COMMAND handoff-bench list)
 set_tests_properties(benchmark.list PROPERTIES PASS_REGULAR_EXPRESSION
                                                "throughput.*Steady-state completed handoffs")
+add_test(NAME benchmark.list-offered-load COMMAND handoff-bench list)
+set_tests_properties(benchmark.list-offered-load PROPERTIES PASS_REGULAR_EXPRESSION
+                                                            "offered-load.*Lossy offered and observed")
 add_test(
   NAME benchmark.cli
   COMMAND
@@ -62,6 +65,11 @@ add_test(
   NAME benchmark.ping-pong-smoke
   COMMAND handoff-bench run ping-pong --implementation basic --payload-bytes 8 --capacity 64
           --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.offered-load-smoke
+  COMMAND handoff-bench run offered-load --implementation sequence-payload --payload-bytes 8
+          --capacity 64 --producer-interval-ns 1000 --consumer-stall-every 16
+          --consumer-stall-ns 10000 --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.cache-line-throughput-smoke
   COMMAND handoff-bench run throughput --implementation cache-line --payload-bytes 8 --capacity 64

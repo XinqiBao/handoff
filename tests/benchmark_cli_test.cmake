@@ -21,6 +21,32 @@ expect_failure(2 "unknown option: --unknown" run throughput --unknown)
 expect_failure(2 "option --implementation does not apply to smoke" run smoke --implementation basic)
 expect_failure(2 "option --batch-size does not apply to ping-pong" run ping-pong --batch-size 4)
 expect_failure(
+  2 "option --batch-size does not apply to offered-load" run offered-load --batch-size 4)
+expect_failure(
+  2 "offered-load requires implementation sequence-payload"
+  run offered-load --implementation basic)
+expect_failure(
+  2 "implementation sequence-payload applies only to offered-load"
+  run throughput --implementation sequence-payload)
+expect_failure(
+  2 "option --producer-interval-ns applies only to offered-load"
+  run throughput --producer-interval-ns 1)
+expect_failure(
+  2 "--producer-interval-ns must be in the range 0..1000000"
+  run offered-load --producer-interval-ns 1000001)
+expect_failure(
+  2 "--consumer-stall-every must be in the range 0..1000000"
+  run offered-load --consumer-stall-every 1000001)
+expect_failure(
+  2 "--consumer-stall-ns must be in the range 0..1000000000"
+  run offered-load --consumer-stall-ns 1000000001)
+expect_failure(
+  2 "--consumer-stall-every and --consumer-stall-ns must both be zero or both be positive"
+  run offered-load --consumer-stall-every 1)
+expect_failure(
+  2 "--iterations plus --warmup exceeds the sequence-payload range"
+  run offered-load --iterations 18446744073709551615 --warmup 0)
+expect_failure(
   2
   "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or staged"
   run throughput --implementation cached-index --batch-size 4)

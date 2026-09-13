@@ -34,6 +34,8 @@ std::string_view benchmark_name(Benchmark benchmark) {
     return "throughput";
   case Benchmark::ping_pong:
     return "ping-pong";
+  case Benchmark::offered_load:
+    return "offered-load";
   }
   throw std::logic_error("unknown benchmark");
 }
@@ -64,6 +66,8 @@ std::string_view implementation_name(Implementation implementation) {
     return "pipeline";
   case Implementation::sequence:
     return "sequence";
+  case Implementation::sequence_payload:
+    return "sequence-payload";
   case Implementation::staged:
     return "staged";
   }
@@ -120,6 +124,19 @@ std::size_t required_byte_capacity(const Options& options) {
   return *capacity;
 }
 
+void write_empty_fields(std::ostream& output, std::size_t count) {
+  for (std::size_t index = 0; index < count; ++index) {
+    output << ',';
+  }
+}
+
+template <typename Value>
+void write_optional(std::ostream& output, const std::optional<Value>& value) {
+  if (value) {
+    output << *value;
+  }
+}
+
 } // namespace
 
 bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Options& options,
@@ -166,13 +183,22 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
              << '\n';
     }
   }
+  if (benchmark == Benchmark::offered_load) {
+    output << "# producer_interval_ns=" << options.producer_interval_ns << '\n'
+           << "# consumer_stall_every=" << options.consumer_stall_every << '\n'
+           << "# consumer_stall_ns=" << options.consumer_stall_ns << '\n';
+  }
   output << "benchmark,implementation,payload_bytes,capacity_slots,capacity_bytes,batch_size,"
             "iterations,trial,elapsed_ns,messages_per_second,latency_ns,latency_p95_ns,"
-            "latency_p99_ns,checksum\n";
+            "latency_p99_ns,checksum,producer_interval_ns,consumer_stall_every,consumer_stall_ns,"
+            "offered_messages,observed_messages,overwritten_messages,retry_attempts,"
+            "observed_payload_bytes,offered_messages_per_second,observed_messages_per_second\n";
   for (const auto& result : results.trials) {
     if (benchmark == Benchmark::smoke) {
       output << "smoke,harness,,,,," << options.iterations << ',' << result.trial << ','
-             << result.elapsed_ns << ",,,,," << result.checksum << '\n';
+             << result.elapsed_ns << ",,,,," << result.checksum;
+      write_empty_fields(output, 10);
+      output << '\n';
     } else {
       output << benchmark_name(benchmark) << ',' << implementation_name(options.implementation)
              << ',' << options.payload_bytes << ',';
@@ -207,7 +233,27 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
         }
         output << ',';
       }
-      output << result.checksum << '\n';
+      output << result.checksum;
+      if (benchmark == Benchmark::offered_load) {
+        output << ',' << options.producer_interval_ns << ',' << options.consumer_stall_every << ','
+               << options.consumer_stall_ns << ',';
+        write_optional(output, result.offered_messages);
+        output << ',';
+        write_optional(output, result.observed_messages);
+        output << ',';
+        write_optional(output, result.overwritten_messages);
+        output << ',';
+        write_optional(output, result.retry_attempts);
+        output << ',';
+        write_optional(output, result.observed_payload_bytes);
+        output << ',' << std::fixed << std::setprecision(3);
+        write_optional(output, result.offered_messages_per_second);
+        output << ',';
+        write_optional(output, result.observed_messages_per_second);
+      } else {
+        write_empty_fields(output, 10);
+      }
+      output << '\n';
     }
   }
   output.flush();
@@ -241,6 +287,14 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
       } else if (options.implementation == Implementation::pipeline) {
         std::cout << " / " << pipeline_consumer_count << " stages";
       }
+    } else if (benchmark == Benchmark::offered_load) {
+      std::cout << " / producer interval " << options.producer_interval_ns << " ns";
+      if (options.consumer_stall_every == 0) {
+        std::cout << " / consumer stall disabled";
+      } else {
+        std::cout << " / consumer stall every " << options.consumer_stall_every << " observations"
+                  << " for " << options.consumer_stall_ns << " ns";
+      }
     }
   }
   std::cout << "\nsystem: " << metadata.system.operating_system << ", "
@@ -250,11 +304,33 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
   print_placement("consumer", results.consumer_placement);
 
   std::vector<double> summaries;
+  std::vector<double> observed_summaries;
   summaries.reserve(results.trials.size());
+  observed_summaries.reserve(results.trials.size());
   std::cout << std::fixed;
   for (const auto& result : results.trials) {
     std::cout << "trial " << result.trial << ": " << result.elapsed_ns << " ns, ";
-    if (benchmark == Benchmark::ping_pong) {
+    if (benchmark == Benchmark::offered_load) {
+      std::cout << "offered " << result.offered_messages.value_or(0) << ", observed "
+                << result.observed_messages.value_or(0) << ", overwritten "
+                << result.overwritten_messages.value_or(0) << ", retries "
+                << result.retry_attempts.value_or(0) << ", observed payload bytes "
+                << result.observed_payload_bytes.value_or(0);
+      if (result.offered_messages_per_second) {
+        std::cout << std::setprecision(0) << ", offered " << *result.offered_messages_per_second
+                  << " messages/s";
+        summaries.push_back(*result.offered_messages_per_second);
+      } else {
+        std::cout << ", offered rate unavailable";
+      }
+      if (result.observed_messages_per_second) {
+        std::cout << std::setprecision(0) << ", observed " << *result.observed_messages_per_second
+                  << " messages/s";
+        observed_summaries.push_back(*result.observed_messages_per_second);
+      } else {
+        std::cout << ", observed rate unavailable";
+      }
+    } else if (benchmark == Benchmark::ping_pong) {
       if (result.latency_ns && result.latency_p95_ns && result.latency_p99_ns) {
         std::cout << std::setprecision(3) << *result.latency_ns << " ns median RTT, p95 "
                   << *result.latency_p95_ns << " ns, p99 " << *result.latency_p99_ns << " ns, "
@@ -275,7 +351,22 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
     std::cout << ", checksum " << result.checksum << '\n';
   }
 
-  if (benchmark == Benchmark::ping_pong) {
+  if (benchmark == Benchmark::offered_load) {
+    const auto median_offered_rate = median(std::move(summaries));
+    const auto median_observed_rate = median(std::move(observed_summaries));
+    std::cout << std::setprecision(0) << "median offered rate: ";
+    if (median_offered_rate) {
+      std::cout << *median_offered_rate << " messages/s\n";
+    } else {
+      std::cout << "unavailable\n";
+    }
+    std::cout << "median observed rate: ";
+    if (median_observed_rate) {
+      std::cout << *median_observed_rate << " messages/s\n";
+    } else {
+      std::cout << "unavailable\n";
+    }
+  } else if (benchmark == Benchmark::ping_pong) {
     const auto median_rtt = median(std::move(summaries));
     if (median_rtt) {
       std::cout << std::setprecision(3) << "median of trial medians: " << *median_rtt << " ns RTT, "

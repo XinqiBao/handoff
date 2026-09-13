@@ -3,6 +3,7 @@ add_executable(
   main.cpp
   src/command.cpp
   src/fan_out.cpp
+  src/offered_load.cpp
   src/output.cpp
   src/pipeline.cpp
   src/ping_pong.cpp
