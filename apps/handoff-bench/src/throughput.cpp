@@ -7,6 +7,7 @@
 #include "handoff/spsc/bulk_burst_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
 #include "handoff/spsc/cached_index_bounded_ring.hpp"
+#include "handoff/spsc/staged_bounded_ring.hpp"
 
 #include <array>
 #include <chrono>
@@ -21,37 +22,56 @@
 namespace handoff::bench {
 namespace {
 
-enum class GroupOperation { scalar, batch, bulk, burst };
+enum class GroupOperation { scalar, batch, bulk, burst, staged };
 
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void push_messages(Queue& ring, std::uint64_t count) {
-  std::array<Payload<Bytes>, BatchSize> payloads{};
-  for (std::uint64_t first = 0; first < count; first += BatchSize) {
-    for (std::size_t offset = 0; offset < BatchSize; ++offset) {
-      payloads[offset] = make_payload<Bytes>(first + offset);
+  if constexpr (Operation == GroupOperation::staged) {
+    for (std::uint64_t first = 0; first < count; first += BatchSize) {
+      auto reservation = ring.try_reserve_push(BatchSize);
+      while (!reservation) {
+        std::this_thread::yield();
+        reservation = ring.try_reserve_push(BatchSize);
+      }
+      auto token = std::move(reservation).value();
+      std::size_t offset = 0;
+      for (auto& slot : token.first()) {
+        slot = make_payload<Bytes>(first + offset++);
+      }
+      for (auto& slot : token.second()) {
+        slot = make_payload<Bytes>(first + offset++);
+      }
+      token.finish();
     }
-    if constexpr (Operation == GroupOperation::batch) {
-      while (!ring.try_push_batch(std::span<const Payload<Bytes>>(payloads))) {
-        std::this_thread::yield();
+  } else {
+    std::array<Payload<Bytes>, BatchSize> payloads{};
+    for (std::uint64_t first = 0; first < count; first += BatchSize) {
+      for (std::size_t offset = 0; offset < BatchSize; ++offset) {
+        payloads[offset] = make_payload<Bytes>(first + offset);
       }
-    } else if constexpr (Operation == GroupOperation::bulk) {
-      while (!ring.try_push_bulk(std::span<const Payload<Bytes>>(payloads))) {
-        std::this_thread::yield();
-      }
-    } else if constexpr (Operation == GroupOperation::burst) {
-      std::size_t completed = 0;
-      while (completed < payloads.size()) {
-        const auto pushed =
-            ring.try_push_burst(std::span<const Payload<Bytes>>(payloads).subspan(completed));
-        completed += pushed;
-        if (pushed == 0) {
+      if constexpr (Operation == GroupOperation::batch) {
+        while (!ring.try_push_batch(std::span<const Payload<Bytes>>(payloads))) {
           std::this_thread::yield();
         }
-      }
-    } else {
-      for (const auto& payload : payloads) {
-        while (!ring.try_push(payload)) {
+      } else if constexpr (Operation == GroupOperation::bulk) {
+        while (!ring.try_push_bulk(std::span<const Payload<Bytes>>(payloads))) {
           std::this_thread::yield();
+        }
+      } else if constexpr (Operation == GroupOperation::burst) {
+        std::size_t completed = 0;
+        while (completed < payloads.size()) {
+          const auto pushed =
+              ring.try_push_burst(std::span<const Payload<Bytes>>(payloads).subspan(completed));
+          completed += pushed;
+          if (pushed == 0) {
+            std::this_thread::yield();
+          }
+        }
+      } else {
+        for (const auto& payload : payloads) {
+          while (!ring.try_push(payload)) {
+            std::this_thread::yield();
+          }
         }
       }
     }
@@ -61,36 +81,59 @@ void push_messages(Queue& ring, std::uint64_t count) {
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
                   std::atomic<bool>& valid) {
-  std::array<Payload<Bytes>, BatchSize> payloads{};
-  for (std::uint64_t first = 0; first < count; first += BatchSize) {
-    if constexpr (Operation == GroupOperation::batch) {
-      while (!ring.try_pop_batch(std::span<Payload<Bytes>>(payloads))) {
+  if constexpr (Operation == GroupOperation::staged) {
+    for (std::uint64_t first = 0; first < count; first += BatchSize) {
+      auto reservation = ring.try_reserve_pop(BatchSize);
+      while (!reservation) {
         std::this_thread::yield();
+        reservation = ring.try_reserve_pop(BatchSize);
       }
-    } else if constexpr (Operation == GroupOperation::bulk) {
-      while (!ring.try_pop_bulk(std::span<Payload<Bytes>>(payloads))) {
-        std::this_thread::yield();
-      }
-    } else if constexpr (Operation == GroupOperation::burst) {
-      std::size_t completed = 0;
-      while (completed < payloads.size()) {
-        const auto popped =
-            ring.try_pop_burst(std::span<Payload<Bytes>>(payloads).subspan(completed));
-        completed += popped;
-        if (popped == 0) {
-          std::this_thread::yield();
+      auto token = std::move(reservation).value();
+      std::size_t offset = 0;
+      for (const auto& payload : token.first()) {
+        if (!observe_payload(payload, first + offset++, checksum)) {
+          valid.store(false, std::memory_order_relaxed);
         }
       }
-    } else {
-      for (auto& payload : payloads) {
-        while (!ring.try_pop(payload)) {
-          std::this_thread::yield();
+      for (const auto& payload : token.second()) {
+        if (!observe_payload(payload, first + offset++, checksum)) {
+          valid.store(false, std::memory_order_relaxed);
         }
       }
+      token.finish();
     }
-    for (std::size_t offset = 0; offset < BatchSize; ++offset) {
-      if (!observe_payload(payloads[offset], first + offset, checksum)) {
-        valid.store(false, std::memory_order_relaxed);
+  } else {
+    std::array<Payload<Bytes>, BatchSize> payloads{};
+    for (std::uint64_t first = 0; first < count; first += BatchSize) {
+      if constexpr (Operation == GroupOperation::batch) {
+        while (!ring.try_pop_batch(std::span<Payload<Bytes>>(payloads))) {
+          std::this_thread::yield();
+        }
+      } else if constexpr (Operation == GroupOperation::bulk) {
+        while (!ring.try_pop_bulk(std::span<Payload<Bytes>>(payloads))) {
+          std::this_thread::yield();
+        }
+      } else if constexpr (Operation == GroupOperation::burst) {
+        std::size_t completed = 0;
+        while (completed < payloads.size()) {
+          const auto popped =
+              ring.try_pop_burst(std::span<Payload<Bytes>>(payloads).subspan(completed));
+          completed += popped;
+          if (popped == 0) {
+            std::this_thread::yield();
+          }
+        }
+      } else {
+        for (auto& payload : payloads) {
+          while (!ring.try_pop(payload)) {
+            std::this_thread::yield();
+          }
+        }
+      }
+      for (std::size_t offset = 0; offset < BatchSize; ++offset) {
+        if (!observe_payload(payloads[offset], first + offset, checksum)) {
+          valid.store(false, std::memory_order_relaxed);
+        }
       }
     }
   }
@@ -249,6 +292,8 @@ RunResults run_throughput(const Options& options) {
     return dispatch_payload<GroupOperation::scalar, spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:
     return dispatch_payload<GroupOperation::scalar, spsc::CachedIndexBoundedRing>(options);
+  case Implementation::staged:
+    return dispatch_payload<GroupOperation::staged, spsc::StagedBoundedRing>(options);
   }
   throw std::logic_error("unknown implementation");
 }

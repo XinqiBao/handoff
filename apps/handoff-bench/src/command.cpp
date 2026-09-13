@@ -28,7 +28,7 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation basic|batch|bulk|burst|cache-line|cached-index] "
+            "[--implementation basic|batch|bulk|burst|cache-line|cached-index|staged] "
             "[--payload-bytes 8|64|256] [--capacity 64|1024] [--batch-size 1|4|16]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
@@ -118,9 +118,11 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::cache_line;
       } else if (value == "cached-index") {
         options.implementation = Implementation::cached_index;
+      } else if (value == "staged") {
+        options.implementation = Implementation::staged;
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, cache-line, "
-                  "cached-index\n";
+                  "cached-index, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -170,13 +172,16 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       options.implementation != Implementation::basic &&
       options.implementation != Implementation::batch &&
       options.implementation != Implementation::bulk &&
-      options.implementation != Implementation::burst) {
-    errors << "--batch-size greater than 1 requires implementation basic, batch, bulk, or burst\n";
+      options.implementation != Implementation::burst &&
+      options.implementation != Implementation::staged) {
+    errors << "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or "
+              "staged\n";
     return std::nullopt;
   }
   if (benchmark == Benchmark::ping_pong && (options.implementation == Implementation::bulk ||
-                                            options.implementation == Implementation::burst)) {
-    errors << "implementation bulk and burst apply only to throughput\n";
+                                            options.implementation == Implementation::burst ||
+                                            options.implementation == Implementation::staged)) {
+    errors << "implementations bulk, burst, and staged apply only to throughput\n";
     return std::nullopt;
   }
   if (benchmark == Benchmark::throughput &&

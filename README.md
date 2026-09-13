@@ -10,9 +10,9 @@ IPC framework, a universal queue library, or an attempt to name one queue as uni
 ## Status
 
 The repository contains a readable fixed-slot bounded SPSC baseline, cache-line-separated,
-cached-remote-index, all-or-nothing batch, and bulk/burst progress variants, equivalent correctness
-tests, steady-state throughput and ping-pong round-trip latency workloads, a C++23 build, and a
-small platform capability layer.
+cached-remote-index, all-or-nothing batch, bulk/burst progress, and staged direct-slot variants,
+equivalent correctness tests, steady-state throughput and ping-pong round-trip latency workloads, a
+C++23 build, and a small platform capability layer.
 
 ## Requirements
 
@@ -55,9 +55,10 @@ The `smoke` command checks timing, CLI, and result-output plumbing. Its timing i
 performance result.
 
 The SPSC commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output` arguments.
-Select `--implementation basic|batch|bulk|burst|cache-line|cached-index`; throughput also supports
-`--batch-size 1|4|16` for the `basic`, `batch`, `bulk`, and `burst` implementations. `bulk` and
-`burst` apply only to throughput. Run `handoff-bench help` for the complete option contract.
+Select `--implementation basic|batch|bulk|burst|cache-line|cached-index|staged`; throughput also
+supports `--batch-size 1|4|16` for the `basic`, `batch`, `bulk`, `burst`, and `staged`
+implementations. `bulk`, `burst`, and `staged` apply only to throughput. Run `handoff-bench help` for
+the complete option contract.
 
 ## Documentation
 

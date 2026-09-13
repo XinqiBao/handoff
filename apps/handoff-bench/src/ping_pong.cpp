@@ -221,6 +221,8 @@ RunResults run_ping_pong(const Options& options) {
     return dispatch_payload<spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:
     return dispatch_payload<spsc::CachedIndexBoundedRing>(options);
+  case Implementation::staged:
+    throw std::logic_error("staged implementation is not a ping-pong mode");
   }
   throw std::logic_error("unknown implementation");
 }

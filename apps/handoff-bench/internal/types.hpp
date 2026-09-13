@@ -11,7 +11,7 @@
 namespace handoff::bench {
 
 enum class Benchmark { smoke, throughput, ping_pong };
-enum class Implementation { basic, batch, bulk, burst, cache_line, cached_index };
+enum class Implementation { basic, batch, bulk, burst, cache_line, cached_index, staged };
 
 struct Options {
   std::uint64_t iterations{1'000'000};

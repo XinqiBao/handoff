@@ -32,8 +32,8 @@ documents and Git.
 | S3 | complete | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
 | S4 | complete | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
 | D1 | complete | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
-| D2 | next | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
-| Q1 | queued | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
+| D2 | complete | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
+| Q1 | next | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
 | Q2 | queued | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
 | Q3 | queued | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
 | R1 | queued | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
@@ -53,47 +53,44 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: D2
+## Next stage: Q1
 
-Goal: preserve a distinct fixed-slot SP/SC variant that separates storage reservation from counter
-publication and release through a small staged API, including an explicit two-span representation at
-physical wrap.
+Goal: establish the smallest sequence-addressed single-producer/single-consumer baseline that
+separates claim, slot population, publication cursor, observation, and consumer gating progress.
 
 Required work:
 
-- document exact usable capacity, single-producer/single-consumer ownership, default-constructed
-  slot lifetime, exclusive outstanding reservations, wrap spans, cancellation, and publication
-  ordering before implementation;
-- preserve earlier rings unchanged and add a mechanism-named staged ring without DPDK API, ABI,
-  EAL, mbuf, hugepage, allocator, synchronization-mode, or zero-copy compatibility claims;
-- make producer reservation all-or-nothing for a requested positive count no larger than capacity,
-  returning writable first/second spans whose combined size is exact, and make consumer reservation
-  return read-only first/second spans only when that complete count is published;
-- require each reservation to be explicitly finished or cancelled before its owner can reserve
-  again; finish advances and release-publishes the exact reserved count once, while cancellation
-  advances no shared counter and leaves producer-written but unpublished slot values unobservable;
-- require the ring to outlive its reservation objects; make each token non-copyable and
-  automatically cancel on destruction or move replacement; do not add partial finish, nested
-  reservations, scalar queue operations, or supported cross-thread reservation transfer;
-- cover empty, full, zero, oversized, insufficient, exact-boundary, wrapped, cancellation, move-only
-  token, resource-owning slot, and long concurrent integrity behavior, including visibility only
-  after producer finish and reuse only after consumer finish;
-- integrate one staged throughput mode that writes and reads through both spans with the same
-  requested groups, completed message count, payload work, validation, and CSV meaning as the bulk
-  comparison; keep ping-pong excluded;
-- add a question-led planned experiment with DPDK provenance and no direct-storage or performance
-  conclusion without controlled Linux evidence.
+- add a `sequence` mechanism family and document exact capacity, default-constructed slot lifetime,
+  one-based monotonic sequence numbering, one producer, one consumer, and the finite sequence limit;
+- keep producer-owned next-to-claim state distinct from an atomic producer cursor containing the
+  highest contiguous published sequence, and keep consumer-owned next-to-observe state distinct
+  from an atomic gating sequence containing the highest fully released sequence;
+- expose one move-only producer claim at a time with mutable access to the claimed slot and explicit
+  publish or cancel, and one move-only consumer observation at a time with const access plus explicit
+  release or cancel; require the mechanism to outlive tokens and reject nested claims/observations;
+- prevent a producer claim when advancing would exceed the consumer gating sequence by more than
+  exact capacity, expose a sequence to the consumer only after the producer cursor reaches it, and
+  prevent slot reuse until consumer release advances gating;
+- use a written C++ acquire/release happens-before argument; do not translate Java memory semantics
+  mechanically, add per-slot availability state, or weaken ordering in this baseline;
+- cover initial cursor values, empty/full, claim cancellation and retry of the same sequence,
+  publish visibility, release gating, slot wrap, move-only tokens, resource retention, near-limit
+  rejection, and long concurrent sequence/payload integrity;
+- integrate sequence throughput and scalar ping-pong modes with equivalent payload generation,
+  observation, completion counts, checksums, waiting behavior, and CSV semantics;
+- add a question-led planned experiment with LMAX Disruptor provenance and no performance conclusion
+  without controlled Linux evidence.
 
-Non-goals: DPDK compatibility, multi-producer or multi-consumer synchronization, partial or
-best-effort reservations, multiple outstanding reservations per side, cached indices, cache-line
-separation, weaker memory ordering, arbitrary object lifetime management, performance measurements,
-or performance conclusions.
+Non-goals: LMAX API or Java compatibility, event factories, barriers, handler DSLs, multiple
+producers, multiple consumers, independent readers, dependency graphs, per-slot publication
+tracking, batch claims, alternate waiting strategies, performance measurements, or performance
+conclusions.
 
 Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
 plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;
 documentation-link checks; complete diff review; push; and required CI.
 
-## Direction after D2
+## Direction after Q1
 
 Each mechanism stage follows the same sequence:
 
