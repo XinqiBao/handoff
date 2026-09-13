@@ -8,6 +8,7 @@ This directory documents mechanisms implemented by `handoff`.
 - [Batch bounded SPSC ring](batch-bounded-spsc.md)
 - [Bulk/burst bounded SPSC ring](bulk-burst-bounded-spsc.md)
 - [Staged bounded SPSC ring](staged-bounded-spsc.md)
+- [Bounded sequence ring](bounded-sequence-ring.md)
 
 Each future note should state:
 

@@ -13,6 +13,7 @@ add_executable(
   bounded_spsc_test.cpp
   bulk_burst_spsc_test.cpp
   core_test.cpp
+  sequence_ring_test.cpp
   staged_spsc_test.cpp)
 target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
 target_link_libraries(handoff_tests PRIVATE handoff::core Catch2::Catch2WithMain)
@@ -67,6 +68,14 @@ add_test(
 add_test(
   NAME benchmark.cached-index-ping-pong-smoke
   COMMAND handoff-bench run ping-pong --implementation cached-index --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.sequence-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation sequence --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.sequence-ping-pong-smoke
+  COMMAND handoff-bench run ping-pong --implementation sequence --payload-bytes 8 --capacity 64
           --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.basic-batch-throughput-smoke

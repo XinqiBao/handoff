@@ -105,6 +105,12 @@ ring spans, and explicitly finishes once per side. Iterations and warmup must be
 selected batch size. Ping-pong leaves the field empty because it remains a scalar request/response
 exchange.
 
+The `sequence` implementation remains scalar in both workloads. Throughput generates into a
+one-element claim and observes through a const token before release. Ping-pong transfers local
+request and response values through one claim and observation at a time. Its completed counts,
+payload validation, phase boundaries, yield waiting, and CSV fields have the same meaning as the
+other scalar implementations.
+
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,
 the corresponding rate is unavailable and remains empty rather than being synthesized from a

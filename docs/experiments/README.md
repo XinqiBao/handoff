@@ -17,3 +17,4 @@ Do not commit routine smoke timings as experimental evidence.
 - [Basic scalar versus all-or-nothing batch SPSC](005-batch-spsc-comparison.md)
 - [Fixed bulk versus best-effort burst SPSC](006-bulk-burst-spsc-comparison.md)
 - [Bulk versus staged direct-slot SPSC](007-staged-spsc-comparison.md)
+- [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)

@@ -26,6 +26,10 @@ expect_failure(
   run throughput --implementation cached-index --batch-size 4)
 expect_failure(
   2
+  "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or staged"
+  run throughput --implementation sequence --batch-size 4)
+expect_failure(
+  2
   "implementations bulk, burst, and staged apply only to throughput"
   run ping-pong --implementation bulk)
 expect_failure(
@@ -40,6 +44,10 @@ expect_failure(
   2
   "--iterations and --warmup must be divisible by --batch-size"
   run throughput --implementation batch --batch-size 4 --iterations 10 --warmup 4)
+expect_failure(
+  2
+  "--iterations plus --warmup exceeds the sequence range"
+  run throughput --implementation sequence --iterations 18446744073709551615 --warmup 1)
 expect_failure(
   2
   "producer and consumer CPUs must be different"

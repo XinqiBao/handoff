@@ -1,6 +1,7 @@
 #include "workload_support.hpp"
 #include "workloads.hpp"
 
+#include "handoff/sequence/bounded_sequence_ring.hpp"
 #include "handoff/spsc/basic_bounded_ring.hpp"
 #include "handoff/spsc/batch_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
@@ -18,6 +19,8 @@
 
 namespace handoff::bench {
 namespace {
+
+enum class QueueOperation { push_pop, sequence };
 
 struct LatencySummary {
   double median_ns;
@@ -39,7 +42,40 @@ LatencySummary summarize_latency(std::vector<std::int64_t> samples) {
           .p99_ns = static_cast<double>(samples[p99_index])};
 }
 
-template <template <typename, std::size_t> typename Ring, std::size_t Bytes, std::size_t Capacity>
+template <QueueOperation Operation, typename Queue>
+bool try_send(Queue& queue, const typename Queue::value_type& value) {
+  if constexpr (Operation == QueueOperation::sequence) {
+    auto claim = queue.try_claim();
+    if (!claim) {
+      return false;
+    }
+    auto token = std::move(claim).value();
+    token.value() = value;
+    token.publish();
+    return true;
+  } else {
+    return queue.try_push(value);
+  }
+}
+
+template <QueueOperation Operation, typename Queue>
+bool try_receive(Queue& queue, typename Queue::value_type& value) {
+  if constexpr (Operation == QueueOperation::sequence) {
+    auto observation = queue.try_observe();
+    if (!observation) {
+      return false;
+    }
+    auto token = std::move(observation).value();
+    value = token.value();
+    token.release();
+    return true;
+  } else {
+    return queue.try_pop(value);
+  }
+}
+
+template <QueueOperation Operation, template <typename, std::size_t> typename Ring,
+          std::size_t Bytes, std::size_t Capacity>
 TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
                                 PlacementResult& producer_placement,
                                 PlacementResult& consumer_placement) {
@@ -63,10 +99,10 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
     std::uint64_t warmup_checksum = 0;
     for (std::uint64_t sequence = 0; sequence < options.warmup; ++sequence) {
       auto request = make_payload<Bytes>(sequence);
-      while (!requests.try_push(request)) {
+      while (!try_send<Operation>(requests, request)) {
         std::this_thread::yield();
       }
-      while (!responses.try_pop(response)) {
+      while (!try_receive<Operation>(responses, response)) {
         std::this_thread::yield();
       }
       if (!observe_payload(response, sequence, warmup_checksum)) {
@@ -81,10 +117,10 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
     for (std::uint64_t sequence = 0; sequence < options.iterations; ++sequence) {
       auto request = make_payload<Bytes>(sequence);
       const auto sample_start = Clock::now();
-      while (!requests.try_push(request)) {
+      while (!try_send<Operation>(requests, request)) {
         std::this_thread::yield();
       }
-      while (!responses.try_pop(response)) {
+      while (!try_receive<Operation>(responses, response)) {
         std::this_thread::yield();
       }
       const auto sample_stop = Clock::now();
@@ -108,13 +144,13 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
     Payload<Bytes> request;
     std::uint64_t ignored_checksum = 0;
     for (std::uint64_t sequence = 0; sequence < options.warmup; ++sequence) {
-      while (!requests.try_pop(request)) {
+      while (!try_receive<Operation>(requests, request)) {
         std::this_thread::yield();
       }
       if (!observe_payload(request, sequence, ignored_checksum)) {
         control.valid.store(false, std::memory_order_relaxed);
       }
-      while (!responses.try_push(request)) {
+      while (!try_send<Operation>(responses, request)) {
         std::this_thread::yield();
       }
     }
@@ -124,13 +160,13 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
     }
 
     for (std::uint64_t sequence = 0; sequence < options.iterations; ++sequence) {
-      while (!requests.try_pop(request)) {
+      while (!try_receive<Operation>(requests, request)) {
         std::this_thread::yield();
       }
       if (!observe_payload(request, sequence, ignored_checksum)) {
         control.valid.store(false, std::memory_order_relaxed);
       }
-      while (!responses.try_push(request)) {
+      while (!try_send<Operation>(responses, request)) {
         std::this_thread::yield();
       }
     }
@@ -162,15 +198,16 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
           .checksum = checksum};
 }
 
-template <template <typename, std::size_t> typename Ring, std::size_t Bytes, std::size_t Capacity>
+template <QueueOperation Operation, template <typename, std::size_t> typename Ring,
+          std::size_t Bytes, std::size_t Capacity>
 RunResults run_spsc(const Options& options) {
   RunResults results;
   results.trials.reserve(options.trials);
   for (unsigned int trial = 1; trial <= options.trials; ++trial) {
     PlacementResult producer_placement;
     PlacementResult consumer_placement;
-    auto result = run_ping_pong_trial<Ring, Bytes, Capacity>(options, trial, producer_placement,
-                                                             consumer_placement);
+    auto result = run_ping_pong_trial<Operation, Ring, Bytes, Capacity>(
+        options, trial, producer_placement, consumer_placement);
     if (trial == 1) {
       results.producer_placement = std::move(producer_placement);
       results.consumer_placement = std::move(consumer_placement);
@@ -180,27 +217,28 @@ RunResults run_spsc(const Options& options) {
   return results;
 }
 
-template <template <typename, std::size_t> typename Ring, std::size_t Bytes>
+template <QueueOperation Operation, template <typename, std::size_t> typename Ring,
+          std::size_t Bytes>
 RunResults dispatch_capacity(const Options& options) {
   switch (options.capacity_slots) {
   case 64:
-    return run_spsc<Ring, Bytes, 64>(options);
+    return run_spsc<Operation, Ring, Bytes, 64>(options);
   case 1'024:
-    return run_spsc<Ring, Bytes, 1'024>(options);
+    return run_spsc<Operation, Ring, Bytes, 1'024>(options);
   default:
     throw std::logic_error("validated capacity was not dispatched");
   }
 }
 
-template <template <typename, std::size_t> typename Ring>
+template <QueueOperation Operation, template <typename, std::size_t> typename Ring>
 RunResults dispatch_payload(const Options& options) {
   switch (options.payload_bytes) {
   case 8:
-    return dispatch_capacity<Ring, 8>(options);
+    return dispatch_capacity<Operation, Ring, 8>(options);
   case 64:
-    return dispatch_capacity<Ring, 64>(options);
+    return dispatch_capacity<Operation, Ring, 64>(options);
   case 256:
-    return dispatch_capacity<Ring, 256>(options);
+    return dispatch_capacity<Operation, Ring, 256>(options);
   default:
     throw std::logic_error("validated payload size was not dispatched");
   }
@@ -211,16 +249,18 @@ RunResults dispatch_payload(const Options& options) {
 RunResults run_ping_pong(const Options& options) {
   switch (options.implementation) {
   case Implementation::basic:
-    return dispatch_payload<spsc::BasicBoundedRing>(options);
+    return dispatch_payload<QueueOperation::push_pop, spsc::BasicBoundedRing>(options);
   case Implementation::batch:
-    return dispatch_payload<spsc::BatchBoundedRing>(options);
+    return dispatch_payload<QueueOperation::push_pop, spsc::BatchBoundedRing>(options);
   case Implementation::bulk:
   case Implementation::burst:
     throw std::logic_error("bulk and burst implementations are not ping-pong modes");
   case Implementation::cache_line:
-    return dispatch_payload<spsc::CacheLineBoundedRing>(options);
+    return dispatch_payload<QueueOperation::push_pop, spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:
-    return dispatch_payload<spsc::CachedIndexBoundedRing>(options);
+    return dispatch_payload<QueueOperation::push_pop, spsc::CachedIndexBoundedRing>(options);
+  case Implementation::sequence:
+    return dispatch_payload<QueueOperation::sequence, sequence::BoundedSequenceRing>(options);
   case Implementation::staged:
     throw std::logic_error("staged implementation is not a ping-pong mode");
   }

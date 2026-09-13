@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -28,7 +29,7 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation basic|batch|bulk|burst|cache-line|cached-index|staged] "
+            "[--implementation basic|batch|bulk|burst|cache-line|cached-index|sequence|staged] "
             "[--payload-bytes 8|64|256] [--capacity 64|1024] [--batch-size 1|4|16]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
@@ -118,11 +119,13 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::cache_line;
       } else if (value == "cached-index") {
         options.implementation = Implementation::cached_index;
+      } else if (value == "sequence") {
+        options.implementation = Implementation::sequence;
       } else if (value == "staged") {
         options.implementation = Implementation::staged;
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, cache-line, "
-                  "cached-index, staged\n";
+                  "cached-index, sequence, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -187,6 +190,11 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
   if (benchmark == Benchmark::throughput &&
       (options.iterations % options.batch_size != 0 || options.warmup % options.batch_size != 0)) {
     errors << "--iterations and --warmup must be divisible by --batch-size\n";
+    return std::nullopt;
+  }
+  if (options.implementation == Implementation::sequence &&
+      options.warmup > std::numeric_limits<std::uint64_t>::max() - options.iterations) {
+    errors << "--iterations plus --warmup exceeds the sequence range\n";
     return std::nullopt;
   }
   return options;

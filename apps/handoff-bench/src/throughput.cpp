@@ -2,6 +2,7 @@
 #include "workload_support.hpp"
 #include "workloads.hpp"
 
+#include "handoff/sequence/bounded_sequence_ring.hpp"
 #include "handoff/spsc/basic_bounded_ring.hpp"
 #include "handoff/spsc/batch_bounded_ring.hpp"
 #include "handoff/spsc/bulk_burst_bounded_ring.hpp"
@@ -22,11 +23,22 @@
 namespace handoff::bench {
 namespace {
 
-enum class GroupOperation { scalar, batch, bulk, burst, staged };
+enum class GroupOperation { scalar, batch, bulk, burst, sequence, staged };
 
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void push_messages(Queue& ring, std::uint64_t count) {
-  if constexpr (Operation == GroupOperation::staged) {
+  if constexpr (Operation == GroupOperation::sequence) {
+    for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
+      auto claim = ring.try_claim();
+      while (!claim) {
+        std::this_thread::yield();
+        claim = ring.try_claim();
+      }
+      auto token = std::move(claim).value();
+      token.value() = make_payload<Bytes>(sequence);
+      token.publish();
+    }
+  } else if constexpr (Operation == GroupOperation::staged) {
     for (std::uint64_t first = 0; first < count; first += BatchSize) {
       auto reservation = ring.try_reserve_push(BatchSize);
       while (!reservation) {
@@ -81,7 +93,20 @@ void push_messages(Queue& ring, std::uint64_t count) {
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
                   std::atomic<bool>& valid) {
-  if constexpr (Operation == GroupOperation::staged) {
+  if constexpr (Operation == GroupOperation::sequence) {
+    for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
+      auto observation = ring.try_observe();
+      while (!observation) {
+        std::this_thread::yield();
+        observation = ring.try_observe();
+      }
+      auto token = std::move(observation).value();
+      if (!observe_payload(token.value(), sequence, checksum)) {
+        valid.store(false, std::memory_order_relaxed);
+      }
+      token.release();
+    }
+  } else if constexpr (Operation == GroupOperation::staged) {
     for (std::uint64_t first = 0; first < count; first += BatchSize) {
       auto reservation = ring.try_reserve_pop(BatchSize);
       while (!reservation) {
@@ -292,6 +317,8 @@ RunResults run_throughput(const Options& options) {
     return dispatch_payload<GroupOperation::scalar, spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:
     return dispatch_payload<GroupOperation::scalar, spsc::CachedIndexBoundedRing>(options);
+  case Implementation::sequence:
+    return dispatch_payload<GroupOperation::sequence, sequence::BoundedSequenceRing>(options);
   case Implementation::staged:
     return dispatch_payload<GroupOperation::staged, spsc::StagedBoundedRing>(options);
   }

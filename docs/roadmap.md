@@ -33,8 +33,8 @@ documents and Git.
 | S4 | complete | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
 | D1 | complete | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
 | D2 | complete | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
-| Q1 | next | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
-| Q2 | queued | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
+| Q1 | complete | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
+| Q2 | next | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
 | Q3 | queued | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
 | R1 | queued | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
 | R2 | queued | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
@@ -53,44 +53,48 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: Q1
+## Next stage: Q2
 
-Goal: establish the smallest sequence-addressed single-producer/single-consumer baseline that
-separates claim, slot population, publication cursor, observation, and consumer gating progress.
+Goal: extend sequence-addressed publication to a fixed set of independent reliable consumers, each
+of which observes every sequence, while producer reuse is gated by the slowest consumer.
 
 Required work:
 
-- add a `sequence` mechanism family and document exact capacity, default-constructed slot lifetime,
-  one-based monotonic sequence numbering, one producer, one consumer, and the finite sequence limit;
-- keep producer-owned next-to-claim state distinct from an atomic producer cursor containing the
-  highest contiguous published sequence, and keep consumer-owned next-to-observe state distinct
-  from an atomic gating sequence containing the highest fully released sequence;
-- expose one move-only producer claim at a time with mutable access to the claimed slot and explicit
-  publish or cancel, and one move-only consumer observation at a time with const access plus explicit
-  release or cancel; require the mechanism to outlive tokens and reject nested claims/observations;
-- prevent a producer claim when advancing would exceed the consumer gating sequence by more than
-  exact capacity, expose a sequence to the consumer only after the producer cursor reaches it, and
-  prevent slot reuse until consumer release advances gating;
-- use a written C++ acquire/release happens-before argument; do not translate Java memory semantics
-  mechanically, add per-slot availability state, or weaken ordering in this baseline;
-- cover initial cursor values, empty/full, claim cancellation and retry of the same sequence,
-  publish visibility, release gating, slot wrap, move-only tokens, resource retention, near-limit
-  rejection, and long concurrent sequence/payload integrity;
-- integrate sequence throughput and scalar ping-pong modes with equivalent payload generation,
-  observation, completion counts, checksums, waiting behavior, and CSV semantics;
+- add a distinct sequence fan-out mechanism with one producer and a fixed compile-time consumer
+  count of at least two; keep Q1 unchanged and preserve one-based finite sequence semantics, exact
+  capacity, default-constructed slots, and explicit claim/populate/publish behavior;
+- give each consumer an explicit stable index, owner-local next-to-observe state, atomic gating
+  sequence, and at most one move-only observation token; reject invalid consumer indices and nested
+  observations without introducing dynamic registration or reader lifecycle management;
+- expose each published sequence to every consumer in FIFO order and prevent producer reuse until
+  the minimum gating sequence across all consumers permits it; a fast consumer must not hide a slow
+  consumer or make unread data reusable;
+- retain producer claim cancellation and per-consumer observation cancellation semantics; require
+  the ring to outlive all tokens and keep producer and each indexed consumer confined to their
+  declared owner thread;
+- write the C++ acquire/release argument for producer publication, each consumer observation, every
+  consumer release, and the producer's scan of gating sequences; do not add barriers, dependencies,
+  per-slot availability, overwrite, reader removal, or alternate waiting strategies;
+- cover initial state, invalid indices, independent progress, all-consumer delivery, slowest-reader
+  backpressure, fast-reader wrap attempts, cancellation isolation, exact capacity, slot wrap,
+  move-only tokens, finite-limit rejection, resource retention, and long concurrent integrity with
+  at least two consumers moving at different rates;
+- add a fan-out throughput workload whose completion count means publications fully observed and
+  released by every configured consumer, with equivalent per-consumer validation and checksum
+  semantics; do not force fan-out into scalar ping-pong;
 - add a question-led planned experiment with LMAX Disruptor provenance and no performance conclusion
   without controlled Linux evidence.
 
-Non-goals: LMAX API or Java compatibility, event factories, barriers, handler DSLs, multiple
-producers, multiple consumers, independent readers, dependency graphs, per-slot publication
-tracking, batch claims, alternate waiting strategies, performance measurements, or performance
-conclusions.
+Non-goals: LMAX API or Java compatibility, consumer dependency graphs, sequence barriers, handler
+DSLs, multiple producers, work sharing, lossy overwrite, dynamic consumer registration or removal,
+per-slot publication tracking, batch claims, alternate waiting strategies, performance
+measurements, or performance conclusions.
 
 Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
 plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;
 documentation-link checks; complete diff review; push; and required CI.
 
-## Direction after Q1
+## Direction after Q2
 
 Each mechanism stage follows the same sequence:
 
