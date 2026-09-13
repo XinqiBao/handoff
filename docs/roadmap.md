@@ -28,8 +28,8 @@ documents and Git.
 | S2 | complete | Cache-line-separated SPSC | A preserved variant changing only producer/consumer counter placement. |
 | H1 | complete | Benchmark source decomposition | Split the benchmark executable by direct responsibility without changing workload or result behavior. |
 | H2 | complete | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
-| C1 | next | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
-| S3 | queued | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
+| C1 | complete | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
+| S3 | next | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
 | S4 | queued | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
 | D1 | queued | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
 | D2 | queued | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
@@ -53,33 +53,36 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: C1
+## Next stage: S3
 
-Goal: complete the payload and lifetime contract evidence for both existing fixed-slot SPSC rings
-without changing their APIs, storage model, or synchronization.
+Goal: preserve a distinct fixed-slot SPSC variant that caches the remote progress observed by each
+thread, reducing shared-index loads while retaining the basic ring's semantics and conservative
+publication ordering.
 
 Required work:
 
-- apply shared contract tests to `BasicBoundedRing` and `CacheLineBoundedRing` rather than
-  duplicating behavior-specific suites;
-- cover default-initializable move-only payloads and resource-owning payloads whose operations meet
-  the rings' declared assignment requirements;
-- verify that a failed rvalue push leaves its source unchanged and that a failed pop leaves its
-  output unchanged;
-- exercise successful slot reuse with resource-owning values and make the observable assignment and
-  retention behavior explicit;
-- update both mechanism notes to distinguish allocation-free ring storage from allocations that
-  `T` construction or assignment may perform.
+- document the variant's semantics, ownership, capacity, overflow behavior, payload lifetime, and
+  acquire/release happens-before argument before implementation;
+- base the implementation on the basic ring without cache-line alignment, batching, reservations,
+  or unrelated layout policy; add only the producer-owned cached head and consumer-owned cached
+  tail required by the mechanism;
+- refresh the producer's cached head only after the cached value makes the ring appear full, and
+  refresh the consumer's cached tail only after the cached value makes the ring appear empty;
+- run the shared bounded-FIFO, payload/lifetime, and concurrent integrity contracts against the new
+  type, plus focused tests that force both stale-cache refresh paths through wraparound;
+- expose the variant through the existing explicit benchmark dispatch with equivalent work and add
+  only the CLI and smoke coverage needed for that implementation;
+- add a question-led planned experiment record that states confounders and contains no performance
+  conclusion without controlled Linux evidence.
 
-Non-goals: raw or uninitialized slot storage, explicit per-element construction and destruction,
-broader payload constraints, API or memory-order changes, benchmark changes, performance
-measurements, or performance conclusions.
+Non-goals: cache-line separation, batch operations, a weaker memory order, new waiting behavior,
+runtime mechanism registration, performance measurements, or performance conclusions.
 
-Validation: focused compile-time and deterministic payload/lifetime tests for both rings; existing
-concurrent integrity tests; Debug and Release tests; ASan/UBSan; practical TSan; clang-format;
-clang-tidy; documentation-link checks; complete diff review; push; and required CI.
+Validation: mechanism-specific and shared correctness tests; benchmark CLI and smoke plumbing;
+Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy; documentation-link
+checks; complete diff review; push; and required CI.
 
-## Direction after C1
+## Direction after S3
 
 Each mechanism stage follows the same sequence:
 

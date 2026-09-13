@@ -16,7 +16,10 @@ architecture.
 Capacity is compile-time and exactly usable. The ring contains `Capacity` default-constructed inline
 slots and uses the same monotonically increasing unsigned counters, modulo slot addressing,
 non-blocking `try_push` and `try_pop` operations, and type/lifetime requirements as the
-[basic bounded SPSC ring](basic-bounded-spsc.md).
+[basic bounded SPSC ring](basic-bounded-spsc.md). The ring allocates no slot storage dynamically,
+but each slot remains a live `T` for the ring's lifetime, so `T` construction and assignment may
+allocate, release, or retain resources. Pop move-assigns from a slot without ending that slot's
+lifetime.
 
 Producer and consumer ownership, full and empty conditions, FIFO behavior, and acquire/release
 publication are unchanged. Both operations still read the remote counter on every attempt. The
@@ -30,5 +33,6 @@ run concurrently on different cores. The larger object and stronger alignment ma
 footprint and placement, and the inline slot array can still share cache sets with state. Those are
 remaining confounders, not additional intended mechanisms.
 
-The common bounded-FIFO suite runs unchanged against both implementations, including the
+The common bounded-FIFO and payload/lifetime suite runs unchanged against both implementations,
+including move-only resource ownership, failed-operation preservation, slot reuse, and the
 million-message integrity test. Layout-specific compile-time checks verify the advertised alignment.

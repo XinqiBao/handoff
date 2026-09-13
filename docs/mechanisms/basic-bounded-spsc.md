@@ -17,10 +17,13 @@ with `Capacity == 4` accepts four values before reporting full. The representati
 `Capacity` default-constructed inline slots plus monotonically increasing unsigned `head` and
 `tail` counters. A slot is addressed by `counter % Capacity`; no slot is reserved as a sentinel.
 
-The complete object storage is established during construction. Push and pop perform assignment
-into existing slots and do not allocate. `T` must be default-initializable and assignable, and its
-assignment and destruction must not race with access outside the ring. The ring itself must outlive
-both participating threads and is neither copyable nor movable.
+The ring's complete slot storage is established during construction and the ring itself performs no
+dynamic allocation. Every slot is nevertheless a live `T` object for the ring's entire lifetime:
+construction and push or pop assignment may allocate, release, or retain resources according to
+`T`. A successful pop move-assigns from the slot and leaves that slot in `T`'s valid but unspecified
+moved-from state; it does not destroy and reconstruct the slot. `T` must be default-initializable
+and assignable, and its assignment and destruction must not race with access outside the ring. The
+ring itself must outlive both participating threads and is neither copyable nor movable.
 
 Unsigned counter wrap is defined by C++. Capacity is restricted to at most half of the counter
 range so the bounded `tail - head` distance remains unambiguous, including across wrap.
@@ -53,7 +56,8 @@ or weakening these acquire/release pairs belongs in later, separately documented
 ## Correctness coverage
 
 Tests cover empty and full behavior, exact usable capacity, FIFO order, wraparound, repeated
-fill/drain cycles, message integrity, and a million-message concurrent run that detects loss,
+fill/drain cycles, move-only resource-owning payloads, unchanged inputs and outputs on failed
+operations, slot reuse, message integrity, and a million-message concurrent run that detects loss,
 duplication, reordering, and torn payload observations.
 
 ## Benchmark workloads

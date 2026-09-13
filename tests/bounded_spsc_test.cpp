@@ -2,8 +2,11 @@
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
 
 #include <atomic>
+#include <concepts>
 #include <cstdint>
+#include <memory>
 #include <thread>
+#include <utility>
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -18,8 +21,35 @@ struct Message {
   std::uint64_t inverse{};
 };
 
+struct MoveOnlyResource {
+  std::unique_ptr<int> value;
+  unsigned int* move_count{};
+
+  MoveOnlyResource() = default;
+  MoveOnlyResource(int initial_value, unsigned int& moves)
+      : value(std::make_unique<int>(initial_value)), move_count(&moves) {}
+  MoveOnlyResource(const MoveOnlyResource&) = delete;
+  MoveOnlyResource& operator=(const MoveOnlyResource&) = delete;
+  MoveOnlyResource(MoveOnlyResource&&) noexcept = default;
+  MoveOnlyResource& operator=(MoveOnlyResource&& other) noexcept {
+    value = std::move(other.value);
+    move_count = other.move_count;
+    if (move_count != nullptr) {
+      ++*move_count;
+    }
+    return *this;
+  }
+};
+
 using BasicMessageRing = handoff::spsc::BasicBoundedRing<Message, 1'024>;
 using CacheLineMessageRing = handoff::spsc::CacheLineBoundedRing<Message, 1'024>;
+
+using BasicOwnedRing = handoff::spsc::BasicBoundedRing<MoveOnlyResource, 1>;
+using CacheLineOwnedRing = handoff::spsc::CacheLineBoundedRing<MoveOnlyResource, 1>;
+
+template <typename Ring>
+concept SupportsConstLvaluePush =
+    requires(Ring& ring, const typename Ring::value_type& value) { ring.try_push(value); };
 
 } // namespace
 
@@ -99,6 +129,46 @@ TEMPLATE_TEST_CASE("bounded SPSC rings preserve messages in a long concurrent ru
   consumer.join();
   CHECK(producer_done.load(std::memory_order_acquire));
   CHECK(valid.load(std::memory_order_relaxed));
+}
+
+TEMPLATE_TEST_CASE("bounded SPSC rings support move-only resource-owning payloads", "[spsc]",
+                   BasicOwnedRing, CacheLineOwnedRing) {
+  STATIC_CHECK(std::default_initializable<typename TestType::value_type>);
+  STATIC_CHECK(std::assignable_from<typename TestType::value_type&, typename TestType::value_type>);
+  STATIC_CHECK_FALSE(SupportsConstLvaluePush<TestType>);
+
+  TestType ring;
+  unsigned int first_moves = 0;
+  MoveOnlyResource first(10, first_moves);
+  const bool first_pushed = ring.try_push(std::move(first));
+  REQUIRE(first_pushed);
+  CHECK(first_moves == 1);
+
+  unsigned int rejected_moves = 0;
+  MoveOnlyResource rejected(20, rejected_moves);
+  const bool rejected_pushed = ring.try_push(std::move(rejected));
+  CHECK_FALSE(rejected_pushed);
+  CHECK(rejected_moves == 0);
+
+  MoveOnlyResource output;
+  REQUIRE(ring.try_pop(output));
+  REQUIRE(output.value);
+  CHECK(*output.value == 10);
+  CHECK(first_moves == 2);
+
+  unsigned int replacement_moves = 0;
+  MoveOnlyResource replacement(30, replacement_moves);
+  const bool replacement_pushed = ring.try_push(std::move(replacement));
+  REQUIRE(replacement_pushed);
+  REQUIRE(ring.try_pop(output));
+  REQUIRE(output.value);
+  CHECK(*output.value == 30);
+  CHECK(replacement_moves == 2);
+
+  const auto* output_address = output.value.get();
+  CHECK_FALSE(ring.try_pop(output));
+  REQUIRE(output.value.get() == output_address);
+  CHECK(*output.value == 30);
 }
 
 TEST_CASE("the cache-line SPSC ring isolates its shared state blocks") {
