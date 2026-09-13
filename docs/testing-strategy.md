@@ -46,7 +46,9 @@ Add tests beside the mechanism for obligations introduced by its design:
 - dependency pipelines: role ordering, unavailable downstream observations, dependency release and
   cancellation, final-stage reuse gating, and independently paced stages;
 - lossy delivery: explicit gap or overrun detection and rejection of stale data;
-- descriptor/payload separation: descriptor integrity, payload bounds, reuse, and publication order.
+- descriptor/payload separation: descriptor integrity, payload bounds, reuse, and publication order;
+- lossy metadata/payload separation: atomic overwrite safety, failed-output stability, exact skipped
+  sequence accounting, and successful snapshot integrity across both storage regions.
 
 Do not force mechanisms with different delivery or ownership semantics through one universal test
 interface.

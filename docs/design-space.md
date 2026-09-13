@@ -70,8 +70,10 @@ may introduce obligations that a simple push operation does not have.
 - **Sequence-addressed metadata ring**: compact atomic fields and a publication sequence share each
   slot, permitting direct lookup and validated observation while newer publications overwrite old
   generations.
+- **Chunk-addressed metadata/payload ring**: each publication slot names a separate fixed payload
+  chunk whose reuse participates in the same validated overwrite lifecycle.
 
-The latter two layouts are conceptually distinct and should remain separate mechanism families.
+These layouts are conceptually distinct and should remain separate mechanism families.
 
 ## Payload model
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "handoff/metadata/metadata.hpp"
+
 #include <array>
 #include <atomic>
 #include <bit>
@@ -8,20 +10,8 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
-#include <type_traits>
 
 namespace handoff::metadata {
-
-struct Metadata {
-  std::uint64_t signature{};
-  std::uint64_t chunk{};
-  std::uint32_t length{};
-  std::uint32_t control{};
-
-  friend constexpr bool operator==(const Metadata&, const Metadata&) = default;
-};
-
-static_assert(std::is_standard_layout_v<Metadata>);
 
 template <std::size_t Capacity, std::unsigned_integral Sequence = std::uint64_t>
   requires(!std::same_as<Sequence, bool>)

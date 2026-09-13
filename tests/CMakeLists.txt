@@ -17,6 +17,7 @@ add_executable(
   fixed_record_ring_test.cpp
   sequence_fan_out_test.cpp
   sequence_metadata_ring_test.cpp
+  sequence_payload_ring_test.cpp
   sequence_pipeline_test.cpp
   sequence_ring_test.cpp
   staged_spsc_test.cpp
