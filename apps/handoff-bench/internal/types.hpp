@@ -56,13 +56,13 @@ struct TrialResult {
   std::optional<double> latency_p95_ns;
   std::optional<double> latency_p99_ns;
   std::uint64_t checksum;
-  std::optional<std::uint64_t> offered_messages;
-  std::optional<std::uint64_t> observed_messages;
-  std::optional<std::uint64_t> overwritten_messages;
-  std::optional<std::uint64_t> retry_attempts;
-  std::optional<std::uint64_t> observed_payload_bytes;
-  std::optional<double> offered_messages_per_second;
-  std::optional<double> observed_messages_per_second;
+  std::optional<std::uint64_t> offered_messages{};
+  std::optional<std::uint64_t> observed_messages{};
+  std::optional<std::uint64_t> overwritten_messages{};
+  std::optional<std::uint64_t> retry_attempts{};
+  std::optional<std::uint64_t> observed_payload_bytes{};
+  std::optional<double> offered_messages_per_second{};
+  std::optional<double> observed_messages_per_second{};
 };
 
 struct PlacementResult {
