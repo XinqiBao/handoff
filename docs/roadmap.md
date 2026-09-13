@@ -38,8 +38,8 @@ documents and Git.
 | Q3 | complete | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
 | R1 | complete | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
 | R2 | complete | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
-| R3 | next | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
-| F1 | queued | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
+| R3 | complete | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
+| F1 | next | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
 | F2 | queued | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
 | W1 | queued | Load-shape workloads | Add burst, imbalance, temporary-stall, and offered-load latency experiments only as required by implemented mechanisms. |
 | L1 | blocked-external | Controlled Linux measurements | Run pinned same-NUMA comparisons, verify effective affinity, collect host metadata, and use external `perf` where justified. |
@@ -53,59 +53,49 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: R3
+## Next stage: F1
 
-Goal: establish a bounded SPSC record mechanism whose fixed descriptor ring and variable payload
-byte ring have explicit, independent capacity and reuse contracts.
+Goal: establish a portable single-producer metadata ring with direct sequence lookups, independent
+consumer positions, broadcast observation, and explicit overwrite detection.
 
 Required work:
 
-- add one concrete descriptor/payload mechanism under a mechanism-named public directory; retain R1
-  and R2 as distinct baselines, reuse the logical `RecordHeader`, and avoid a storage-policy
-  hierarchy, runtime registry, universal queue interface, or Firedancer compatibility surface;
-- own a compile-time-sized exact-capacity descriptor array and a separate compile-time-sized
-  `std::byte` payload buffer. Each descriptor stores the logical header and the physical payload
-  location needed to find contiguous bytes; monotonic descriptor and byte positions define
-  reservation, publication, consumption, and reuse without pointers into caller storage;
-- align payload starts and footprints to 16 bytes. If a non-empty payload does not fit in the
-  remaining physical suffix, account for that suffix as an internal byte reservation and place the
-  payload at offset zero; do not store or publish an in-band padding header. Bound one payload so a
-  valid record can make progress from any aligned empty-buffer offset. A zero-length payload consumes
-  one descriptor but no payload bytes;
-- provide copy-in/copy-out SPSC operations over caller-owned byte spans. A push succeeds only when
-  one descriptor and the complete payload transition, including any end gap, are both available;
-  otherwise it publishes neither resource. Reject inconsistent lengths or individually
-  unrepresentable payloads separately from full, and reject undersized output separately from empty,
-  without consuming state or partially mutating outputs;
-- make the descriptor-tail release store the sole publication point after both payload bytes and
-  descriptor fields are written. The consumer acquire-loads that tail before copying, then releases
-  payload bytes and the descriptor slot only after the copy completes; document why independently
-  observed reuse progress can only cause conservative false-full results, never premature overwrite;
-- document native descriptor-slot and payload-byte capacities, alignment gaps, counter bounds,
-  ownership, payload contiguity, failure stability, and the distinction from R2 padding-header
-  parsing and from later sequence-addressed, broadcast, or lossy metadata mechanisms;
-- test descriptor-full and byte-full states, exact capacity accounting, zero and maximum payloads,
-  alignment, physical wrap gaps, failed atomic reservation, undersized output across wrap, FIFO
-  header/payload integrity, repeated descriptor and byte reuse, and a long concurrent mixed-length
-  run;
-- add scalar throughput and ping-pong plumbing using the existing payload sizes and an explicit
-  descriptor implementation name. Require both `--capacity 64|1024` and
-  `--capacity-bytes 4096|65536` as its native dimensions, keep benchmark-side work and phase
-  boundaries equivalent, populate both CSV capacity fields, and reject batching or option
-  combinations that misstate the mechanism;
-- add a question-led planned experiment comparing the descriptor/payload split with the existing
-  record layouts. Treat descriptor access, payload copies, alignment, and wrap gaps as timed work and
-  record no performance conclusion without controlled Linux evidence.
+- add one concrete metadata mechanism under a mechanism-named public directory, informed by Tango's
+  mcache structure but without its ABI, workspace, topology, IPC, platform fences, or naming surface;
+- define a small standard-layout metadata value with sequence-independent application fields such as
+  signature, chunk location, length, and control. Own a compile-time power-of-two slot array and map
+  one-based finite publication sequences directly to slots; one producer may overwrite an older
+  publication without consulting consumers;
+- keep each slot's publication sequence and metadata fields atomic so a consumer racing overwrite
+  never performs a C++ data race. Use a portable conservative ordering baseline with an explicit
+  in-progress slot state, publish metadata before its final sequence, and validate the sequence again
+  after copying before returning a successful observation;
+- provide an explicit sequence-addressed read operation that distinguishes success, not-yet-published,
+  overwrite, and a concurrent in-progress/retry state. Failed reads leave output unchanged. Expose
+  enough stable sequence progress for a caller to choose whether and where to resynchronize after an
+  overrun without hiding a delivery policy inside the ring;
+- keep consumer positions caller-owned, so any number of consumers may independently request the same
+  publications without runtime registration and without affecting producer progress. Document that
+  this is broadcast observation with detectable loss, not Q2 reliable fan-out or work sharing;
+- reject publication after the finite sequence range is exhausted rather than wrapping a sequence
+  into the in-progress sentinel. Document slot reuse, initial state, overwrite classification,
+  ownership, progress guarantees, and the complete portable memory-order argument;
+- test initial and future-sequence reads, direct slot mapping, ordered publication, independent
+  observers, exact wrap overwrite, resynchronization inputs, failed-output stability, finite-limit
+  rejection through a bounded test hook or constructor state, and a long producer/observer race that
+  accepts only documented statuses and never returns torn metadata;
+- do not force this metadata-only mechanism into the existing payload throughput or ping-pong
+  workloads. Record why those workloads would misstate completed message handoff, and defer benchmark
+  integration until F2 supplies payload semantics or W1 supplies an offered-load/overrun question.
 
-Non-goals: returned storage views, public reservation tokens, external payload ownership,
-scatter/gather I/O, batching, descriptor-only observation, sequence-addressed lookup, broadcast,
-consumer dependencies, overwrite or lossy delivery, custom allocation, serialization frameworks,
-multiple producers or consumers, F1/F2 work, deferred roadmap work, performance measurements, or
-performance conclusions.
+Non-goals: payload storage or copying, descriptor/payload coordination, backpressure, slowest-reader
+gating, reliable delivery, internal consumer registration, arbitrary dependency graphs, blocking
+waits, batch publication, custom allocation, shared-memory lifecycle, Firedancer compatibility,
+deferred roadmap work, performance measurements, or performance conclusions.
 
-Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
-plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;
-documentation-link checks; complete diff review; push; and required CI.
+Validation: mechanism-specific and existing regression tests; Debug and Release tests; ASan/UBSan;
+practical TSan; clang-format; clang-tidy; documentation-link checks; complete diff review; push; and
+required CI.
 
 ## Direction after Q3
 

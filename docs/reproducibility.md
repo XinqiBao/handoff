@@ -81,6 +81,22 @@ Variable-record byte-ring plumbing can be exercised with:
 These commands are also plumbing checks rather than controlled performance evidence. Byte-ring
 capacity is native bytes and must not be reported as an equivalent fixed-slot count.
 
+Descriptor/payload plumbing can be exercised with:
+
+```sh
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation descriptor-record --payload-bytes 64 \
+  --capacity 64 --capacity-bytes 4096 \
+  --iterations 1000000 --warmup 10000 --trials 5
+./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+  --implementation descriptor-record --payload-bytes 64 \
+  --capacity 64 --capacity-bytes 4096 \
+  --iterations 100000 --warmup 10000 --trials 5
+```
+
+These are plumbing checks, not performance evidence. Descriptor slots and payload bytes are
+independent native limits even though the benchmark exposes only two deliberate capacity pairs.
+
 ASan/UBSan and TSan are separate because these runtimes are not combined. TSan availability and
 behavior vary by platform and toolchain; report a concrete limitation rather than weakening a valid
 low-level design to obtain a clean run.

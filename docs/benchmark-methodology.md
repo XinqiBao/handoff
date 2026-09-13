@@ -139,6 +139,14 @@ at physical wrap. Its native capacity is bytes: CSV populates `capacity_bytes` a
 `capacity_slots` empty. Alignment, padding, parsing, and complete header/payload copies are part of
 the timed contract. A byte capacity must not be relabeled as an equivalent slot count.
 
+The `descriptor-record` implementation stores each logical header and payload location in a fixed
+descriptor slot while copying payload bytes into a separate aligned byte ring. Descriptor access,
+payload copying, and any physical end gap are timed work. Both capacities are native constraints,
+so CSV populates `capacity_slots` and `capacity_bytes`; neither may be converted into the other.
+Supported benchmark pairs are 64 descriptors with 4096 payload bytes and 1024 descriptors with
+65536 payload bytes. The pairing limits the experiment matrix; it does not claim equal effective
+message capacity across payload sizes or storage layouts.
+
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,
 the corresponding rate is unavailable and remains empty rather than being synthesized from a

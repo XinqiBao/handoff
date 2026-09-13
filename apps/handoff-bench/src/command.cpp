@@ -23,20 +23,19 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 void print_usage(std::ostream& stream) {
-  stream
-      << "Usage:\n"
-         "  handoff-bench help\n"
-         "  handoff-bench list\n"
-         "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
-         "[--output FILE]\n"
-         "  handoff-bench run <throughput|ping-pong> "
-         "[--implementation "
-         "basic|batch|bulk|burst|byte-record|cache-line|cached-index|fan-out|fixed-record|pipeline|"
-         "sequence|staged] "
-         "[--payload-bytes 8|64|256] [--capacity 64|1024] "
-         "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
-         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-         "[--consumer-cpu N] [--output FILE]\n";
+  stream << "Usage:\n"
+            "  handoff-bench help\n"
+            "  handoff-bench list\n"
+            "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
+            "[--output FILE]\n"
+            "  handoff-bench run <throughput|ping-pong> "
+            "[--implementation "
+            "basic|batch|bulk|burst|byte-record|cache-line|cached-index|descriptor-record|fan-out|"
+            "fixed-record|pipeline|sequence|staged] "
+            "[--payload-bytes 8|64|256] [--capacity 64|1024] "
+            "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
+            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+            "[--consumer-cpu N] [--output FILE]\n";
 }
 
 template <typename Integer> std::optional<Integer> parse_integer(std::string_view text) {
@@ -64,6 +63,7 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
                                      std::ostream& errors) {
   Options options;
   bool slot_capacity_specified = false;
+  bool byte_capacity_specified = false;
   for (std::size_t index = 0; index < arguments.size(); ++index) {
     const std::string_view argument = arguments[index];
     if (!is_known_option(argument)) {
@@ -126,6 +126,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::cache_line;
       } else if (value == "cached-index") {
         options.implementation = Implementation::cached_index;
+      } else if (value == "descriptor-record") {
+        options.implementation = Implementation::descriptor_record;
       } else if (value == "fan-out") {
         options.implementation = Implementation::fan_out;
       } else if (value == "fixed-record") {
@@ -138,7 +140,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::staged;
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, byte-record, "
-                  "cache-line, cached-index, fan-out, fixed-record, pipeline, sequence, staged\n";
+                  "cache-line, cached-index, descriptor-record, fan-out, fixed-record, pipeline, "
+                  "sequence, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -163,6 +166,7 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.capacity_bytes = parsed;
+      byte_capacity_specified = true;
     } else if (argument == "--batch-size") {
       const auto parsed = parse_integer<std::size_t>(value);
       if (!parsed || (*parsed != 1 && *parsed != 4 && *parsed != 16)) {
@@ -195,8 +199,22 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     if (!options.capacity_bytes) {
       options.capacity_bytes = 65'536;
     }
+  } else if (options.implementation == Implementation::descriptor_record) {
+    if (slot_capacity_specified != byte_capacity_specified) {
+      errors << "descriptor-record requires --capacity and --capacity-bytes together\n";
+      return std::nullopt;
+    }
+    if (!options.capacity_bytes) {
+      options.capacity_bytes = 65'536;
+    }
+    const bool small = options.capacity_slots == 64 && *options.capacity_bytes == 4'096;
+    const bool large = options.capacity_slots == 1'024 && *options.capacity_bytes == 65'536;
+    if (!small && !large) {
+      errors << "descriptor-record capacity pairs must be 64/4096 or 1024/65536\n";
+      return std::nullopt;
+    }
   } else if (options.capacity_bytes) {
-    errors << "--capacity-bytes requires implementation byte-record\n";
+    errors << "--capacity-bytes requires implementation byte-record or descriptor-record\n";
     return std::nullopt;
   }
 

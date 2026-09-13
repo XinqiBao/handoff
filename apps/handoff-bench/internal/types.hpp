@@ -19,6 +19,7 @@ enum class Implementation {
   byte_record,
   cache_line,
   cached_index,
+  descriptor_record,
   fan_out,
   fixed_record,
   pipeline,

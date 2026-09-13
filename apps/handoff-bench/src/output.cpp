@@ -54,6 +54,8 @@ std::string_view implementation_name(Implementation implementation) {
     return "cache-line";
   case Implementation::cached_index:
     return "cached-index";
+  case Implementation::descriptor_record:
+    return "descriptor-record";
   case Implementation::fan_out:
     return "fan-out";
   case Implementation::fixed_record:
@@ -176,6 +178,8 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
              << ',' << options.payload_bytes << ',';
       if (options.implementation == Implementation::byte_record) {
         output << ',' << required_byte_capacity(options) << ',';
+      } else if (options.implementation == Implementation::descriptor_record) {
+        output << options.capacity_slots << ',' << required_byte_capacity(options) << ',';
       } else {
         output << options.capacity_slots << ",,";
       }
@@ -224,6 +228,9 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
               << options.payload_bytes << " B / ";
     if (options.implementation == Implementation::byte_record) {
       std::cout << required_byte_capacity(options) << " bytes";
+    } else if (options.implementation == Implementation::descriptor_record) {
+      std::cout << options.capacity_slots << " slots / " << required_byte_capacity(options)
+                << " bytes";
     } else {
       std::cout << options.capacity_slots << " slots";
     }

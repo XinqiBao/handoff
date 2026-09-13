@@ -13,6 +13,7 @@ add_executable(
   bounded_spsc_test.cpp
   bulk_burst_spsc_test.cpp
   core_test.cpp
+  descriptor_payload_ring_test.cpp
   fixed_record_ring_test.cpp
   sequence_fan_out_test.cpp
   sequence_pipeline_test.cpp
@@ -103,6 +104,14 @@ add_test(
   NAME benchmark.byte-record-ping-pong-smoke
   COMMAND handoff-bench run ping-pong --implementation byte-record --payload-bytes 8
           --capacity-bytes 4096 --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.descriptor-record-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation descriptor-record --payload-bytes 8
+          --capacity 64 --capacity-bytes 4096 --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.descriptor-record-ping-pong-smoke
+  COMMAND handoff-bench run ping-pong --implementation descriptor-record --payload-bytes 8
+          --capacity 64 --capacity-bytes 4096 --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.sequence-ping-pong-smoke
   COMMAND handoff-bench run ping-pong --implementation sequence --payload-bytes 8 --capacity 64

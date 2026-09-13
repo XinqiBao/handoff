@@ -42,16 +42,32 @@ expect_failure(
   run throughput --implementation byte-record --batch-size 4)
 expect_failure(
   2
+  "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or staged"
+  run throughput --implementation descriptor-record --batch-size 4)
+expect_failure(
+  2
   "--capacity does not apply to byte-record; use --capacity-bytes"
   run throughput --implementation byte-record --capacity 64)
 expect_failure(
   2
-  "--capacity-bytes requires implementation byte-record"
+  "--capacity-bytes requires implementation byte-record or descriptor-record"
   run throughput --implementation basic --capacity-bytes 4096)
 expect_failure(
   2
   "--capacity-bytes must be one of: 4096, 65536"
   run throughput --implementation byte-record --capacity-bytes 8192)
+expect_failure(
+  2
+  "descriptor-record requires --capacity and --capacity-bytes together"
+  run throughput --implementation descriptor-record --capacity 64)
+expect_failure(
+  2
+  "descriptor-record requires --capacity and --capacity-bytes together"
+  run throughput --implementation descriptor-record --capacity-bytes 4096)
+expect_failure(
+  2
+  "descriptor-record capacity pairs must be 64/4096 or 1024/65536"
+  run throughput --implementation descriptor-record --capacity 64 --capacity-bytes 65536)
 expect_failure(
   2
   "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or staged"

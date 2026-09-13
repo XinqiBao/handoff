@@ -21,7 +21,7 @@
 namespace handoff::bench {
 namespace {
 
-enum class QueueOperation { push_pop, byte_record, fixed_record, sequence };
+enum class QueueOperation { push_pop, byte_record, descriptor_record, fixed_record, sequence };
 
 template <typename T, std::size_t Capacity>
 using BenchmarkSequenceRing = sequence::BoundedSequenceRing<T, Capacity>;
@@ -33,8 +33,9 @@ struct LatencySummary {
 };
 
 template <QueueOperation Operation, std::size_t Bytes> auto make_message(std::uint64_t sequence) {
-  if constexpr (Operation == QueueOperation::byte_record) {
-    return make_byte_record<Bytes>(sequence);
+  if constexpr (Operation == QueueOperation::byte_record ||
+                Operation == QueueOperation::descriptor_record) {
+    return make_record_message<Bytes>(sequence);
   } else if constexpr (Operation == QueueOperation::fixed_record) {
     return make_fixed_record<Bytes>(sequence);
   } else {
@@ -45,8 +46,9 @@ template <QueueOperation Operation, std::size_t Bytes> auto make_message(std::ui
 template <QueueOperation Operation, typename Message>
 bool observe_message(const Message& message, std::uint64_t expected_sequence,
                      std::uint64_t& checksum) {
-  if constexpr (Operation == QueueOperation::byte_record) {
-    return observe_byte_record(message, expected_sequence, checksum);
+  if constexpr (Operation == QueueOperation::byte_record ||
+                Operation == QueueOperation::descriptor_record) {
+    return observe_record_message(message, expected_sequence, checksum);
   } else if constexpr (Operation == QueueOperation::fixed_record) {
     return observe_fixed_record(message, expected_sequence, checksum);
   } else {
@@ -70,11 +72,12 @@ LatencySummary summarize_latency(std::vector<std::int64_t> samples) {
 
 template <QueueOperation Operation, typename Queue, typename Message>
 bool try_send(Queue& queue, const Message& value) {
-  if constexpr (Operation == QueueOperation::byte_record) {
+  if constexpr (Operation == QueueOperation::byte_record ||
+                Operation == QueueOperation::descriptor_record) {
     using PushResult = typename Queue::PushResult;
     const auto result = queue.try_push(value.header, value.payload.bytes);
     if (result == PushResult::invalid_record) {
-      throw std::logic_error("benchmark produced an invalid byte record");
+      throw std::logic_error("benchmark produced an invalid record message");
     }
     return result == PushResult::success;
   } else if constexpr (Operation == QueueOperation::sequence) {
@@ -93,11 +96,12 @@ bool try_send(Queue& queue, const Message& value) {
 
 template <QueueOperation Operation, typename Queue, typename Message>
 bool try_receive(Queue& queue, Message& value) {
-  if constexpr (Operation == QueueOperation::byte_record) {
+  if constexpr (Operation == QueueOperation::byte_record ||
+                Operation == QueueOperation::descriptor_record) {
     using PopResult = typename Queue::PopResult;
     const auto result = queue.try_pop(value.header, value.payload.bytes);
     if (result == PopResult::output_too_small) {
-      throw std::logic_error("benchmark byte-record output is too small");
+      throw std::logic_error("benchmark record output is too small");
     }
     return result == PopResult::success;
   } else if constexpr (Operation == QueueOperation::sequence) {
@@ -336,6 +340,35 @@ RunResults dispatch_byte_payload(const Options& options) {
   }
 }
 
+template <std::size_t Bytes> RunResults dispatch_descriptor_capacity(const Options& options) {
+  const auto capacity = options.capacity_bytes;
+  if (!capacity) {
+    throw std::logic_error("descriptor-record options require byte capacity");
+  }
+  if (options.capacity_slots == 64 && *capacity == 4'096) {
+    return run_spsc<QueueOperation::descriptor_record, descriptor::DescriptorPayloadRing<64, 4'096>,
+                    Bytes>(options);
+  }
+  if (options.capacity_slots == 1'024 && *capacity == 65'536) {
+    return run_spsc<QueueOperation::descriptor_record,
+                    descriptor::DescriptorPayloadRing<1'024, 65'536>, Bytes>(options);
+  }
+  throw std::logic_error("validated descriptor capacities were not dispatched");
+}
+
+RunResults dispatch_descriptor_payload(const Options& options) {
+  switch (options.payload_bytes) {
+  case 8:
+    return dispatch_descriptor_capacity<8>(options);
+  case 64:
+    return dispatch_descriptor_capacity<64>(options);
+  case 256:
+    return dispatch_descriptor_capacity<256>(options);
+  default:
+    throw std::logic_error("validated payload size was not dispatched");
+  }
+}
+
 } // namespace
 
 RunResults run_ping_pong(const Options& options) {
@@ -353,6 +386,8 @@ RunResults run_ping_pong(const Options& options) {
     return dispatch_payload<QueueOperation::push_pop, spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:
     return dispatch_payload<QueueOperation::push_pop, spsc::CachedIndexBoundedRing>(options);
+  case Implementation::descriptor_record:
+    return dispatch_descriptor_payload(options);
   case Implementation::fan_out:
     throw std::logic_error("fan-out implementation is not a ping-pong mode");
   case Implementation::fixed_record:

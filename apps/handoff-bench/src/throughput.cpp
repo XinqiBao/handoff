@@ -30,6 +30,7 @@ enum class GroupOperation {
   bulk,
   burst,
   byte_record,
+  descriptor_record,
   fixed_record,
   sequence,
   staged
@@ -40,17 +41,18 @@ using BenchmarkSequenceRing = sequence::BoundedSequenceRing<T, Capacity>;
 
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void push_messages(Queue& ring, std::uint64_t count) {
-  if constexpr (Operation == GroupOperation::byte_record) {
+  if constexpr (Operation == GroupOperation::byte_record ||
+                Operation == GroupOperation::descriptor_record) {
     using PushResult = typename Queue::PushResult;
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
-      const auto value = make_byte_record<Bytes>(sequence);
+      const auto value = make_record_message<Bytes>(sequence);
       auto result = ring.try_push(value.header, value.payload.bytes);
       while (result == PushResult::full) {
         std::this_thread::yield();
         result = ring.try_push(value.header, value.payload.bytes);
       }
       if (result != PushResult::success) {
-        throw std::logic_error("benchmark produced an invalid byte record");
+        throw std::logic_error("benchmark produced an invalid record message");
       }
     }
   } else if constexpr (Operation == GroupOperation::fixed_record) {
@@ -126,9 +128,10 @@ void push_messages(Queue& ring, std::uint64_t count) {
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
                   std::atomic<bool>& valid) {
-  if constexpr (Operation == GroupOperation::byte_record) {
+  if constexpr (Operation == GroupOperation::byte_record ||
+                Operation == GroupOperation::descriptor_record) {
     using PopResult = typename Queue::PopResult;
-    ByteRecordMessage<Bytes> value;
+    RecordMessage<Bytes> value;
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       auto result = ring.try_pop(value.header, value.payload.bytes);
       while (result == PopResult::empty) {
@@ -136,9 +139,9 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
         result = ring.try_pop(value.header, value.payload.bytes);
       }
       if (result != PopResult::success) {
-        throw std::logic_error("benchmark byte-record output is too small");
+        throw std::logic_error("benchmark record output is too small");
       }
-      if (!observe_byte_record(value, sequence, checksum)) {
+      if (!observe_record_message(value, sequence, checksum)) {
         valid.store(false, std::memory_order_relaxed);
       }
     }
@@ -413,6 +416,35 @@ RunResults dispatch_byte_payload(const Options& options) {
   }
 }
 
+template <std::size_t Bytes> RunResults dispatch_descriptor_capacity(const Options& options) {
+  const auto capacity = options.capacity_bytes;
+  if (!capacity) {
+    throw std::logic_error("descriptor-record options require byte capacity");
+  }
+  if (options.capacity_slots == 64 && *capacity == 4'096) {
+    return run_spsc<GroupOperation::descriptor_record, descriptor::DescriptorPayloadRing<64, 4'096>,
+                    Bytes, 1>(options);
+  }
+  if (options.capacity_slots == 1'024 && *capacity == 65'536) {
+    return run_spsc<GroupOperation::descriptor_record,
+                    descriptor::DescriptorPayloadRing<1'024, 65'536>, Bytes, 1>(options);
+  }
+  throw std::logic_error("validated descriptor capacities were not dispatched");
+}
+
+RunResults dispatch_descriptor_payload(const Options& options) {
+  switch (options.payload_bytes) {
+  case 8:
+    return dispatch_descriptor_capacity<8>(options);
+  case 64:
+    return dispatch_descriptor_capacity<64>(options);
+  case 256:
+    return dispatch_descriptor_capacity<256>(options);
+  default:
+    throw std::logic_error("validated payload size was not dispatched");
+  }
+}
+
 } // namespace
 
 RunResults run_throughput(const Options& options) {
@@ -431,6 +463,8 @@ RunResults run_throughput(const Options& options) {
     return dispatch_payload<GroupOperation::scalar, spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:
     return dispatch_payload<GroupOperation::scalar, spsc::CachedIndexBoundedRing>(options);
+  case Implementation::descriptor_record:
+    return dispatch_descriptor_payload(options);
   case Implementation::fan_out:
     return run_fan_out_throughput(options);
   case Implementation::fixed_record:

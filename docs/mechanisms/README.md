@@ -13,6 +13,7 @@ This directory documents mechanisms implemented by `handoff`.
 - [Bounded sequence pipeline](bounded-sequence-pipeline.md)
 - [Fixed-record SPSC ring](fixed-record-spsc.md)
 - [Variable-record SPSC byte ring](variable-record-spsc.md)
+- [Descriptor/payload SPSC ring](descriptor-payload-spsc.md)
 
 Each future note should state:
 
