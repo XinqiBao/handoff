@@ -2,6 +2,7 @@
 #include "workloads.hpp"
 
 #include "handoff/spsc/basic_bounded_ring.hpp"
+#include "handoff/spsc/batch_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
 #include "handoff/spsc/cached_index_bounded_ring.hpp"
 
@@ -211,6 +212,8 @@ RunResults run_ping_pong(const Options& options) {
   switch (options.implementation) {
   case Implementation::basic:
     return dispatch_payload<spsc::BasicBoundedRing>(options);
+  case Implementation::batch:
+    return dispatch_payload<spsc::BatchBoundedRing>(options);
   case Implementation::cache_line:
     return dispatch_payload<spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:

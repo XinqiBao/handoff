@@ -77,7 +77,7 @@ list(GET fields 12 latency_p99_ns)
 list(GET fields 13 checksum)
 if(NOT benchmark STREQUAL "throughput" OR NOT implementation STREQUAL "basic" OR
    NOT payload_bytes STREQUAL "8" OR NOT capacity_slots STREQUAL "64" OR
-   NOT capacity_bytes STREQUAL "" OR NOT batch_size STREQUAL "" OR
+   NOT capacity_bytes STREQUAL "" OR NOT batch_size STREQUAL "1" OR
    NOT iterations STREQUAL "1000" OR NOT trial STREQUAL "1" OR
    NOT latency_ns STREQUAL "" OR NOT latency_p95_ns STREQUAL "" OR
    NOT latency_p99_ns STREQUAL "" OR checksum STREQUAL "")

@@ -14,3 +14,4 @@ Do not commit routine smoke timings as experimental evidence.
 - [Basic SPSC ping-pong RTT across payload and capacity](002-basic-spsc-ping-pong.md)
 - [Basic versus cache-line-separated SPSC](003-cache-line-spsc-comparison.md)
 - [Basic versus cached-index SPSC](004-cached-index-spsc-comparison.md)
+- [Basic scalar versus all-or-nothing batch SPSC](005-batch-spsc-comparison.md)

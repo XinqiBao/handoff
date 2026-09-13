@@ -30,8 +30,8 @@ documents and Git.
 | H2 | complete | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
 | C1 | complete | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
 | S3 | complete | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
-| S4 | next | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
-| D1 | queued | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
+| S4 | complete | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
+| D1 | next | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
 | D2 | queued | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
 | Q1 | queued | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
 | Q2 | queued | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
@@ -53,39 +53,37 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: S4
+## Next stage: D1
 
-Goal: preserve a distinct fixed-slot SPSC variant with fixed-count all-or-nothing batch operations,
-isolating publication granularity from cached indices, layout separation, and best-effort burst
-semantics.
+Goal: preserve a distinct SP/SC fixed-slot variant that exposes both fixed-count all-or-nothing bulk
+operations and explicitly best-effort burst operations, reproducing only that named DPDK ring idea.
 
 Required work:
 
-- document the batch variant's semantics, ownership, exact capacity, payload lifetime, and one
-  acquire/release publication per successful batch before implementation;
-- base it on the basic ring without cached remote indices or explicit cache-line alignment, retain
-  scalar operations, and add span-based fixed-count `try_push_batch` and `try_pop_batch` operations;
-- make zero-length batches succeed without state changes, reject batches larger than capacity, and
-  leave every input, output, slot, and counter unchanged when available space or data is
-  insufficient;
-- publish the advanced tail only after assigning the whole pushed batch and publish the advanced
-  head only after moving the whole popped batch, including batches that wrap the slot boundary;
-- add deterministic exact-boundary, insufficient-capacity/data, wraparound, FIFO, and resource
-  lifetime tests plus concurrent integrity coverage;
-- add explicit benchmark batch sizes and compare equivalent total messages and payload work, using
-  scalar calls for the basic baseline and batch calls for the new variant;
-- add a question-led planned experiment record without treating local or CI smoke timings as
-  performance evidence.
+- document exact usable capacity, SP/SC ownership, assignment-based payload lifetime, bulk failure,
+  burst partial-progress return values, wrap behavior, and publication ordering before implementation;
+- preserve the S4 batch ring unchanged and add a mechanism-named bulk/burst ring without DPDK API,
+  ABI, EAL, mbuf, hugepage, allocator, or synchronization-mode compatibility;
+- define zero-length bulk as success, oversized or insufficient bulk as failure with no mutation,
+  and burst as processing `min(requested, available)` elements and returning that exact count;
+- ensure producer and consumer each publish one counter advance after the elements processed by a
+  successful bulk or non-empty burst, including physical wrap;
+- cover empty, full, exact, partial, zero, oversized, wrapped, resource-owning, and concurrent
+  integrity behavior, including unchanged unprocessed input/output suffixes;
+- integrate only the throughput modes needed to compare equal requested groups and distinguish
+  completed message counts; do not mislabel burst attempts as completed work;
+- add a question-led planned experiment with DPDK provenance and no performance conclusion without
+  controlled Linux evidence.
 
-Non-goals: best-effort partial progress, DPDK compatibility, reservations, cached remote indices,
-cache-line separation, weaker memory ordering, a new waiting strategy, performance measurements, or
-performance conclusions.
+Non-goals: DPDK compatibility, multi-producer or multi-consumer synchronization, head/tail
+reservation staging, direct storage access, cached indices, cache-line separation, weaker memory
+ordering, performance measurements, or performance conclusions.
 
 Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
 plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;
 documentation-link checks; complete diff review; push; and required CI.
 
-## Direction after S4
+## Direction after D1
 
 Each mechanism stage follows the same sequence:
 

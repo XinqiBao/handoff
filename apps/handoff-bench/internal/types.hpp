@@ -11,7 +11,7 @@
 namespace handoff::bench {
 
 enum class Benchmark { smoke, throughput, ping_pong };
-enum class Implementation { basic, cache_line, cached_index };
+enum class Implementation { basic, batch, cache_line, cached_index };
 
 struct Options {
   std::uint64_t iterations{1'000'000};
@@ -20,6 +20,7 @@ struct Options {
   Implementation implementation{Implementation::basic};
   std::size_t payload_bytes{64};
   std::size_t capacity_slots{1'024};
+  std::size_t batch_size{1};
   std::optional<unsigned int> producer_cpu;
   std::optional<unsigned int> consumer_cpu;
   std::optional<std::filesystem::path> output;

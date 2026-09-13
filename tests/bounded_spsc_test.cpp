@@ -1,11 +1,14 @@
 #include "handoff/spsc/basic_bounded_ring.hpp"
+#include "handoff/spsc/batch_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
 #include "handoff/spsc/cached_index_bounded_ring.hpp"
 
+#include <array>
 #include <atomic>
 #include <concepts>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <thread>
 #include <utility>
 
@@ -15,6 +18,7 @@
 namespace {
 
 using BasicIntegerRing = handoff::spsc::BasicBoundedRing<std::uint64_t, 4>;
+using BatchIntegerRing = handoff::spsc::BatchBoundedRing<std::uint64_t, 4>;
 using CacheLineIntegerRing = handoff::spsc::CacheLineBoundedRing<std::uint64_t, 4>;
 using CachedIndexIntegerRing = handoff::spsc::CachedIndexBoundedRing<std::uint64_t, 4>;
 
@@ -44,10 +48,12 @@ struct MoveOnlyResource {
 };
 
 using BasicMessageRing = handoff::spsc::BasicBoundedRing<Message, 1'024>;
+using BatchMessageRing = handoff::spsc::BatchBoundedRing<Message, 1'024>;
 using CacheLineMessageRing = handoff::spsc::CacheLineBoundedRing<Message, 1'024>;
 using CachedIndexMessageRing = handoff::spsc::CachedIndexBoundedRing<Message, 1'024>;
 
 using BasicOwnedRing = handoff::spsc::BasicBoundedRing<MoveOnlyResource, 1>;
+using BatchOwnedRing = handoff::spsc::BatchBoundedRing<MoveOnlyResource, 1>;
 using CacheLineOwnedRing = handoff::spsc::CacheLineBoundedRing<MoveOnlyResource, 1>;
 using CachedIndexOwnedRing = handoff::spsc::CachedIndexBoundedRing<MoveOnlyResource, 1>;
 
@@ -58,7 +64,8 @@ concept SupportsConstLvaluePush =
 } // namespace
 
 TEMPLATE_TEST_CASE("bounded SPSC rings report empty and exact full capacity", "[spsc]",
-                   BasicIntegerRing, CacheLineIntegerRing, CachedIndexIntegerRing) {
+                   BasicIntegerRing, BatchIntegerRing, CacheLineIntegerRing,
+                   CachedIndexIntegerRing) {
   TestType ring;
   std::uint64_t value = 99;
 
@@ -79,7 +86,8 @@ TEMPLATE_TEST_CASE("bounded SPSC rings report empty and exact full capacity", "[
 }
 
 TEMPLATE_TEST_CASE("bounded SPSC rings preserve FIFO order through wraparound", "[spsc]",
-                   BasicIntegerRing, CacheLineIntegerRing, CachedIndexIntegerRing) {
+                   BasicIntegerRing, BatchIntegerRing, CacheLineIntegerRing,
+                   CachedIndexIntegerRing) {
   TestType ring;
   std::uint64_t value = 0;
 
@@ -98,7 +106,8 @@ TEMPLATE_TEST_CASE("bounded SPSC rings preserve FIFO order through wraparound", 
 }
 
 TEMPLATE_TEST_CASE("bounded SPSC rings preserve messages in a long concurrent run", "[spsc]",
-                   BasicMessageRing, CacheLineMessageRing, CachedIndexMessageRing) {
+                   BasicMessageRing, BatchMessageRing, CacheLineMessageRing,
+                   CachedIndexMessageRing) {
   constexpr std::uint64_t message_count = 1'000'000;
   TestType ring;
   std::atomic<bool> producer_done{false};
@@ -136,7 +145,7 @@ TEMPLATE_TEST_CASE("bounded SPSC rings preserve messages in a long concurrent ru
 }
 
 TEMPLATE_TEST_CASE("bounded SPSC rings support move-only resource-owning payloads", "[spsc]",
-                   BasicOwnedRing, CacheLineOwnedRing, CachedIndexOwnedRing) {
+                   BasicOwnedRing, BatchOwnedRing, CacheLineOwnedRing, CachedIndexOwnedRing) {
   STATIC_CHECK(std::default_initializable<typename TestType::value_type>);
   STATIC_CHECK(std::assignable_from<typename TestType::value_type&, typename TestType::value_type>);
   STATIC_CHECK_FALSE(SupportsConstLvaluePush<TestType>);
@@ -173,6 +182,91 @@ TEMPLATE_TEST_CASE("bounded SPSC rings support move-only resource-owning payload
   CHECK_FALSE(ring.try_pop(output));
   REQUIRE(output.value.get() == output_address);
   CHECK(*output.value == 30);
+}
+
+TEST_CASE("batch SPSC operations are all-or-nothing and preserve wrapped FIFO order") {
+  handoff::spsc::BatchBoundedRing<std::uint64_t, 4> ring;
+  std::array<std::uint64_t, 3> first{1, 2, 3};
+  std::array<std::uint64_t, 2> second{4, 5};
+  std::array<std::uint64_t, 2> prefix{};
+  std::array<std::uint64_t, 3> wrapped{};
+  std::array<std::uint64_t, 5> oversized{};
+
+  CHECK(ring.try_push_batch(std::span<const std::uint64_t>{}));
+  CHECK(ring.try_pop_batch(std::span<std::uint64_t>{}));
+  CHECK_FALSE(ring.try_push_batch(oversized));
+  CHECK_FALSE(ring.try_pop_batch(oversized));
+
+  REQUIRE(ring.try_push_batch(first));
+  CHECK_FALSE(ring.try_push_batch(second));
+  CHECK(second == std::array<std::uint64_t, 2>{4, 5});
+  REQUIRE(ring.try_pop_batch(prefix));
+  CHECK(prefix == std::array<std::uint64_t, 2>{1, 2});
+
+  REQUIRE(ring.try_push_batch(second));
+  REQUIRE(ring.try_pop_batch(wrapped));
+  CHECK(wrapped == std::array<std::uint64_t, 3>{3, 4, 5});
+
+  REQUIRE(ring.try_push(6));
+  std::array<std::uint64_t, 2> unchanged{90, 91};
+  CHECK_FALSE(ring.try_pop_batch(unchanged));
+  CHECK(unchanged == std::array<std::uint64_t, 2>{90, 91});
+}
+
+TEST_CASE("batch SPSC operations transfer resource-owning values by assignment") {
+  handoff::spsc::BatchBoundedRing<std::shared_ptr<int>, 2> ring;
+  const std::array inputs{std::make_shared<int>(10), std::make_shared<int>(20)};
+  std::array<std::shared_ptr<int>, 2> outputs{};
+
+  REQUIRE(ring.try_push_batch(inputs));
+  CHECK(inputs[0].use_count() == 2);
+  CHECK(inputs[1].use_count() == 2);
+  REQUIRE(ring.try_pop_batch(outputs));
+  REQUIRE(outputs[0]);
+  REQUIRE(outputs[1]);
+  CHECK(*outputs[0] == 10);
+  CHECK(*outputs[1] == 20);
+  CHECK(inputs[0].use_count() == 2);
+  CHECK(inputs[1].use_count() == 2);
+}
+
+TEST_CASE("batch SPSC operations preserve concurrent message integrity") {
+  constexpr std::uint64_t message_count = 100'000;
+  constexpr std::size_t batch_size = 4;
+  handoff::spsc::BatchBoundedRing<Message, 64> ring;
+  std::atomic<bool> valid{true};
+
+  std::thread producer([&] {
+    std::array<Message, batch_size> messages{};
+    for (std::uint64_t first = 0; first < message_count; first += batch_size) {
+      for (std::size_t offset = 0; offset < batch_size; ++offset) {
+        const auto sequence = first + offset;
+        messages[offset] = {.sequence = sequence, .inverse = ~sequence};
+      }
+      while (!ring.try_push_batch(messages)) {
+        std::this_thread::yield();
+      }
+    }
+  });
+
+  std::thread consumer([&] {
+    std::array<Message, batch_size> messages{};
+    for (std::uint64_t first = 0; first < message_count; first += batch_size) {
+      while (!ring.try_pop_batch(messages)) {
+        std::this_thread::yield();
+      }
+      for (std::size_t offset = 0; offset < batch_size; ++offset) {
+        const auto expected = first + offset;
+        if (messages[offset].sequence != expected || messages[offset].inverse != ~expected) {
+          valid.store(false, std::memory_order_relaxed);
+        }
+      }
+    }
+  });
+
+  producer.join();
+  consumer.join();
+  CHECK(valid.load(std::memory_order_relaxed));
 }
 
 TEST_CASE("the cached-index SPSC ring refreshes stale remote progress across slot wraparound") {

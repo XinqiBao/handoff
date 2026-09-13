@@ -9,9 +9,10 @@ IPC framework, a universal queue library, or an attempt to name one queue as uni
 
 ## Status
 
-The repository contains a readable fixed-slot bounded SPSC baseline, cache-line-separated and
-cached-remote-index variants, equivalent correctness tests, steady-state throughput and ping-pong
-round-trip latency workloads, a C++23 build, and a small platform capability layer.
+The repository contains a readable fixed-slot bounded SPSC baseline, cache-line-separated,
+cached-remote-index, and all-or-nothing batch variants, equivalent correctness tests, steady-state
+throughput and ping-pong round-trip latency workloads, a C++23 build, and a small platform
+capability layer.
 
 ## Requirements
 
@@ -43,7 +44,7 @@ presets are documented in [Reproducibility](docs/reproducibility.md).
 ./build/debug/apps/handoff-bench/handoff-bench run smoke \
   --iterations 1000 --warmup 100 --trials 1
 ./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation basic --payload-bytes 64 --capacity 1024 \
+  --implementation batch --payload-bytes 64 --capacity 1024 --batch-size 4 \
   --iterations 1000000 --warmup 10000 --trials 5
 ./build/release/apps/handoff-bench/handoff-bench run ping-pong \
   --implementation basic --payload-bytes 64 --capacity 1024 \
@@ -54,8 +55,9 @@ The `smoke` command checks timing, CLI, and result-output plumbing. Its timing i
 performance result.
 
 The SPSC commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output` arguments.
-Select `--implementation basic|cache-line|cached-index`; run `handoff-bench help` for supported
-payload sizes and capacities.
+Select `--implementation basic|batch|cache-line|cached-index`; throughput also supports
+`--batch-size 1|4|16` for the `basic` and `batch` implementations. Run `handoff-bench help` for the
+complete option contract.
 
 ## Documentation
 

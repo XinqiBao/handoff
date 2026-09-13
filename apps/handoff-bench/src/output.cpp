@@ -42,6 +42,8 @@ std::string_view implementation_name(Implementation implementation) {
   switch (implementation) {
   case Implementation::basic:
     return "basic";
+  case Implementation::batch:
+    return "batch";
   case Implementation::cache_line:
     return "cache-line";
   case Implementation::cached_index:
@@ -135,8 +137,11 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
              << result.elapsed_ns << ",,,,," << result.checksum << '\n';
     } else {
       output << benchmark_name(benchmark) << ',' << implementation_name(options.implementation)
-             << ',' << options.payload_bytes << ',' << options.capacity_slots << ',' << ",,"
-             << options.iterations << ',' << result.trial << ',' << result.elapsed_ns << ',';
+             << ',' << options.payload_bytes << ',' << options.capacity_slots << ",,";
+      if (benchmark == Benchmark::throughput) {
+        output << options.batch_size;
+      }
+      output << ',' << options.iterations << ',' << result.trial << ',' << result.elapsed_ns << ',';
       if (benchmark == Benchmark::throughput) {
         if (result.messages_per_second) {
           output << std::fixed << std::setprecision(3) << *result.messages_per_second;
@@ -176,6 +181,9 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
   } else {
     std::cout << " / " << implementation_name(options.implementation) << " / "
               << options.payload_bytes << " B / " << options.capacity_slots << " slots";
+    if (benchmark == Benchmark::throughput) {
+      std::cout << " / batch " << options.batch_size;
+    }
   }
   std::cout << "\nsystem: " << metadata.system.operating_system << ", "
             << metadata.system.architecture << ", " << metadata.system.compiler << ' '

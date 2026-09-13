@@ -19,6 +19,15 @@ endfunction()
 
 expect_failure(2 "unknown option: --unknown" run throughput --unknown)
 expect_failure(2 "option --implementation does not apply to smoke" run smoke --implementation basic)
+expect_failure(2 "option --batch-size does not apply to ping-pong" run ping-pong --batch-size 4)
+expect_failure(
+  2
+  "--batch-size greater than 1 requires implementation basic or batch"
+  run throughput --implementation cached-index --batch-size 4)
+expect_failure(
+  2
+  "--iterations and --warmup must be divisible by --batch-size"
+  run throughput --implementation batch --batch-size 4 --iterations 10 --warmup 4)
 expect_failure(
   2
   "producer and consumer CPUs must be different"

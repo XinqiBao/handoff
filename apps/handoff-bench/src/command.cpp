@@ -28,8 +28,8 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation basic|cache-line|cached-index] "
-            "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
+            "[--implementation basic|batch|cache-line|cached-index] "
+            "[--payload-bytes 8|64|256] [--capacity 64|1024] [--batch-size 1|4|16]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
 }
@@ -46,7 +46,8 @@ template <typename Integer> std::optional<Integer> parse_integer(std::string_vie
 bool is_known_option(std::string_view option) {
   return option == "--iterations" || option == "--warmup" || option == "--trials" ||
          option == "--output" || option == "--implementation" || option == "--payload-bytes" ||
-         option == "--capacity" || option == "--producer-cpu" || option == "--consumer-cpu";
+         option == "--capacity" || option == "--batch-size" || option == "--producer-cpu" ||
+         option == "--consumer-cpu";
 }
 
 bool applies_to_smoke(std::string_view option) {
@@ -65,6 +66,10 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     }
     if (benchmark == Benchmark::smoke && !applies_to_smoke(argument)) {
       errors << "option " << argument << " does not apply to smoke\n";
+      return std::nullopt;
+    }
+    if (benchmark == Benchmark::ping_pong && argument == "--batch-size") {
+      errors << "option --batch-size does not apply to ping-pong\n";
       return std::nullopt;
     }
     if (index + 1 >= arguments.size()) {
@@ -103,12 +108,14 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     } else if (argument == "--implementation") {
       if (value == "basic") {
         options.implementation = Implementation::basic;
+      } else if (value == "batch") {
+        options.implementation = Implementation::batch;
       } else if (value == "cache-line") {
         options.implementation = Implementation::cache_line;
       } else if (value == "cached-index") {
         options.implementation = Implementation::cached_index;
       } else {
-        errors << "--implementation must be one of: basic, cache-line, cached-index\n";
+        errors << "--implementation must be one of: basic, batch, cache-line, cached-index\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -125,6 +132,13 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.capacity_slots = *parsed;
+    } else if (argument == "--batch-size") {
+      const auto parsed = parse_integer<std::size_t>(value);
+      if (!parsed || (*parsed != 1 && *parsed != 4 && *parsed != 16)) {
+        errors << "--batch-size must be one of: 1, 4, 16\n";
+        return std::nullopt;
+      }
+      options.batch_size = *parsed;
     } else if (argument == "--producer-cpu") {
       const auto parsed = parse_integer<unsigned int>(value);
       if (!parsed) {
@@ -145,6 +159,17 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
   if (options.producer_cpu && options.consumer_cpu &&
       *options.producer_cpu == *options.consumer_cpu) {
     errors << "producer and consumer CPUs must be different\n";
+    return std::nullopt;
+  }
+  if (benchmark == Benchmark::throughput && options.batch_size > 1 &&
+      options.implementation != Implementation::basic &&
+      options.implementation != Implementation::batch) {
+    errors << "--batch-size greater than 1 requires implementation basic or batch\n";
+    return std::nullopt;
+  }
+  if (benchmark == Benchmark::throughput &&
+      (options.iterations % options.batch_size != 0 || options.warmup % options.batch_size != 0)) {
+    errors << "--iterations and --warmup must be divisible by --batch-size\n";
     return std::nullopt;
   }
   return options;

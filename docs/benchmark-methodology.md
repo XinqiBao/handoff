@@ -96,6 +96,12 @@ changes must be deliberate because historical data may depend on them.
 empty: payload bytes times slots describes neither the complete object footprint nor a native byte
 capacity. Byte-oriented mechanisms may populate that field when they define capacity in bytes.
 
+For throughput, `batch_size` is the fixed number of messages generated and consumed per workload
+group. The scalar `basic` baseline still publishes each message separately; the `batch` mechanism
+publishes or releases the complete group with one counter update. Iterations and warmup must be
+divisible by the selected batch size. Ping-pong leaves the field empty because it remains a scalar
+request/response exchange.
+
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,
 the corresponding rate is unavailable and remains empty rather than being synthesized from a
