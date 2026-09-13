@@ -105,7 +105,8 @@ The harness may grow toward these explicit dimensions:
 - slot capacity or byte capacity;
 - batch size;
 - iteration count, warmup, and trial count;
-- producer CPU and consumer CPU.
+- producer CPU and consumer CPU;
+- fixed consumer count for broadcast workloads.
 
 Not every option applies to every mechanism. Commands should reject nonsensical combinations rather
 than force them through a universal configuration object. Default experiments should remain small;

@@ -30,16 +30,24 @@ expect_failure(
   run throughput --implementation sequence --batch-size 4)
 expect_failure(
   2
-  "implementations bulk, burst, and staged apply only to throughput"
+  "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or staged"
+  run throughput --implementation fan-out --batch-size 4)
+expect_failure(
+  2
+  "implementations bulk, burst, fan-out, and staged apply only to throughput"
   run ping-pong --implementation bulk)
 expect_failure(
   2
-  "implementations bulk, burst, and staged apply only to throughput"
+  "implementations bulk, burst, fan-out, and staged apply only to throughput"
   run ping-pong --implementation burst)
 expect_failure(
   2
-  "implementations bulk, burst, and staged apply only to throughput"
+  "implementations bulk, burst, fan-out, and staged apply only to throughput"
   run ping-pong --implementation staged)
+expect_failure(
+  2
+  "implementations bulk, burst, fan-out, and staged apply only to throughput"
+  run ping-pong --implementation fan-out)
 expect_failure(
   2
   "--iterations and --warmup must be divisible by --batch-size"
@@ -48,6 +56,14 @@ expect_failure(
   2
   "--iterations plus --warmup exceeds the sequence range"
   run throughput --implementation sequence --iterations 18446744073709551615 --warmup 1)
+expect_failure(
+  2
+  "--iterations plus --warmup exceeds the sequence range"
+  run throughput --implementation fan-out --iterations 18446744073709551615 --warmup 1)
+expect_failure(
+  2
+  "CPU affinity options do not apply to fan-out"
+  run throughput --implementation fan-out --producer-cpu 0)
 expect_failure(
   2
   "producer and consumer CPUs must be different"

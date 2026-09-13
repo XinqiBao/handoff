@@ -29,7 +29,8 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation basic|batch|bulk|burst|cache-line|cached-index|sequence|staged] "
+            "[--implementation "
+            "basic|batch|bulk|burst|cache-line|cached-index|fan-out|sequence|staged] "
             "[--payload-bytes 8|64|256] [--capacity 64|1024] [--batch-size 1|4|16]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
@@ -119,13 +120,15 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::cache_line;
       } else if (value == "cached-index") {
         options.implementation = Implementation::cached_index;
+      } else if (value == "fan-out") {
+        options.implementation = Implementation::fan_out;
       } else if (value == "sequence") {
         options.implementation = Implementation::sequence;
       } else if (value == "staged") {
         options.implementation = Implementation::staged;
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, cache-line, "
-                  "cached-index, sequence, staged\n";
+                  "cached-index, fan-out, sequence, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -166,6 +169,11 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     }
   }
 
+  if (options.implementation == Implementation::fan_out &&
+      (options.producer_cpu || options.consumer_cpu)) {
+    errors << "CPU affinity options do not apply to fan-out\n";
+    return std::nullopt;
+  }
   if (options.producer_cpu && options.consumer_cpu &&
       *options.producer_cpu == *options.consumer_cpu) {
     errors << "producer and consumer CPUs must be different\n";
@@ -183,8 +191,9 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
   }
   if (benchmark == Benchmark::ping_pong && (options.implementation == Implementation::bulk ||
                                             options.implementation == Implementation::burst ||
+                                            options.implementation == Implementation::fan_out ||
                                             options.implementation == Implementation::staged)) {
-    errors << "implementations bulk, burst, and staged apply only to throughput\n";
+    errors << "implementations bulk, burst, fan-out, and staged apply only to throughput\n";
     return std::nullopt;
   }
   if (benchmark == Benchmark::throughput &&
@@ -192,7 +201,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     errors << "--iterations and --warmup must be divisible by --batch-size\n";
     return std::nullopt;
   }
-  if (options.implementation == Implementation::sequence &&
+  if ((options.implementation == Implementation::sequence ||
+       options.implementation == Implementation::fan_out) &&
       options.warmup > std::numeric_limits<std::uint64_t>::max() - options.iterations) {
     errors << "--iterations plus --warmup exceeds the sequence range\n";
     return std::nullopt;
@@ -268,7 +278,7 @@ int run(int argc, char* argv[]) {
 
   if (std::string_view(arguments.front()) == "list") {
     std::cout << "smoke\tHarness timing and result-output plumbing check\n"
-                 "throughput\tSteady-state completed SPSC handoffs\n"
+                 "throughput\tSteady-state completed SPSC or fan-out handoffs\n"
                  "ping-pong\tSPSC round-trip latency (RTT; RTT/2 is a proxy)\n";
     return 0;
   }

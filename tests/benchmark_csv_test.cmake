@@ -51,11 +51,12 @@ endfunction()
 validate_group_mode(burst)
 validate_group_mode(staged)
 
-function(validate_sequence_mode benchmark expected_batch_size)
+function(validate_sequence_mode benchmark implementation expected_batch_size)
   file(REMOVE "${output_path}")
   execute_process(
     COMMAND
-      "${BENCHMARK_EXECUTABLE}" run "${benchmark}" --implementation sequence --payload-bytes 8
+      "${BENCHMARK_EXECUTABLE}" run "${benchmark}" --implementation "${implementation}"
+      --payload-bytes 8
       --capacity 64 --iterations 1000 --warmup 100 --trials 1 --output "${output_path}"
     RESULT_VARIABLE result
     OUTPUT_VARIABLE output
@@ -63,35 +64,48 @@ function(validate_sequence_mode benchmark expected_batch_size)
   if(NOT result EQUAL 0)
     message(
       FATAL_ERROR
-        "sequence ${benchmark} failed with ${result}\nstdout: ${output}\nstderr: ${error}")
+        "${implementation} ${benchmark} failed with ${result}\nstdout: ${output}\nstderr: ${error}")
   endif()
 
   file(STRINGS "${output_path}" lines)
   set(data_line "")
   foreach(line IN LISTS lines)
-    if(line MATCHES "^${benchmark},sequence,")
+    if(line MATCHES "^${benchmark},${implementation},")
       set(data_line "${line}")
     endif()
   endforeach()
   if(data_line STREQUAL "")
-    message(FATAL_ERROR "sequence ${benchmark} CSV data row is missing")
+    message(FATAL_ERROR "${implementation} ${benchmark} CSV data row is missing")
   endif()
   string(REPLACE "," ";" fields "${data_line}")
   list(LENGTH fields field_count)
   if(NOT field_count EQUAL 14)
-    message(FATAL_ERROR "expected 14 sequence CSV fields, got ${field_count}: ${data_line}")
+    message(FATAL_ERROR "expected 14 ${implementation} CSV fields, got ${field_count}: ${data_line}")
   endif()
   list(GET fields 5 batch_size)
   list(GET fields 6 iterations)
   list(GET fields 13 checksum)
   if(NOT batch_size STREQUAL "${expected_batch_size}" OR NOT iterations STREQUAL "1000" OR
      checksum STREQUAL "")
-    message(FATAL_ERROR "unexpected sequence ${benchmark} CSV row: ${data_line}")
+    message(FATAL_ERROR "unexpected ${implementation} ${benchmark} CSV row: ${data_line}")
+  endif()
+  if(implementation STREQUAL "fan-out")
+    file(READ "${output_path}" contents)
+    foreach(metadata_pattern IN ITEMS
+        "# consumer_count=2"
+        "# consumer_cpus_requested=not-requested"
+        "# consumer_cpus_effective=unavailable"
+        "# consumer_affinity_outcome=not-requested")
+      if(NOT contents MATCHES "${metadata_pattern}")
+        message(FATAL_ERROR "fan-out metadata matching '${metadata_pattern}' is missing in:\n${contents}")
+      endif()
+    endforeach()
   endif()
 endfunction()
 
-validate_sequence_mode(throughput 1)
-validate_sequence_mode(ping-pong "")
+validate_sequence_mode(throughput sequence 1)
+validate_sequence_mode(ping-pong sequence "")
+validate_sequence_mode(throughput fan-out 1)
 
 file(REMOVE "${output_path}")
 execute_process(

@@ -2,6 +2,7 @@ add_executable(
   handoff-bench
   main.cpp
   src/command.cpp
+  src/fan_out.cpp
   src/output.cpp
   src/ping_pong.cpp
   src/run_metadata.cpp

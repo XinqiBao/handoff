@@ -38,6 +38,18 @@ cmake --build --preset tidy --target format-check
 ctest --preset tidy --no-tests=error
 ```
 
+Fan-out plumbing can be exercised with:
+
+```sh
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation fan-out --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5
+```
+
+This fixed two-consumer workload currently rejects the single-consumer CPU affinity options. Do not
+use its unpinned output for performance conclusions; controlled measurement requires explicit,
+recorded placement for the producer and both consumers.
+
 ASan/UBSan and TSan are separate because these runtimes are not combined. TSan availability and
 behavior vary by platform and toolchain; report a concrete limitation rather than weakening a valid
 low-level design to obtain a clean run.

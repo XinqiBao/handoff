@@ -49,7 +49,8 @@ belong in [inspiration notes](inspirations/README.md).
 Current targets are deliberately small:
 
 - `handoff_core`: version and platform capabilities, with header-only mechanism implementations;
-- `handoff-bench`: explicit CLI, smoke plumbing, and SPSC throughput and ping-pong workloads;
+- `handoff-bench`: explicit CLI, smoke plumbing, SPSC throughput and ping-pong workloads, and a
+  two-consumer fan-out throughput workload;
 - `handoff_tests`: Catch2-based correctness checks.
 
 Within `handoff-bench`, the application root holds only the process entry point and target build

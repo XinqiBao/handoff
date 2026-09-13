@@ -52,6 +52,8 @@ std::string_view implementation_name(Implementation implementation) {
     return "cache-line";
   case Implementation::cached_index:
     return "cached-index";
+  case Implementation::fan_out:
+    return "fan-out";
   case Implementation::sequence:
     return "sequence";
   case Implementation::staged:
@@ -128,13 +130,21 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
            << optional_cpu_value(results.producer_placement.requested, "not-requested") << '\n'
            << "# producer_cpu_effective="
            << optional_cpu_value(results.producer_placement.effective, "unavailable") << '\n'
-           << "# producer_affinity_outcome=" << affinity_outcome(results.producer_placement) << '\n'
-           << "# consumer_cpu_requested="
-           << optional_cpu_value(results.consumer_placement.requested, "not-requested") << '\n'
-           << "# consumer_cpu_effective="
-           << optional_cpu_value(results.consumer_placement.effective, "unavailable") << '\n'
-           << "# consumer_affinity_outcome=" << affinity_outcome(results.consumer_placement)
+           << "# producer_affinity_outcome=" << affinity_outcome(results.producer_placement)
            << '\n';
+    if (options.implementation == Implementation::fan_out) {
+      output << "# consumer_count=" << fan_out_consumer_count << '\n'
+             << "# consumer_cpus_requested=not-requested\n"
+             << "# consumer_cpus_effective=unavailable\n"
+             << "# consumer_affinity_outcome=not-requested\n";
+    } else {
+      output << "# consumer_cpu_requested="
+             << optional_cpu_value(results.consumer_placement.requested, "not-requested") << '\n'
+             << "# consumer_cpu_effective="
+             << optional_cpu_value(results.consumer_placement.effective, "unavailable") << '\n'
+             << "# consumer_affinity_outcome=" << affinity_outcome(results.consumer_placement)
+             << '\n';
+    }
   }
   output << "benchmark,implementation,payload_bytes,capacity_slots,capacity_bytes,batch_size,"
             "iterations,trial,elapsed_ns,messages_per_second,latency_ns,latency_p95_ns,"
@@ -191,6 +201,9 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
               << options.payload_bytes << " B / " << options.capacity_slots << " slots";
     if (benchmark == Benchmark::throughput) {
       std::cout << " / batch " << options.batch_size;
+      if (options.implementation == Implementation::fan_out) {
+        std::cout << " / " << fan_out_consumer_count << " consumers";
+      }
     }
   }
   std::cout << "\nsystem: " << metadata.system.operating_system << ", "

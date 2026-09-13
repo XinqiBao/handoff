@@ -18,3 +18,4 @@ Do not commit routine smoke timings as experimental evidence.
 - [Fixed bulk versus best-effort burst SPSC](006-bulk-burst-spsc-comparison.md)
 - [Bulk versus staged direct-slot SPSC](007-staged-spsc-comparison.md)
 - [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
+- [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)

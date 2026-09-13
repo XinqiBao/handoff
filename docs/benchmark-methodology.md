@@ -111,6 +111,14 @@ request and response values through one claim and observation at a time. Its com
 payload validation, phase boundaries, yield waiting, and CSV fields have the same meaning as the
 other scalar implementations.
 
+The `fan-out` throughput implementation uses one producer and two reliable consumers. A completed
+message means one publication has been observed, validated, and released by both consumers;
+`iterations` and rate count these completed publications rather than summing consumer deliveries.
+Both consumers perform the same payload validation and must independently produce the expected
+checksum before a result is emitted. CSV records `consumer_count=2` as metadata. Because the current
+affinity interface names only one consumer, `fan-out` rejects both CPU affinity options instead of
+recording an incomplete placement; its smoke runs are not controlled performance evidence.
+
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,
 the corresponding rate is unavailable and remains empty rather than being synthesized from a

@@ -9,6 +9,7 @@ This directory documents mechanisms implemented by `handoff`.
 - [Bulk/burst bounded SPSC ring](bulk-burst-bounded-spsc.md)
 - [Staged bounded SPSC ring](staged-bounded-spsc.md)
 - [Bounded sequence ring](bounded-sequence-ring.md)
+- [Bounded sequence fan-out](bounded-sequence-fan-out.md)
 
 Each future note should state:
 
