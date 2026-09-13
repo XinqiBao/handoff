@@ -12,6 +12,7 @@ This directory documents mechanisms implemented by `handoff`.
 - [Bounded sequence fan-out](bounded-sequence-fan-out.md)
 - [Bounded sequence pipeline](bounded-sequence-pipeline.md)
 - [Fixed-record SPSC ring](fixed-record-spsc.md)
+- [Variable-record SPSC byte ring](variable-record-spsc.md)
 
 Each future note should state:
 

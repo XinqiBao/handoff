@@ -17,7 +17,8 @@ add_executable(
   sequence_fan_out_test.cpp
   sequence_pipeline_test.cpp
   sequence_ring_test.cpp
-  staged_spsc_test.cpp)
+  staged_spsc_test.cpp
+  variable_record_ring_test.cpp)
 target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
 target_link_libraries(handoff_tests PRIVATE handoff::core Catch2::Catch2WithMain)
 handoff_configure_target(handoff_tests)
@@ -94,6 +95,14 @@ add_test(
   NAME benchmark.fixed-record-ping-pong-smoke
   COMMAND handoff-bench run ping-pong --implementation fixed-record --payload-bytes 8 --capacity 64
           --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.byte-record-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation byte-record --payload-bytes 8
+          --capacity-bytes 4096 --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.byte-record-ping-pong-smoke
+  COMMAND handoff-bench run ping-pong --implementation byte-record --payload-bytes 8
+          --capacity-bytes 4096 --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.sequence-ping-pong-smoke
   COMMAND handoff-bench run ping-pong --implementation sequence --payload-bytes 8 --capacity 64

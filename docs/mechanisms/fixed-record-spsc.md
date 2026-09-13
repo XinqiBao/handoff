@@ -13,7 +13,7 @@ payloads, or add batching, overwrite, or additional producers or consumers.
 
 ## Record layout
 
-`FixedRecordHeader` is standard-layout and contains, in order:
+`RecordHeader` is standard-layout and contains, in order:
 
 - a `std::uint64_t sequence` at byte offset 0;
 - a caller-visible `std::uint32_t type_tag` at byte offset 8;

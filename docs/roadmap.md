@@ -37,8 +37,8 @@ documents and Git.
 | Q2 | complete | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
 | Q3 | complete | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
 | R1 | complete | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
-| R2 | next | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
-| R3 | queued | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
+| R2 | complete | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
+| R3 | next | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
 | F1 | queued | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
 | F2 | queued | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
 | W1 | queued | Load-shape workloads | Add burst, imbalance, temporary-stall, and offered-load latency experiments only as required by implemented mechanisms. |
@@ -53,49 +53,55 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: R2
+## Next stage: R3
 
-Goal: establish a bounded SPSC byte ring that packs variable-length records contiguously and makes
-physical wrap explicit with padding headers.
+Goal: establish a bounded SPSC record mechanism whose fixed descriptor ring and variable payload
+byte ring have explicit, independent capacity and reuse contracts.
 
 Required work:
 
-- add a distinct concrete byte-ring mechanism under `record`; retain R1 as the fixed-slot baseline
-  and reuse its 16-byte logical sequence/type/length header contract where that keeps the two
-  mechanisms comparable, without introducing a storage-policy hierarchy or queue base class;
-- own one compile-time-sized `std::byte` buffer, require its size to be a multiple of 16 bytes, and
-  represent producer and consumer progress as monotonic byte positions; define a normal physical
-  footprint as `align_up(16 + payload_length, 16)` so every record begins at a 16-byte boundary;
-- keep each normal `[header][payload]` record physically contiguous. When the remaining suffix
-  cannot hold the complete next record, publish a 16-byte padding header whose `UINT32_MAX` type tag
-  reserves the marker and whose length field encodes the complete skipped suffix, then place the
-  record at offset zero; padding consumes capacity and is skipped by the consumer but is never
-  returned as a message;
-- provide explicit copy-in/copy-out SPSC operations over caller-owned byte spans. Reject a reserved
-  type tag, inconsistent header length, an individually unrepresentable record, or an undersized
-  output buffer without publication, consumption, or partial output mutation; distinguish these
-  contract failures from ordinary full or empty states without exceptions in the hot path;
-- compute admission from total occupied bytes, including alignment and any required padding, so a
-  successful push reserves and publishes the whole transition atomically. A successful pop copies
-  one logical header and payload before releasing its complete physical footprint;
-- document the acquire/release publication and reuse edges, padding visibility, alignment bytes,
-  unsigned counter bounds, ownership, and the fact that neither records nor headers may straddle the
-  physical end;
-- test empty/full behavior, exact byte accounting, zero and maximum payloads, mixed lengths, aligned
-  footprints, padding insertion and skipping, repeated wrap, FIFO/header/payload integrity, every
-  failed-operation stability rule, slot-byte reuse, and a long concurrent variable-length run;
-- add scalar throughput and ping-pong plumbing using the existing payload sizes and a dedicated
-  `--capacity-bytes 4096|65536` option. Keep phase boundaries, waiting, validation, and trial
-  accounting equivalent; populate `capacity_bytes`, leave `capacity_slots` empty, and reject
-  slot-capacity or batch combinations that would misstate the mechanism;
-- add a question-led planned experiment that treats alignment, padding, header parsing, and byte
-  copies as part of the byte-ring contract and records no performance conclusion without controlled
-  Linux evidence.
+- add one concrete descriptor/payload mechanism under a mechanism-named public directory; retain R1
+  and R2 as distinct baselines, reuse the logical `RecordHeader`, and avoid a storage-policy
+  hierarchy, runtime registry, universal queue interface, or Firedancer compatibility surface;
+- own a compile-time-sized exact-capacity descriptor array and a separate compile-time-sized
+  `std::byte` payload buffer. Each descriptor stores the logical header and the physical payload
+  location needed to find contiguous bytes; monotonic descriptor and byte positions define
+  reservation, publication, consumption, and reuse without pointers into caller storage;
+- align payload starts and footprints to 16 bytes. If a non-empty payload does not fit in the
+  remaining physical suffix, account for that suffix as an internal byte reservation and place the
+  payload at offset zero; do not store or publish an in-band padding header. Bound one payload so a
+  valid record can make progress from any aligned empty-buffer offset. A zero-length payload consumes
+  one descriptor but no payload bytes;
+- provide copy-in/copy-out SPSC operations over caller-owned byte spans. A push succeeds only when
+  one descriptor and the complete payload transition, including any end gap, are both available;
+  otherwise it publishes neither resource. Reject inconsistent lengths or individually
+  unrepresentable payloads separately from full, and reject undersized output separately from empty,
+  without consuming state or partially mutating outputs;
+- make the descriptor-tail release store the sole publication point after both payload bytes and
+  descriptor fields are written. The consumer acquire-loads that tail before copying, then releases
+  payload bytes and the descriptor slot only after the copy completes; document why independently
+  observed reuse progress can only cause conservative false-full results, never premature overwrite;
+- document native descriptor-slot and payload-byte capacities, alignment gaps, counter bounds,
+  ownership, payload contiguity, failure stability, and the distinction from R2 padding-header
+  parsing and from later sequence-addressed, broadcast, or lossy metadata mechanisms;
+- test descriptor-full and byte-full states, exact capacity accounting, zero and maximum payloads,
+  alignment, physical wrap gaps, failed atomic reservation, undersized output across wrap, FIFO
+  header/payload integrity, repeated descriptor and byte reuse, and a long concurrent mixed-length
+  run;
+- add scalar throughput and ping-pong plumbing using the existing payload sizes and an explicit
+  descriptor implementation name. Require both `--capacity 64|1024` and
+  `--capacity-bytes 4096|65536` as its native dimensions, keep benchmark-side work and phase
+  boundaries equivalent, populate both CSV capacity fields, and reject batching or option
+  combinations that misstate the mechanism;
+- add a question-led planned experiment comparing the descriptor/payload split with the existing
+  record layouts. Treat descriptor access, payload copies, alignment, and wrap gaps as timed work and
+  record no performance conclusion without controlled Linux evidence.
 
-Non-goals: split records, implicit wrap without a marker, descriptor/payload separation, external
-payload ownership, scatter/gather I/O, returned direct-storage views, reservation tokens, batching,
-overwrite or lossy behavior, custom allocation, serialization frameworks, multiple producers or
-consumers, deferred roadmap work, performance measurements, or performance conclusions.
+Non-goals: returned storage views, public reservation tokens, external payload ownership,
+scatter/gather I/O, batching, descriptor-only observation, sequence-addressed lookup, broadcast,
+consumer dependencies, overwrite or lossy delivery, custom allocation, serialization frameworks,
+multiple producers or consumers, F1/F2 work, deferred roadmap work, performance measurements, or
+performance conclusions.
 
 Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
 plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;

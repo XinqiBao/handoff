@@ -67,6 +67,20 @@ Fixed-record plumbing can be exercised with:
 These commands validate benchmark plumbing on a development host. Their timing is not controlled
 performance evidence.
 
+Variable-record byte-ring plumbing can be exercised with:
+
+```sh
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation byte-record --payload-bytes 64 --capacity-bytes 4096 \
+  --iterations 1000000 --warmup 10000 --trials 5
+./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+  --implementation byte-record --payload-bytes 64 --capacity-bytes 4096 \
+  --iterations 100000 --warmup 10000 --trials 5
+```
+
+These commands are also plumbing checks rather than controlled performance evidence. Byte-ring
+capacity is native bytes and must not be reported as an equivalent fixed-slot count.
+
 ASan/UBSan and TSan are separate because these runtimes are not combined. TSan availability and
 behavior vary by platform and toolchain; report a concrete limitation rather than weakening a valid
 low-level design to obtain a clean run.

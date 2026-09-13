@@ -133,6 +133,12 @@ length. It uses scalar copy-in/copy-out operations in throughput and ping-pong. 
 empty because neither payload bytes times slots nor logical record bytes describe the complete ring
 object footprint. Header work is part of this mechanism's contract and timed workload.
 
+The `byte-record` implementation copies the same logical header and payload into contiguous
+16-byte-aligned footprints in a circular byte buffer. It parses and skips explicit padding headers
+at physical wrap. Its native capacity is bytes: CSV populates `capacity_bytes` and leaves
+`capacity_slots` empty. Alignment, padding, parsing, and complete header/payload copies are part of
+the timed contract. A byte capacity must not be relabeled as an equivalent slot count.
+
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,
 the corresponding rate is unavailable and remains empty rather than being synthesized from a

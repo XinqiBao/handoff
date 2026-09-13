@@ -1,4 +1,4 @@
-#include "fixed_record_support.hpp"
+#include "record_support.hpp"
 #include "workload_support.hpp"
 #include "workloads.hpp"
 
@@ -21,7 +21,7 @@
 namespace handoff::bench {
 namespace {
 
-enum class QueueOperation { push_pop, fixed_record, sequence };
+enum class QueueOperation { push_pop, byte_record, fixed_record, sequence };
 
 template <typename T, std::size_t Capacity>
 using BenchmarkSequenceRing = sequence::BoundedSequenceRing<T, Capacity>;
@@ -33,7 +33,9 @@ struct LatencySummary {
 };
 
 template <QueueOperation Operation, std::size_t Bytes> auto make_message(std::uint64_t sequence) {
-  if constexpr (Operation == QueueOperation::fixed_record) {
+  if constexpr (Operation == QueueOperation::byte_record) {
+    return make_byte_record<Bytes>(sequence);
+  } else if constexpr (Operation == QueueOperation::fixed_record) {
     return make_fixed_record<Bytes>(sequence);
   } else {
     return make_payload<Bytes>(sequence);
@@ -43,7 +45,9 @@ template <QueueOperation Operation, std::size_t Bytes> auto make_message(std::ui
 template <QueueOperation Operation, typename Message>
 bool observe_message(const Message& message, std::uint64_t expected_sequence,
                      std::uint64_t& checksum) {
-  if constexpr (Operation == QueueOperation::fixed_record) {
+  if constexpr (Operation == QueueOperation::byte_record) {
+    return observe_byte_record(message, expected_sequence, checksum);
+  } else if constexpr (Operation == QueueOperation::fixed_record) {
     return observe_fixed_record(message, expected_sequence, checksum);
   } else {
     return observe_payload(message, expected_sequence, checksum);
@@ -64,9 +68,16 @@ LatencySummary summarize_latency(std::vector<std::int64_t> samples) {
           .p99_ns = static_cast<double>(samples[p99_index])};
 }
 
-template <QueueOperation Operation, typename Queue>
-bool try_send(Queue& queue, const typename Queue::value_type& value) {
-  if constexpr (Operation == QueueOperation::sequence) {
+template <QueueOperation Operation, typename Queue, typename Message>
+bool try_send(Queue& queue, const Message& value) {
+  if constexpr (Operation == QueueOperation::byte_record) {
+    using PushResult = typename Queue::PushResult;
+    const auto result = queue.try_push(value.header, value.payload.bytes);
+    if (result == PushResult::invalid_record) {
+      throw std::logic_error("benchmark produced an invalid byte record");
+    }
+    return result == PushResult::success;
+  } else if constexpr (Operation == QueueOperation::sequence) {
     auto claim = queue.try_claim();
     if (!claim) {
       return false;
@@ -80,9 +91,16 @@ bool try_send(Queue& queue, const typename Queue::value_type& value) {
   }
 }
 
-template <QueueOperation Operation, typename Queue>
-bool try_receive(Queue& queue, typename Queue::value_type& value) {
-  if constexpr (Operation == QueueOperation::sequence) {
+template <QueueOperation Operation, typename Queue, typename Message>
+bool try_receive(Queue& queue, Message& value) {
+  if constexpr (Operation == QueueOperation::byte_record) {
+    using PopResult = typename Queue::PopResult;
+    const auto result = queue.try_pop(value.header, value.payload.bytes);
+    if (result == PopResult::output_too_small) {
+      throw std::logic_error("benchmark byte-record output is too small");
+    }
+    return result == PopResult::success;
+  } else if constexpr (Operation == QueueOperation::sequence) {
     auto observation = queue.try_observe();
     if (!observation) {
       return false;
@@ -115,7 +133,7 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
       return;
     }
 
-    typename Queue::value_type response;
+    decltype(make_message<Operation, Bytes>(0)) response;
     std::uint64_t warmup_checksum = 0;
     for (std::uint64_t sequence = 0; sequence < options.warmup; ++sequence) {
       auto request = make_message<Operation, Bytes>(sequence);
@@ -161,7 +179,7 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
       return;
     }
 
-    typename Queue::value_type request;
+    decltype(make_message<Operation, Bytes>(0)) request;
     std::uint64_t ignored_checksum = 0;
     for (std::uint64_t sequence = 0; sequence < options.warmup; ++sequence) {
       while (!try_receive<Operation>(requests, request)) {
@@ -289,6 +307,35 @@ RunResults dispatch_record_payload(const Options& options) {
   }
 }
 
+template <std::size_t Bytes> RunResults dispatch_byte_capacity(const Options& options) {
+  const auto capacity = options.capacity_bytes;
+  if (!capacity) {
+    throw std::logic_error("byte-record options require byte capacity");
+  }
+  switch (*capacity) {
+  case 4'096:
+    return run_spsc<QueueOperation::byte_record, record::VariableRecordRing<4'096>, Bytes>(options);
+  case 65'536:
+    return run_spsc<QueueOperation::byte_record, record::VariableRecordRing<65'536>, Bytes>(
+        options);
+  default:
+    throw std::logic_error("validated byte capacity was not dispatched");
+  }
+}
+
+RunResults dispatch_byte_payload(const Options& options) {
+  switch (options.payload_bytes) {
+  case 8:
+    return dispatch_byte_capacity<8>(options);
+  case 64:
+    return dispatch_byte_capacity<64>(options);
+  case 256:
+    return dispatch_byte_capacity<256>(options);
+  default:
+    throw std::logic_error("validated payload size was not dispatched");
+  }
+}
+
 } // namespace
 
 RunResults run_ping_pong(const Options& options) {
@@ -300,6 +347,8 @@ RunResults run_ping_pong(const Options& options) {
   case Implementation::bulk:
   case Implementation::burst:
     throw std::logic_error("bulk and burst implementations are not ping-pong modes");
+  case Implementation::byte_record:
+    return dispatch_byte_payload(options);
   case Implementation::cache_line:
     return dispatch_payload<QueueOperation::push_pop, spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:

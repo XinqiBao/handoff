@@ -36,7 +36,7 @@ bool matches(const handoff::record::FixedRecord<PayloadCapacity>& record, std::u
 } // namespace
 
 TEST_CASE("fixed records expose a stable header followed by inline payload") {
-  using Header = handoff::record::FixedRecordHeader;
+  using Header = handoff::record::RecordHeader;
   using Record = handoff::record::FixedRecord<8>;
   using Ring = handoff::record::FixedRecordRing<8, 4>;
 

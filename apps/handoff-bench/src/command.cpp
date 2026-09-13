@@ -23,18 +23,20 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 void print_usage(std::ostream& stream) {
-  stream << "Usage:\n"
-            "  handoff-bench help\n"
-            "  handoff-bench list\n"
-            "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
-            "[--output FILE]\n"
-            "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation "
-            "basic|batch|bulk|burst|cache-line|cached-index|fan-out|fixed-record|pipeline|sequence|"
-            "staged] "
-            "[--payload-bytes 8|64|256] [--capacity 64|1024] [--batch-size 1|4|16]\n"
-            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-            "[--consumer-cpu N] [--output FILE]\n";
+  stream
+      << "Usage:\n"
+         "  handoff-bench help\n"
+         "  handoff-bench list\n"
+         "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
+         "[--output FILE]\n"
+         "  handoff-bench run <throughput|ping-pong> "
+         "[--implementation "
+         "basic|batch|bulk|burst|byte-record|cache-line|cached-index|fan-out|fixed-record|pipeline|"
+         "sequence|staged] "
+         "[--payload-bytes 8|64|256] [--capacity 64|1024] "
+         "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
+         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+         "[--consumer-cpu N] [--output FILE]\n";
 }
 
 template <typename Integer> std::optional<Integer> parse_integer(std::string_view text) {
@@ -49,8 +51,8 @@ template <typename Integer> std::optional<Integer> parse_integer(std::string_vie
 bool is_known_option(std::string_view option) {
   return option == "--iterations" || option == "--warmup" || option == "--trials" ||
          option == "--output" || option == "--implementation" || option == "--payload-bytes" ||
-         option == "--capacity" || option == "--batch-size" || option == "--producer-cpu" ||
-         option == "--consumer-cpu";
+         option == "--capacity" || option == "--capacity-bytes" || option == "--batch-size" ||
+         option == "--producer-cpu" || option == "--consumer-cpu";
 }
 
 bool applies_to_smoke(std::string_view option) {
@@ -61,6 +63,7 @@ bool applies_to_smoke(std::string_view option) {
 std::optional<Options> parse_options(std::span<char*> arguments, Benchmark benchmark,
                                      std::ostream& errors) {
   Options options;
+  bool slot_capacity_specified = false;
   for (std::size_t index = 0; index < arguments.size(); ++index) {
     const std::string_view argument = arguments[index];
     if (!is_known_option(argument)) {
@@ -117,6 +120,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::bulk;
       } else if (value == "burst") {
         options.implementation = Implementation::burst;
+      } else if (value == "byte-record") {
+        options.implementation = Implementation::byte_record;
       } else if (value == "cache-line") {
         options.implementation = Implementation::cache_line;
       } else if (value == "cached-index") {
@@ -132,8 +137,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       } else if (value == "staged") {
         options.implementation = Implementation::staged;
       } else {
-        errors << "--implementation must be one of: basic, batch, bulk, burst, cache-line, "
-                  "cached-index, fan-out, fixed-record, pipeline, sequence, staged\n";
+        errors << "--implementation must be one of: basic, batch, bulk, burst, byte-record, "
+                  "cache-line, cached-index, fan-out, fixed-record, pipeline, sequence, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -150,6 +155,14 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.capacity_slots = *parsed;
+      slot_capacity_specified = true;
+    } else if (argument == "--capacity-bytes") {
+      const auto parsed = parse_integer<std::size_t>(value);
+      if (!parsed || (*parsed != 4'096 && *parsed != 65'536)) {
+        errors << "--capacity-bytes must be one of: 4096, 65536\n";
+        return std::nullopt;
+      }
+      options.capacity_bytes = parsed;
     } else if (argument == "--batch-size") {
       const auto parsed = parse_integer<std::size_t>(value);
       if (!parsed || (*parsed != 1 && *parsed != 4 && *parsed != 16)) {
@@ -172,6 +185,19 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       }
       options.consumer_cpu = parsed;
     }
+  }
+
+  if (options.implementation == Implementation::byte_record) {
+    if (slot_capacity_specified) {
+      errors << "--capacity does not apply to byte-record; use --capacity-bytes\n";
+      return std::nullopt;
+    }
+    if (!options.capacity_bytes) {
+      options.capacity_bytes = 65'536;
+    }
+  } else if (options.capacity_bytes) {
+    errors << "--capacity-bytes requires implementation byte-record\n";
+    return std::nullopt;
   }
 
   if ((options.implementation == Implementation::fan_out ||

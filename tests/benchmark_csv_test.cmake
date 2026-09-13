@@ -112,6 +112,49 @@ validate_sequence_mode(throughput pipeline 1)
 validate_sequence_mode(throughput fixed-record 1)
 validate_sequence_mode(ping-pong fixed-record "")
 
+function(validate_byte_record_mode benchmark expected_batch_size)
+  file(REMOVE "${output_path}")
+  execute_process(
+    COMMAND
+      "${BENCHMARK_EXECUTABLE}" run "${benchmark}" --implementation byte-record --payload-bytes 8
+      --capacity-bytes 4096 --iterations 1000 --warmup 100 --trials 1 --output "${output_path}"
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE output
+    ERROR_VARIABLE error)
+  if(NOT result EQUAL 0)
+    message(
+      FATAL_ERROR
+        "byte-record ${benchmark} failed with ${result}\nstdout: ${output}\nstderr: ${error}")
+  endif()
+
+  file(STRINGS "${output_path}" lines)
+  set(data_line "")
+  foreach(line IN LISTS lines)
+    if(line MATCHES "^${benchmark},byte-record,")
+      set(data_line "${line}")
+    endif()
+  endforeach()
+  if(data_line STREQUAL "")
+    message(FATAL_ERROR "byte-record ${benchmark} CSV data row is missing")
+  endif()
+  string(REPLACE "," ";" fields "${data_line}")
+  list(LENGTH fields field_count)
+  if(NOT field_count EQUAL 14)
+    message(FATAL_ERROR "expected 14 byte-record CSV fields, got ${field_count}: ${data_line}")
+  endif()
+  list(GET fields 3 capacity_slots)
+  list(GET fields 4 capacity_bytes)
+  list(GET fields 5 batch_size)
+  list(GET fields 13 checksum)
+  if(NOT capacity_slots STREQUAL "" OR NOT capacity_bytes STREQUAL "4096" OR
+     NOT batch_size STREQUAL "${expected_batch_size}" OR checksum STREQUAL "")
+    message(FATAL_ERROR "unexpected byte-record ${benchmark} CSV row: ${data_line}")
+  endif()
+endfunction()
+
+validate_byte_record_mode(throughput 1)
+validate_byte_record_mode(ping-pong "")
+
 file(REMOVE "${output_path}")
 execute_process(
   COMMAND

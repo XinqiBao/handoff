@@ -1,5 +1,5 @@
-#include "fixed_record_support.hpp"
 #include "rate.hpp"
+#include "record_support.hpp"
 #include "workload_support.hpp"
 #include "workloads.hpp"
 
@@ -24,14 +24,36 @@
 namespace handoff::bench {
 namespace {
 
-enum class GroupOperation { scalar, batch, bulk, burst, fixed_record, sequence, staged };
+enum class GroupOperation {
+  scalar,
+  batch,
+  bulk,
+  burst,
+  byte_record,
+  fixed_record,
+  sequence,
+  staged
+};
 
 template <typename T, std::size_t Capacity>
 using BenchmarkSequenceRing = sequence::BoundedSequenceRing<T, Capacity>;
 
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void push_messages(Queue& ring, std::uint64_t count) {
-  if constexpr (Operation == GroupOperation::fixed_record) {
+  if constexpr (Operation == GroupOperation::byte_record) {
+    using PushResult = typename Queue::PushResult;
+    for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
+      const auto value = make_byte_record<Bytes>(sequence);
+      auto result = ring.try_push(value.header, value.payload.bytes);
+      while (result == PushResult::full) {
+        std::this_thread::yield();
+        result = ring.try_push(value.header, value.payload.bytes);
+      }
+      if (result != PushResult::success) {
+        throw std::logic_error("benchmark produced an invalid byte record");
+      }
+    }
+  } else if constexpr (Operation == GroupOperation::fixed_record) {
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       const auto record = make_fixed_record<Bytes>(sequence);
       while (!ring.try_push(record)) {
@@ -104,7 +126,23 @@ void push_messages(Queue& ring, std::uint64_t count) {
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
                   std::atomic<bool>& valid) {
-  if constexpr (Operation == GroupOperation::fixed_record) {
+  if constexpr (Operation == GroupOperation::byte_record) {
+    using PopResult = typename Queue::PopResult;
+    ByteRecordMessage<Bytes> value;
+    for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
+      auto result = ring.try_pop(value.header, value.payload.bytes);
+      while (result == PopResult::empty) {
+        std::this_thread::yield();
+        result = ring.try_pop(value.header, value.payload.bytes);
+      }
+      if (result != PopResult::success) {
+        throw std::logic_error("benchmark byte-record output is too small");
+      }
+      if (!observe_byte_record(value, sequence, checksum)) {
+        valid.store(false, std::memory_order_relaxed);
+      }
+    }
+  } else if constexpr (Operation == GroupOperation::fixed_record) {
     typename Queue::value_type record;
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       while (!ring.try_pop(record)) {
@@ -345,6 +383,36 @@ RunResults dispatch_record_payload(const Options& options) {
   }
 }
 
+template <std::size_t Bytes> RunResults dispatch_byte_capacity(const Options& options) {
+  const auto capacity = options.capacity_bytes;
+  if (!capacity) {
+    throw std::logic_error("byte-record options require byte capacity");
+  }
+  switch (*capacity) {
+  case 4'096:
+    return run_spsc<GroupOperation::byte_record, record::VariableRecordRing<4'096>, Bytes, 1>(
+        options);
+  case 65'536:
+    return run_spsc<GroupOperation::byte_record, record::VariableRecordRing<65'536>, Bytes, 1>(
+        options);
+  default:
+    throw std::logic_error("validated byte capacity was not dispatched");
+  }
+}
+
+RunResults dispatch_byte_payload(const Options& options) {
+  switch (options.payload_bytes) {
+  case 8:
+    return dispatch_byte_capacity<8>(options);
+  case 64:
+    return dispatch_byte_capacity<64>(options);
+  case 256:
+    return dispatch_byte_capacity<256>(options);
+  default:
+    throw std::logic_error("validated payload size was not dispatched");
+  }
+}
+
 } // namespace
 
 RunResults run_throughput(const Options& options) {
@@ -357,6 +425,8 @@ RunResults run_throughput(const Options& options) {
     return dispatch_payload<GroupOperation::bulk, spsc::BulkBurstBoundedRing>(options);
   case Implementation::burst:
     return dispatch_payload<GroupOperation::burst, spsc::BulkBurstBoundedRing>(options);
+  case Implementation::byte_record:
+    return dispatch_byte_payload(options);
   case Implementation::cache_line:
     return dispatch_payload<GroupOperation::scalar, spsc::CacheLineBoundedRing>(options);
   case Implementation::cached_index:

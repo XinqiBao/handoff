@@ -21,3 +21,4 @@ Do not commit routine smoke timings as experimental evidence.
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
 - [Generic payload versus fixed record slots](011-fixed-record-comparison.md)
+- [Fixed slots versus a variable-record byte ring](012-variable-record-comparison.md)

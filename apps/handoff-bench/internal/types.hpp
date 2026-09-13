@@ -16,6 +16,7 @@ enum class Implementation {
   batch,
   bulk,
   burst,
+  byte_record,
   cache_line,
   cached_index,
   fan_out,
@@ -35,6 +36,7 @@ struct Options {
   Implementation implementation{Implementation::basic};
   std::size_t payload_bytes{64};
   std::size_t capacity_slots{1'024};
+  std::optional<std::size_t> capacity_bytes;
   std::size_t batch_size{1};
   std::optional<unsigned int> producer_cpu;
   std::optional<unsigned int> consumer_cpu;

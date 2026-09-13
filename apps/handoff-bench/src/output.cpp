@@ -48,6 +48,8 @@ std::string_view implementation_name(Implementation implementation) {
     return "bulk";
   case Implementation::burst:
     return "burst";
+  case Implementation::byte_record:
+    return "byte-record";
   case Implementation::cache_line:
     return "cache-line";
   case Implementation::cached_index:
@@ -108,6 +110,14 @@ void print_placement(std::string_view role, const PlacementResult& placement) {
   std::cout << role << " CPU " << *placement.requested << ": " << placement.outcome.message << '\n';
 }
 
+std::size_t required_byte_capacity(const Options& options) {
+  const auto capacity = options.capacity_bytes;
+  if (!capacity) {
+    throw std::logic_error("byte-record options require byte capacity");
+  }
+  return *capacity;
+}
+
 } // namespace
 
 bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Options& options,
@@ -163,7 +173,12 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
              << result.elapsed_ns << ",,,,," << result.checksum << '\n';
     } else {
       output << benchmark_name(benchmark) << ',' << implementation_name(options.implementation)
-             << ',' << options.payload_bytes << ',' << options.capacity_slots << ",,";
+             << ',' << options.payload_bytes << ',';
+      if (options.implementation == Implementation::byte_record) {
+        output << ',' << required_byte_capacity(options) << ',';
+      } else {
+        output << options.capacity_slots << ",,";
+      }
       if (benchmark == Benchmark::throughput) {
         output << options.batch_size;
       }
@@ -206,7 +221,12 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
     std::cout << " (harness plumbing only; not a handoff benchmark)";
   } else {
     std::cout << " / " << implementation_name(options.implementation) << " / "
-              << options.payload_bytes << " B / " << options.capacity_slots << " slots";
+              << options.payload_bytes << " B / ";
+    if (options.implementation == Implementation::byte_record) {
+      std::cout << required_byte_capacity(options) << " bytes";
+    } else {
+      std::cout << options.capacity_slots << " slots";
+    }
     if (benchmark == Benchmark::throughput) {
       std::cout << " / batch " << options.batch_size;
       if (options.implementation == Implementation::fan_out) {

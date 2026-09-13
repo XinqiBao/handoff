@@ -51,7 +51,7 @@ Current targets are deliberately small:
 - `handoff_core`: version and platform capabilities, with header-only mechanism implementations
   grouped under `spsc`, `sequence`, and `record`;
 - `handoff-bench`: explicit CLI, smoke plumbing, SPSC throughput and ping-pong workloads, plus
-  two-consumer fan-out, fixed two-stage pipeline, and fixed-record workloads;
+  two-consumer fan-out, fixed two-stage pipeline, fixed-record, and variable-record workloads;
 - `handoff_tests`: Catch2-based correctness checks.
 
 Within `handoff-bench`, the application root holds only the process entry point and target build

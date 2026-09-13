@@ -1,22 +1,14 @@
 #pragma once
 
+#include "handoff/record/record_header.hpp"
+
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <type_traits>
 
 namespace handoff::record {
-
-struct FixedRecordHeader {
-  std::uint64_t sequence{};
-  std::uint32_t type_tag{};
-  std::uint32_t payload_length{};
-};
-
-static_assert(std::is_standard_layout_v<FixedRecordHeader>);
-static_assert(sizeof(FixedRecordHeader) == 16);
 
 template <std::size_t PayloadCapacity> struct FixedRecord {
   static_assert(PayloadCapacity > 0, "a fixed record needs payload storage");
@@ -29,7 +21,7 @@ template <std::size_t PayloadCapacity> struct FixedRecord {
     return header.payload_length <= PayloadCapacity;
   }
 
-  FixedRecordHeader header{};
+  RecordHeader header{};
   std::array<std::byte, PayloadCapacity> payload{};
 };
 
