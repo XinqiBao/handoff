@@ -44,6 +44,10 @@ std::string_view implementation_name(Implementation implementation) {
     return "basic";
   case Implementation::batch:
     return "batch";
+  case Implementation::bulk:
+    return "bulk";
+  case Implementation::burst:
+    return "burst";
   case Implementation::cache_line:
     return "cache-line";
   case Implementation::cached_index:

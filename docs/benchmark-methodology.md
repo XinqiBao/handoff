@@ -96,11 +96,12 @@ changes must be deliberate because historical data may depend on them.
 empty: payload bytes times slots describes neither the complete object footprint nor a native byte
 capacity. Byte-oriented mechanisms may populate that field when they define capacity in bytes.
 
-For throughput, `batch_size` is the fixed number of messages generated and consumed per workload
-group. The scalar `basic` baseline still publishes each message separately; the `batch` mechanism
-publishes or releases the complete group with one counter update. Iterations and warmup must be
-divisible by the selected batch size. Ping-pong leaves the field empty because it remains a scalar
-request/response exchange.
+For throughput, `batch_size` is the number of messages requested per workload group. The scalar
+`basic` baseline still publishes each message separately; the `batch` and `bulk` modes publish or
+release the complete group with one counter update. The `burst` mode may complete a prefix and then
+retries the remaining suffix, using returned counts so that iterations and rate still describe
+completed messages. Iterations and warmup must be divisible by the selected batch size. Ping-pong
+leaves the field empty because it remains a scalar request/response exchange.
 
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,

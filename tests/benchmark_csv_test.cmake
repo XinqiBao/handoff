@@ -7,6 +7,41 @@ endif()
 
 set(output_path "${TEST_OUTPUT_DIR}/benchmark-schema.csv")
 file(REMOVE "${output_path}")
+
+execute_process(
+  COMMAND
+    "${BENCHMARK_EXECUTABLE}" run throughput --implementation burst --payload-bytes 8 --capacity 64
+    --batch-size 4 --iterations 1000 --warmup 100 --trials 1 --output "${output_path}"
+  RESULT_VARIABLE result
+  OUTPUT_VARIABLE output
+  ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "burst benchmark failed with ${result}\nstdout: ${output}\nstderr: ${error}")
+endif()
+
+file(STRINGS "${output_path}" lines)
+set(data_line "")
+foreach(line IN LISTS lines)
+  if(line MATCHES "^throughput,burst,")
+    set(data_line "${line}")
+  endif()
+endforeach()
+if(data_line STREQUAL "")
+  message(FATAL_ERROR "burst throughput CSV data row is missing")
+endif()
+string(REPLACE "," ";" fields "${data_line}")
+list(LENGTH fields field_count)
+if(NOT field_count EQUAL 14)
+  message(FATAL_ERROR "expected 14 burst CSV fields, got ${field_count}: ${data_line}")
+endif()
+list(GET fields 5 batch_size)
+list(GET fields 6 iterations)
+list(GET fields 13 checksum)
+if(NOT batch_size STREQUAL "4" OR NOT iterations STREQUAL "1000" OR checksum STREQUAL "")
+  message(FATAL_ERROR "unexpected burst throughput CSV row: ${data_line}")
+endif()
+
+file(REMOVE "${output_path}")
 execute_process(
   COMMAND
     "${BENCHMARK_EXECUTABLE}" run throughput --implementation basic --payload-bytes 8 --capacity 64

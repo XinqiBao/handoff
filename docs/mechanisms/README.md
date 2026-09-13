@@ -6,6 +6,7 @@ This directory documents mechanisms implemented by `handoff`.
 - [Cache-line-separated bounded SPSC ring](cache-line-bounded-spsc.md)
 - [Cached-index bounded SPSC ring](cached-index-bounded-spsc.md)
 - [Batch bounded SPSC ring](batch-bounded-spsc.md)
+- [Bulk/burst bounded SPSC ring](bulk-burst-bounded-spsc.md)
 
 Each future note should state:
 

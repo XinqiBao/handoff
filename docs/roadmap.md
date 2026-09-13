@@ -31,8 +31,8 @@ documents and Git.
 | C1 | complete | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
 | S3 | complete | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
 | S4 | complete | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
-| D1 | next | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
-| D2 | queued | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
+| D1 | complete | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
+| D2 | next | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
 | Q1 | queued | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
 | Q2 | queued | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
 | Q3 | queued | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
@@ -53,37 +53,47 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: D1
+## Next stage: D2
 
-Goal: preserve a distinct SP/SC fixed-slot variant that exposes both fixed-count all-or-nothing bulk
-operations and explicitly best-effort burst operations, reproducing only that named DPDK ring idea.
+Goal: preserve a distinct fixed-slot SP/SC variant that separates storage reservation from counter
+publication and release through a small staged API, including an explicit two-span representation at
+physical wrap.
 
 Required work:
 
-- document exact usable capacity, SP/SC ownership, assignment-based payload lifetime, bulk failure,
-  burst partial-progress return values, wrap behavior, and publication ordering before implementation;
-- preserve the S4 batch ring unchanged and add a mechanism-named bulk/burst ring without DPDK API,
-  ABI, EAL, mbuf, hugepage, allocator, or synchronization-mode compatibility;
-- define zero-length bulk as success, oversized or insufficient bulk as failure with no mutation,
-  and burst as processing `min(requested, available)` elements and returning that exact count;
-- ensure producer and consumer each publish one counter advance after the elements processed by a
-  successful bulk or non-empty burst, including physical wrap;
-- cover empty, full, exact, partial, zero, oversized, wrapped, resource-owning, and concurrent
-  integrity behavior, including unchanged unprocessed input/output suffixes;
-- integrate only the throughput modes needed to compare equal requested groups and distinguish
-  completed message counts; do not mislabel burst attempts as completed work;
-- add a question-led planned experiment with DPDK provenance and no performance conclusion without
-  controlled Linux evidence.
+- document exact usable capacity, single-producer/single-consumer ownership, default-constructed
+  slot lifetime, exclusive outstanding reservations, wrap spans, cancellation, and publication
+  ordering before implementation;
+- preserve earlier rings unchanged and add a mechanism-named staged ring without DPDK API, ABI,
+  EAL, mbuf, hugepage, allocator, synchronization-mode, or zero-copy compatibility claims;
+- make producer reservation all-or-nothing for a requested positive count no larger than capacity,
+  returning writable first/second spans whose combined size is exact, and make consumer reservation
+  return read-only first/second spans only when that complete count is published;
+- require each reservation to be explicitly finished or cancelled before its owner can reserve
+  again; finish advances and release-publishes the exact reserved count once, while cancellation
+  advances no shared counter and leaves producer-written but unpublished slot values unobservable;
+- require the ring to outlive its reservation objects; make each token non-copyable and
+  automatically cancel on destruction or move replacement; do not add partial finish, nested
+  reservations, scalar queue operations, or supported cross-thread reservation transfer;
+- cover empty, full, zero, oversized, insufficient, exact-boundary, wrapped, cancellation, move-only
+  token, resource-owning slot, and long concurrent integrity behavior, including visibility only
+  after producer finish and reuse only after consumer finish;
+- integrate one staged throughput mode that writes and reads through both spans with the same
+  requested groups, completed message count, payload work, validation, and CSV meaning as the bulk
+  comparison; keep ping-pong excluded;
+- add a question-led planned experiment with DPDK provenance and no direct-storage or performance
+  conclusion without controlled Linux evidence.
 
-Non-goals: DPDK compatibility, multi-producer or multi-consumer synchronization, head/tail
-reservation staging, direct storage access, cached indices, cache-line separation, weaker memory
-ordering, performance measurements, or performance conclusions.
+Non-goals: DPDK compatibility, multi-producer or multi-consumer synchronization, partial or
+best-effort reservations, multiple outstanding reservations per side, cached indices, cache-line
+separation, weaker memory ordering, arbitrary object lifetime management, performance measurements,
+or performance conclusions.
 
 Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
 plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;
 documentation-link checks; complete diff review; push; and required CI.
 
-## Direction after D1
+## Direction after D2
 
 Each mechanism stage follows the same sequence:
 

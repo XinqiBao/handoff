@@ -1,5 +1,6 @@
 #include "handoff/spsc/basic_bounded_ring.hpp"
 #include "handoff/spsc/batch_bounded_ring.hpp"
+#include "handoff/spsc/bulk_burst_bounded_ring.hpp"
 #include "handoff/spsc/cache_line_bounded_ring.hpp"
 #include "handoff/spsc/cached_index_bounded_ring.hpp"
 
@@ -19,6 +20,7 @@ namespace {
 
 using BasicIntegerRing = handoff::spsc::BasicBoundedRing<std::uint64_t, 4>;
 using BatchIntegerRing = handoff::spsc::BatchBoundedRing<std::uint64_t, 4>;
+using BulkBurstIntegerRing = handoff::spsc::BulkBurstBoundedRing<std::uint64_t, 4>;
 using CacheLineIntegerRing = handoff::spsc::CacheLineBoundedRing<std::uint64_t, 4>;
 using CachedIndexIntegerRing = handoff::spsc::CachedIndexBoundedRing<std::uint64_t, 4>;
 
@@ -49,11 +51,13 @@ struct MoveOnlyResource {
 
 using BasicMessageRing = handoff::spsc::BasicBoundedRing<Message, 1'024>;
 using BatchMessageRing = handoff::spsc::BatchBoundedRing<Message, 1'024>;
+using BulkBurstMessageRing = handoff::spsc::BulkBurstBoundedRing<Message, 1'024>;
 using CacheLineMessageRing = handoff::spsc::CacheLineBoundedRing<Message, 1'024>;
 using CachedIndexMessageRing = handoff::spsc::CachedIndexBoundedRing<Message, 1'024>;
 
 using BasicOwnedRing = handoff::spsc::BasicBoundedRing<MoveOnlyResource, 1>;
 using BatchOwnedRing = handoff::spsc::BatchBoundedRing<MoveOnlyResource, 1>;
+using BulkBurstOwnedRing = handoff::spsc::BulkBurstBoundedRing<MoveOnlyResource, 1>;
 using CacheLineOwnedRing = handoff::spsc::CacheLineBoundedRing<MoveOnlyResource, 1>;
 using CachedIndexOwnedRing = handoff::spsc::CachedIndexBoundedRing<MoveOnlyResource, 1>;
 
@@ -64,8 +68,8 @@ concept SupportsConstLvaluePush =
 } // namespace
 
 TEMPLATE_TEST_CASE("bounded SPSC rings report empty and exact full capacity", "[spsc]",
-                   BasicIntegerRing, BatchIntegerRing, CacheLineIntegerRing,
-                   CachedIndexIntegerRing) {
+                   BasicIntegerRing, BatchIntegerRing, CacheLineIntegerRing, CachedIndexIntegerRing,
+                   BulkBurstIntegerRing) {
   TestType ring;
   std::uint64_t value = 99;
 
@@ -86,8 +90,8 @@ TEMPLATE_TEST_CASE("bounded SPSC rings report empty and exact full capacity", "[
 }
 
 TEMPLATE_TEST_CASE("bounded SPSC rings preserve FIFO order through wraparound", "[spsc]",
-                   BasicIntegerRing, BatchIntegerRing, CacheLineIntegerRing,
-                   CachedIndexIntegerRing) {
+                   BasicIntegerRing, BatchIntegerRing, CacheLineIntegerRing, CachedIndexIntegerRing,
+                   BulkBurstIntegerRing) {
   TestType ring;
   std::uint64_t value = 0;
 
@@ -106,8 +110,8 @@ TEMPLATE_TEST_CASE("bounded SPSC rings preserve FIFO order through wraparound", 
 }
 
 TEMPLATE_TEST_CASE("bounded SPSC rings preserve messages in a long concurrent run", "[spsc]",
-                   BasicMessageRing, BatchMessageRing, CacheLineMessageRing,
-                   CachedIndexMessageRing) {
+                   BasicMessageRing, BatchMessageRing, CacheLineMessageRing, CachedIndexMessageRing,
+                   BulkBurstMessageRing) {
   constexpr std::uint64_t message_count = 1'000'000;
   TestType ring;
   std::atomic<bool> producer_done{false};
@@ -145,7 +149,8 @@ TEMPLATE_TEST_CASE("bounded SPSC rings preserve messages in a long concurrent ru
 }
 
 TEMPLATE_TEST_CASE("bounded SPSC rings support move-only resource-owning payloads", "[spsc]",
-                   BasicOwnedRing, BatchOwnedRing, CacheLineOwnedRing, CachedIndexOwnedRing) {
+                   BasicOwnedRing, BatchOwnedRing, CacheLineOwnedRing, CachedIndexOwnedRing,
+                   BulkBurstOwnedRing) {
   STATIC_CHECK(std::default_initializable<typename TestType::value_type>);
   STATIC_CHECK(std::assignable_from<typename TestType::value_type&, typename TestType::value_type>);
   STATIC_CHECK_FALSE(SupportsConstLvaluePush<TestType>);

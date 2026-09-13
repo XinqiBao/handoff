@@ -28,7 +28,7 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation basic|batch|cache-line|cached-index] "
+            "[--implementation basic|batch|bulk|burst|cache-line|cached-index] "
             "[--payload-bytes 8|64|256] [--capacity 64|1024] [--batch-size 1|4|16]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
@@ -110,12 +110,17 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::basic;
       } else if (value == "batch") {
         options.implementation = Implementation::batch;
+      } else if (value == "bulk") {
+        options.implementation = Implementation::bulk;
+      } else if (value == "burst") {
+        options.implementation = Implementation::burst;
       } else if (value == "cache-line") {
         options.implementation = Implementation::cache_line;
       } else if (value == "cached-index") {
         options.implementation = Implementation::cached_index;
       } else {
-        errors << "--implementation must be one of: basic, batch, cache-line, cached-index\n";
+        errors << "--implementation must be one of: basic, batch, bulk, burst, cache-line, "
+                  "cached-index\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -163,8 +168,15 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
   }
   if (benchmark == Benchmark::throughput && options.batch_size > 1 &&
       options.implementation != Implementation::basic &&
-      options.implementation != Implementation::batch) {
-    errors << "--batch-size greater than 1 requires implementation basic or batch\n";
+      options.implementation != Implementation::batch &&
+      options.implementation != Implementation::bulk &&
+      options.implementation != Implementation::burst) {
+    errors << "--batch-size greater than 1 requires implementation basic, batch, bulk, or burst\n";
+    return std::nullopt;
+  }
+  if (benchmark == Benchmark::ping_pong && (options.implementation == Implementation::bulk ||
+                                            options.implementation == Implementation::burst)) {
+    errors << "implementation bulk and burst apply only to throughput\n";
     return std::nullopt;
   }
   if (benchmark == Benchmark::throughput &&

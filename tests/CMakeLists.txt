@@ -7,7 +7,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 set_property(TARGET Catch2 PROPERTY SYSTEM ON)
 
-add_executable(handoff_tests benchmark_support_test.cpp bounded_spsc_test.cpp core_test.cpp)
+add_executable(
+  handoff_tests
+  benchmark_support_test.cpp
+  bounded_spsc_test.cpp
+  bulk_burst_spsc_test.cpp
+  core_test.cpp)
 target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
 target_link_libraries(handoff_tests PRIVATE handoff::core Catch2::Catch2WithMain)
 handoff_configure_target(handoff_tests)
@@ -69,6 +74,14 @@ add_test(
 add_test(
   NAME benchmark.batch-throughput-smoke
   COMMAND handoff-bench run throughput --implementation batch --payload-bytes 8 --capacity 64
+          --batch-size 4 --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.bulk-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation bulk --payload-bytes 8 --capacity 64
+          --batch-size 4 --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.burst-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation burst --payload-bytes 8 --capacity 64
           --batch-size 4 --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.batch-ping-pong-smoke

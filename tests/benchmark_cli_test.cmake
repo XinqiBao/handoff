@@ -22,8 +22,16 @@ expect_failure(2 "option --implementation does not apply to smoke" run smoke --i
 expect_failure(2 "option --batch-size does not apply to ping-pong" run ping-pong --batch-size 4)
 expect_failure(
   2
-  "--batch-size greater than 1 requires implementation basic or batch"
+  "--batch-size greater than 1 requires implementation basic, batch, bulk, or burst"
   run throughput --implementation cached-index --batch-size 4)
+expect_failure(
+  2
+  "implementation bulk and burst apply only to throughput"
+  run ping-pong --implementation bulk)
+expect_failure(
+  2
+  "implementation bulk and burst apply only to throughput"
+  run ping-pong --implementation burst)
 expect_failure(
   2
   "--iterations and --warmup must be divisible by --batch-size"
