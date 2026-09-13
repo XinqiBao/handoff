@@ -14,6 +14,7 @@ This directory documents mechanisms implemented by `handoff`.
 - [Fixed-record SPSC ring](fixed-record-spsc.md)
 - [Variable-record SPSC byte ring](variable-record-spsc.md)
 - [Descriptor/payload SPSC ring](descriptor-payload-spsc.md)
+- [Sequence-addressed metadata ring](sequence-metadata-ring.md)
 
 Each future note should state:
 

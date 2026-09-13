@@ -67,6 +67,9 @@ may introduce obligations that a simple push operation does not have.
   when the tail cannot fit a complete record.
 - **Descriptor ring with separate payload storage**: compact metadata references bytes held in a
   distinct payload region. Consumers may inspect descriptors without touching payload.
+- **Sequence-addressed metadata ring**: compact atomic fields and a publication sequence share each
+  slot, permitting direct lookup and validated observation while newer publications overwrite old
+  generations.
 
 The latter two layouts are conceptually distinct and should remain separate mechanism families.
 

@@ -13,8 +13,10 @@ The repository contains readable fixed-slot bounded SPSC baselines covering head
 placement, cached remote indices, batching, bulk/burst progress, staged direct-slot access,
 sequence claim/publication, reliable sequence fan-out, a fixed two-stage sequence dependency
 pipeline, fixed header/inline-payload records, contiguous variable-record byte storage, and split
-descriptor/payload storage. It also provides equivalent correctness tests, steady-state throughput
-and ping-pong round-trip latency workloads, a C++23 build, and a small platform capability layer.
+descriptor/payload storage. A separate sequence-addressed metadata ring studies lossy broadcast
+observation and detectable overwrite without pretending metadata alone is a completed message
+handoff. The repository also provides equivalent correctness tests, steady-state throughput and
+ping-pong round-trip latency workloads, a C++23 build, and a small platform capability layer.
 
 ## Requirements
 
