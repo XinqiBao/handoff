@@ -27,7 +27,8 @@ process infrastructure is planned.
 - **Mechanisms** own representation, concurrency contracts, and operations. They must not depend on
   the benchmark harness.
 - **Benchmark code** owns workloads, phases, validation, timing, summaries, and result output. It
-  adapts directly to the small set of mechanisms under study.
+  adapts directly to the small set of mechanisms under study through explicit compile-time
+  dispatch.
 - **Platform code** exposes only narrow optional capabilities such as system and CPU identification
   and current-thread CPU affinity.
 - **Tests** establish common bounded-FIFO invariants and mechanism-specific semantics according to
@@ -55,6 +56,11 @@ Within `handoff-bench`, the application root holds only the process entry point 
 description. `src/` holds responsibility-specific implementation files, while `internal/` holds
 target-private types, interfaces, and header-only workload support. Those headers are not a public
 benchmark API and are not installed or exposed to other targets.
+
+CMake target definitions list compiled `.cpp` translation units explicitly. Headers are discovered
+through includes and are not repeated as target sources. Repository-wide maintenance targets such
+as formatting may use configure-aware recursive globs because their purpose is exhaustive coverage,
+not definition of a linkable target boundary.
 
 Catch2 is fetched only for test-enabled builds and pinned to a commit. The project does not use a
 general package manager.

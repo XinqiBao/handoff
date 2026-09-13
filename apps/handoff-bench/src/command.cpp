@@ -28,7 +28,7 @@ void print_usage(std::ostream& stream) {
             "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
             "[--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation basic|cache-line] "
+            "[--implementation basic|cache-line|cached-index] "
             "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
@@ -105,8 +105,10 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::basic;
       } else if (value == "cache-line") {
         options.implementation = Implementation::cache_line;
+      } else if (value == "cached-index") {
+        options.implementation = Implementation::cached_index;
       } else {
-        errors << "--implementation must be one of: basic, cache-line\n";
+        errors << "--implementation must be one of: basic, cache-line, cached-index\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {

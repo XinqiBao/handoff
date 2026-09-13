@@ -44,6 +44,8 @@ std::string_view implementation_name(Implementation implementation) {
     return "basic";
   case Implementation::cache_line:
     return "cache-line";
+  case Implementation::cached_index:
+    return "cached-index";
   }
   throw std::logic_error("unknown implementation");
 }

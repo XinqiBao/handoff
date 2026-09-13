@@ -9,9 +9,9 @@ IPC framework, a universal queue library, or an attempt to name one queue as uni
 
 ## Status
 
-The repository contains a readable fixed-slot bounded SPSC baseline, a cache-line-separated layout
-variant, equivalent correctness tests, steady-state throughput and ping-pong round-trip latency
-workloads, a C++23 build, and a small platform capability layer.
+The repository contains a readable fixed-slot bounded SPSC baseline, cache-line-separated and
+cached-remote-index variants, equivalent correctness tests, steady-state throughput and ping-pong
+round-trip latency workloads, a C++23 build, and a small platform capability layer.
 
 ## Requirements
 
@@ -54,8 +54,8 @@ The `smoke` command checks timing, CLI, and result-output plumbing. Its timing i
 performance result.
 
 The SPSC commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output` arguments.
-Select `--implementation basic|cache-line`; run `handoff-bench help` for supported payload sizes and
-capacities.
+Select `--implementation basic|cache-line|cached-index`; run `handoff-bench help` for supported
+payload sizes and capacities.
 
 ## Documentation
 
