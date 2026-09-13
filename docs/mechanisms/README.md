@@ -10,6 +10,7 @@ This directory documents mechanisms implemented by `handoff`.
 - [Staged bounded SPSC ring](staged-bounded-spsc.md)
 - [Bounded sequence ring](bounded-sequence-ring.md)
 - [Bounded sequence fan-out](bounded-sequence-fan-out.md)
+- [Bounded sequence pipeline](bounded-sequence-pipeline.md)
 
 Each future note should state:
 

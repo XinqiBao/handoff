@@ -119,6 +119,13 @@ checksum before a result is emitted. CSV records `consumer_count=2` as metadata.
 affinity interface names only one consumer, `fan-out` rejects both CPU affinity options instead of
 recording an incomplete placement; its smoke runs are not controlled performance evidence.
 
+The `pipeline` throughput implementation uses one producer followed by fixed upstream and
+downstream consumer stages. A completed message means both stages have performed the same payload
+validation and the downstream stage has released the publication. `iterations` and rate count
+these end-to-end completions, and both independent checksums must match before a result is emitted.
+CSV records `consumer_count=2`; the current single-consumer affinity interface is rejected for the
+same metadata reason as fan-out. The pipeline is not offered as a scalar ping-pong mode.
+
 For ping-pong, `latency_ns` is the per-trial median measured RTT. The p95 and p99 columns are also
 RTT values. Throughput leaves all latency columns empty. If a clock reports a zero elapsed duration,
 the corresponding rate is unavailable and remains empty rather than being synthesized from a

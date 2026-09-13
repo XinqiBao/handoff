@@ -322,6 +322,8 @@ RunResults run_throughput(const Options& options) {
     return dispatch_payload<GroupOperation::scalar, spsc::CachedIndexBoundedRing>(options);
   case Implementation::fan_out:
     return run_fan_out_throughput(options);
+  case Implementation::pipeline:
+    return run_pipeline_throughput(options);
   case Implementation::sequence:
     return dispatch_payload<GroupOperation::sequence, BenchmarkSequenceRing>(options);
   case Implementation::staged:

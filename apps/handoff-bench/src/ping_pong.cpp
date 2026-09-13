@@ -264,6 +264,8 @@ RunResults run_ping_pong(const Options& options) {
     return dispatch_payload<QueueOperation::push_pop, spsc::CachedIndexBoundedRing>(options);
   case Implementation::fan_out:
     throw std::logic_error("fan-out implementation is not a ping-pong mode");
+  case Implementation::pipeline:
+    throw std::logic_error("pipeline implementation is not a ping-pong mode");
   case Implementation::sequence:
     return dispatch_payload<QueueOperation::sequence, BenchmarkSequenceRing>(options);
   case Implementation::staged:

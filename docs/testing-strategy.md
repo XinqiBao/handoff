@@ -43,6 +43,8 @@ Add tests beside the mechanism for obligations introduced by its design:
   rules;
 - variable records: size bounds, alignment, padding markers, exact-tail cases, and almost-full wrap;
 - broadcast: independent progress, slowest-reader gating, and the declared reader lifecycle;
+- dependency pipelines: role ordering, unavailable downstream observations, dependency release and
+  cancellation, final-stage reuse gating, and independently paced stages;
 - lossy delivery: explicit gap or overrun detection and rejection of stale data;
 - descriptor/payload separation: descriptor integrity, payload bounds, reuse, and publication order.
 

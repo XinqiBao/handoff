@@ -28,7 +28,8 @@ the same publications.
 - **Work sharing**: each message is consumed by one eligible consumer.
 - **Broadcast (fan-out)**: independent consumers observe each required message.
 
-Consumer dependency graphs may later constrain when a downstream consumer can advance.
+A consumer dependency chain constrains a downstream consumer to advance only after its upstream
+dependency. A fixed chain and an arbitrary runtime dependency graph are distinct mechanism scopes.
 
 ## Overflow and delivery semantics
 

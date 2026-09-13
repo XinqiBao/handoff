@@ -14,6 +14,7 @@ add_executable(
   bulk_burst_spsc_test.cpp
   core_test.cpp
   sequence_fan_out_test.cpp
+  sequence_pipeline_test.cpp
   sequence_ring_test.cpp
   staged_spsc_test.cpp)
 target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
@@ -25,6 +26,8 @@ include(Catch)
 catch_discover_tests(handoff_tests DISCOVERY_MODE PRE_TEST)
 
 add_test(NAME benchmark.list COMMAND handoff-bench list)
+set_tests_properties(benchmark.list PROPERTIES PASS_REGULAR_EXPRESSION
+                                               "throughput.*Steady-state completed handoffs")
 add_test(
   NAME benchmark.cli
   COMMAND
@@ -77,6 +80,10 @@ add_test(
 add_test(
   NAME benchmark.fan-out-throughput-smoke
   COMMAND handoff-bench run throughput --implementation fan-out --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.pipeline-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation pipeline --payload-bytes 8 --capacity 64
           --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.sequence-ping-pong-smoke

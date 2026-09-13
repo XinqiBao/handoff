@@ -54,6 +54,8 @@ std::string_view implementation_name(Implementation implementation) {
     return "cached-index";
   case Implementation::fan_out:
     return "fan-out";
+  case Implementation::pipeline:
+    return "pipeline";
   case Implementation::sequence:
     return "sequence";
   case Implementation::staged:
@@ -132,8 +134,12 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
            << optional_cpu_value(results.producer_placement.effective, "unavailable") << '\n'
            << "# producer_affinity_outcome=" << affinity_outcome(results.producer_placement)
            << '\n';
-    if (options.implementation == Implementation::fan_out) {
-      output << "# consumer_count=" << fan_out_consumer_count << '\n'
+    if (options.implementation == Implementation::fan_out ||
+        options.implementation == Implementation::pipeline) {
+      const auto consumer_count = options.implementation == Implementation::fan_out
+                                      ? fan_out_consumer_count
+                                      : pipeline_consumer_count;
+      output << "# consumer_count=" << consumer_count << '\n'
              << "# consumer_cpus_requested=not-requested\n"
              << "# consumer_cpus_effective=unavailable\n"
              << "# consumer_affinity_outcome=not-requested\n";
@@ -203,6 +209,8 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
       std::cout << " / batch " << options.batch_size;
       if (options.implementation == Implementation::fan_out) {
         std::cout << " / " << fan_out_consumer_count << " consumers";
+      } else if (options.implementation == Implementation::pipeline) {
+        std::cout << " / " << pipeline_consumer_count << " stages";
       }
     }
   }

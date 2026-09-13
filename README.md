@@ -11,9 +11,9 @@ IPC framework, a universal queue library, or an attempt to name one queue as uni
 
 The repository contains readable fixed-slot bounded SPSC baselines covering head/tail, cache-line
 placement, cached remote indices, batching, bulk/burst progress, staged direct-slot access,
-sequence claim/publication, and reliable sequence fan-out. It also provides equivalent correctness
-tests, steady-state throughput and ping-pong round-trip latency workloads, a C++23 build, and a
-small platform capability layer.
+sequence claim/publication, reliable sequence fan-out, and a fixed two-stage sequence dependency
+pipeline. It also provides equivalent correctness tests, steady-state throughput and ping-pong
+round-trip latency workloads, a C++23 build, and a small platform capability layer.
 
 ## Requirements
 
@@ -56,11 +56,13 @@ The `smoke` command checks timing, CLI, and result-output plumbing. Its timing i
 performance result.
 
 The SPSC commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output` arguments.
-Select `--implementation basic|batch|bulk|burst|cache-line|cached-index|fan-out|sequence|staged`;
+Select
+`--implementation basic|batch|bulk|burst|cache-line|cached-index|fan-out|pipeline|sequence|staged`;
 throughput also supports `--batch-size 1|4|16` for the `basic`, `batch`, `bulk`, `burst`, and
-`staged` implementations. `bulk`, `burst`, `fan-out`, and `staged` apply only to throughput;
-`sequence` is scalar in both workloads. `fan-out` uses two reliable consumers and rejects the
-single-consumer CPU affinity options. Run `handoff-bench help` for the complete option contract.
+`staged` implementations. `bulk`, `burst`, `fan-out`, `pipeline`, and `staged` apply only to
+throughput; `sequence` is scalar in both workloads. `fan-out` and `pipeline` each use two consumer
+threads and reject the single-consumer CPU affinity options. Run `handoff-bench help` for the
+complete option contract.
 
 ## Documentation
 

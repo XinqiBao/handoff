@@ -4,6 +4,7 @@ add_executable(
   src/command.cpp
   src/fan_out.cpp
   src/output.cpp
+  src/pipeline.cpp
   src/ping_pong.cpp
   src/run_metadata.cpp
   src/throughput.cpp)

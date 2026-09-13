@@ -35,8 +35,8 @@ documents and Git.
 | D2 | complete | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
 | Q1 | complete | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
 | Q2 | complete | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
-| Q3 | next | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
-| R1 | queued | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
+| Q3 | complete | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
+| R1 | next | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
 | R2 | queued | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
 | R3 | queued | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
 | F1 | queued | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
@@ -53,49 +53,50 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: Q3
+## Next stage: R1
 
-Goal: isolate consumer dependency gating by adding a fixed two-stage reliable sequence pipeline in
-which the downstream consumer may observe a sequence only after the upstream consumer releases it.
+Goal: establish the record-layout baseline with a bounded SPSC ring whose slots contain an explicit
+fixed-width header followed by a fixed-capacity inline byte payload.
 
 Required work:
 
-- add a distinct one-producer, two-consumer dependency mechanism; keep Q1 and Q2 unchanged and
-  preserve one-based finite sequence semantics, exact capacity, default-constructed slots, and
-  explicit claim/populate/publish behavior;
-- give the upstream and downstream consumers stable compile-time roles, owner-local
-  next-to-observe state, atomic progress sequences, and at most one move-only observation token per
-  role; reject nested observations without dynamic registration or runtime dependency graphs;
-- gate upstream observation on producer publication, downstream observation on upstream release,
-  and producer reuse on downstream release, so the dependency is part of availability rather than
-  a benchmark-side convention;
-- retain producer claim cancellation and per-consumer observation cancellation semantics; require
-  the ring to outlive all tokens and confine the producer and each consumer role to its declared
-  owner thread;
-- write the C++ acquire/release argument across producer publication, upstream observation and
-  release, downstream observation and release, and producer reuse; do not add a general sequence
-  barrier, arbitrary DAG, multiple producers, per-slot availability, or alternate waiting
-  strategies;
-- cover initial state, role ordering, unavailable downstream observations, dependency release and
-  cancellation, exact capacity, slow downstream backpressure, slot wrap, move-only tokens,
-  finite-limit rejection, resource retention, and long concurrent integrity with independently
-  paced upstream and downstream consumers;
-- add a dependency throughput workload whose completion count means every publication passed both
-  stages and was released downstream, with equivalent validation/checksum work at both stages; do
-  not force the pipeline into scalar ping-pong;
-- add a question-led planned experiment with LMAX Disruptor provenance and no performance conclusion
-  without controlled Linux evidence.
+- add a distinct `record` mechanism family; keep existing generic SPSC and sequence mechanisms
+  unchanged and use a concrete standard-layout record rather than introducing a queue base class or
+  record-storage policy hierarchy;
+- define fixed-width header fields for a message sequence, a caller-visible type tag, and logical
+  payload length, followed by inline `std::byte` storage whose compile-time capacity is independent
+  of the ring's compile-time slot count; document alignment, padding, and which bytes are valid;
+- provide lossless one-producer/one-consumer FIFO operations with exact usable slot capacity,
+  monotonic head/tail progress, modulo slot reuse, and no allocation by the ring; reject logical
+  payloads larger than the inline capacity without publication or partial mutation;
+- keep ownership and lifetime locally explicit: a successful push copies one complete record into
+  an unowned slot before release publication, a successful pop copies that published record into
+  consumer-owned output before release, and both roles stay on their owner threads; only the
+  logical payload prefix is meaningful, while unused inline bytes remain outside the contract;
+- write the C++ acquire/release argument for header and payload publication and for safe slot reuse;
+  do not weaken the established SPSC ordering merely because the stored value is byte-oriented;
+- cover layout properties that are contractual, empty/full behavior, exact capacity, zero-length and
+  full-length payloads, oversize rejection, header and payload integrity, FIFO order, wraparound,
+  failed-operation stability, slot reuse, and a long concurrent run;
+- add equivalent fixed-record throughput and ping-pong plumbing using the existing payload sizes,
+  slot capacities, phase boundaries, waiting behavior, trial accounting, validation, and CSV schema;
+  validate header fields as required work and keep `capacity_slots` as the native capacity while
+  leaving `capacity_bytes` empty;
+- add a question-led planned experiment that identifies header validation and record copying as part
+  of the fixed-record contract and makes no performance conclusion without controlled Linux
+  evidence.
 
-Non-goals: LMAX API or Java compatibility, arbitrary consumer dependency graphs, sequence barrier
-APIs, handler DSLs, multiple producers, work sharing, lossy overwrite, dynamic consumer
-registration or removal, per-slot publication tracking, batch claims, alternate waiting strategies,
-performance measurements, or performance conclusions.
+Non-goals: variable physical record sizes, packing multiple records into a byte ring, padding or wrap
+markers, records split across the physical end, descriptor/payload separation, external payload
+ownership, scatter/gather I/O, direct-slot reservation tokens, batching, multiple producers or
+consumers, overwrite, custom allocation, serialization frameworks, performance measurements, or
+performance conclusions.
 
 Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
 plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;
 documentation-link checks; complete diff review; push; and required CI.
 
-## Direction after Q2
+## Direction after Q3
 
 Each mechanism stage follows the same sequence:
 

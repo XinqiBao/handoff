@@ -89,7 +89,7 @@ function(validate_sequence_mode benchmark implementation expected_batch_size)
      checksum STREQUAL "")
     message(FATAL_ERROR "unexpected ${implementation} ${benchmark} CSV row: ${data_line}")
   endif()
-  if(implementation STREQUAL "fan-out")
+  if(implementation STREQUAL "fan-out" OR implementation STREQUAL "pipeline")
     file(READ "${output_path}" contents)
     foreach(metadata_pattern IN ITEMS
         "# consumer_count=2"
@@ -97,7 +97,9 @@ function(validate_sequence_mode benchmark implementation expected_batch_size)
         "# consumer_cpus_effective=unavailable"
         "# consumer_affinity_outcome=not-requested")
       if(NOT contents MATCHES "${metadata_pattern}")
-        message(FATAL_ERROR "fan-out metadata matching '${metadata_pattern}' is missing in:\n${contents}")
+        message(
+          FATAL_ERROR
+            "${implementation} metadata matching '${metadata_pattern}' is missing in:\n${contents}")
       endif()
     endforeach()
   endif()
@@ -106,6 +108,7 @@ endfunction()
 validate_sequence_mode(throughput sequence 1)
 validate_sequence_mode(ping-pong sequence "")
 validate_sequence_mode(throughput fan-out 1)
+validate_sequence_mode(throughput pipeline 1)
 
 file(REMOVE "${output_path}")
 execute_process(

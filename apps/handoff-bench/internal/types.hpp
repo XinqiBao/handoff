@@ -19,11 +19,13 @@ enum class Implementation {
   cache_line,
   cached_index,
   fan_out,
+  pipeline,
   sequence,
   staged
 };
 
 inline constexpr std::size_t fan_out_consumer_count = 2;
+inline constexpr std::size_t pipeline_consumer_count = 2;
 
 struct Options {
   std::uint64_t iterations{1'000'000};
