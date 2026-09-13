@@ -54,6 +54,8 @@ std::string_view implementation_name(Implementation implementation) {
     return "cached-index";
   case Implementation::fan_out:
     return "fan-out";
+  case Implementation::fixed_record:
+    return "fixed-record";
   case Implementation::pipeline:
     return "pipeline";
   case Implementation::sequence:

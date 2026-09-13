@@ -35,6 +35,10 @@ expect_failure(
 expect_failure(
   2
   "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or staged"
+  run throughput --implementation fixed-record --batch-size 4)
+expect_failure(
+  2
+  "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or staged"
   run throughput --implementation pipeline --batch-size 4)
 expect_failure(
   2

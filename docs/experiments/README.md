@@ -20,3 +20,4 @@ Do not commit routine smoke timings as experimental evidence.
 - [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
+- [Generic payload versus fixed record slots](011-fixed-record-comparison.md)

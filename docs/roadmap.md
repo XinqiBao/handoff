@@ -36,8 +36,8 @@ documents and Git.
 | Q1 | complete | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
 | Q2 | complete | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
 | Q3 | complete | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
-| R1 | next | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
-| R2 | queued | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
+| R1 | complete | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
+| R2 | next | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
 | R3 | queued | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
 | F1 | queued | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
 | F2 | queued | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
@@ -53,44 +53,49 @@ The active path is
 Multi-producer and general multi-consumer mechanisms are deliberately deferred; this does not defer
 single-producer broadcast/fan-out.
 
-## Next stage: R1
+## Next stage: R2
 
-Goal: establish the record-layout baseline with a bounded SPSC ring whose slots contain an explicit
-fixed-width header followed by a fixed-capacity inline byte payload.
+Goal: establish a bounded SPSC byte ring that packs variable-length records contiguously and makes
+physical wrap explicit with padding headers.
 
 Required work:
 
-- add a distinct `record` mechanism family; keep existing generic SPSC and sequence mechanisms
-  unchanged and use a concrete standard-layout record rather than introducing a queue base class or
-  record-storage policy hierarchy;
-- define fixed-width header fields for a message sequence, a caller-visible type tag, and logical
-  payload length, followed by inline `std::byte` storage whose compile-time capacity is independent
-  of the ring's compile-time slot count; document alignment, padding, and which bytes are valid;
-- provide lossless one-producer/one-consumer FIFO operations with exact usable slot capacity,
-  monotonic head/tail progress, modulo slot reuse, and no allocation by the ring; reject logical
-  payloads larger than the inline capacity without publication or partial mutation;
-- keep ownership and lifetime locally explicit: a successful push copies one complete record into
-  an unowned slot before release publication, a successful pop copies that published record into
-  consumer-owned output before release, and both roles stay on their owner threads; only the
-  logical payload prefix is meaningful, while unused inline bytes remain outside the contract;
-- write the C++ acquire/release argument for header and payload publication and for safe slot reuse;
-  do not weaken the established SPSC ordering merely because the stored value is byte-oriented;
-- cover layout properties that are contractual, empty/full behavior, exact capacity, zero-length and
-  full-length payloads, oversize rejection, header and payload integrity, FIFO order, wraparound,
-  failed-operation stability, slot reuse, and a long concurrent run;
-- add equivalent fixed-record throughput and ping-pong plumbing using the existing payload sizes,
-  slot capacities, phase boundaries, waiting behavior, trial accounting, validation, and CSV schema;
-  validate header fields as required work and keep `capacity_slots` as the native capacity while
-  leaving `capacity_bytes` empty;
-- add a question-led planned experiment that identifies header validation and record copying as part
-  of the fixed-record contract and makes no performance conclusion without controlled Linux
-  evidence.
+- add a distinct concrete byte-ring mechanism under `record`; retain R1 as the fixed-slot baseline
+  and reuse its 16-byte logical sequence/type/length header contract where that keeps the two
+  mechanisms comparable, without introducing a storage-policy hierarchy or queue base class;
+- own one compile-time-sized `std::byte` buffer, require its size to be a multiple of 16 bytes, and
+  represent producer and consumer progress as monotonic byte positions; define a normal physical
+  footprint as `align_up(16 + payload_length, 16)` so every record begins at a 16-byte boundary;
+- keep each normal `[header][payload]` record physically contiguous. When the remaining suffix
+  cannot hold the complete next record, publish a 16-byte padding header whose `UINT32_MAX` type tag
+  reserves the marker and whose length field encodes the complete skipped suffix, then place the
+  record at offset zero; padding consumes capacity and is skipped by the consumer but is never
+  returned as a message;
+- provide explicit copy-in/copy-out SPSC operations over caller-owned byte spans. Reject a reserved
+  type tag, inconsistent header length, an individually unrepresentable record, or an undersized
+  output buffer without publication, consumption, or partial output mutation; distinguish these
+  contract failures from ordinary full or empty states without exceptions in the hot path;
+- compute admission from total occupied bytes, including alignment and any required padding, so a
+  successful push reserves and publishes the whole transition atomically. A successful pop copies
+  one logical header and payload before releasing its complete physical footprint;
+- document the acquire/release publication and reuse edges, padding visibility, alignment bytes,
+  unsigned counter bounds, ownership, and the fact that neither records nor headers may straddle the
+  physical end;
+- test empty/full behavior, exact byte accounting, zero and maximum payloads, mixed lengths, aligned
+  footprints, padding insertion and skipping, repeated wrap, FIFO/header/payload integrity, every
+  failed-operation stability rule, slot-byte reuse, and a long concurrent variable-length run;
+- add scalar throughput and ping-pong plumbing using the existing payload sizes and a dedicated
+  `--capacity-bytes 4096|65536` option. Keep phase boundaries, waiting, validation, and trial
+  accounting equivalent; populate `capacity_bytes`, leave `capacity_slots` empty, and reject
+  slot-capacity or batch combinations that would misstate the mechanism;
+- add a question-led planned experiment that treats alignment, padding, header parsing, and byte
+  copies as part of the byte-ring contract and records no performance conclusion without controlled
+  Linux evidence.
 
-Non-goals: variable physical record sizes, packing multiple records into a byte ring, padding or wrap
-markers, records split across the physical end, descriptor/payload separation, external payload
-ownership, scatter/gather I/O, direct-slot reservation tokens, batching, multiple producers or
-consumers, overwrite, custom allocation, serialization frameworks, performance measurements, or
-performance conclusions.
+Non-goals: split records, implicit wrap without a marker, descriptor/payload separation, external
+payload ownership, scatter/gather I/O, returned direct-storage views, reservation tokens, batching,
+overwrite or lossy behavior, custom allocation, serialization frameworks, multiple producers or
+consumers, deferred roadmap work, performance measurements, or performance conclusions.
 
 Validation: mechanism-specific and shared correctness tests; benchmark CLI, CSV, and smoke
 plumbing; Debug and Release tests; ASan/UBSan; practical TSan; clang-format; clang-tidy;

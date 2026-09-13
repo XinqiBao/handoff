@@ -30,7 +30,8 @@ void print_usage(std::ostream& stream) {
             "[--output FILE]\n"
             "  handoff-bench run <throughput|ping-pong> "
             "[--implementation "
-            "basic|batch|bulk|burst|cache-line|cached-index|fan-out|pipeline|sequence|staged] "
+            "basic|batch|bulk|burst|cache-line|cached-index|fan-out|fixed-record|pipeline|sequence|"
+            "staged] "
             "[--payload-bytes 8|64|256] [--capacity 64|1024] [--batch-size 1|4|16]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
             "[--consumer-cpu N] [--output FILE]\n";
@@ -122,6 +123,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::cached_index;
       } else if (value == "fan-out") {
         options.implementation = Implementation::fan_out;
+      } else if (value == "fixed-record") {
+        options.implementation = Implementation::fixed_record;
       } else if (value == "pipeline") {
         options.implementation = Implementation::pipeline;
       } else if (value == "sequence") {
@@ -130,7 +133,7 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::staged;
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, cache-line, "
-                  "cached-index, fan-out, pipeline, sequence, staged\n";
+                  "cached-index, fan-out, fixed-record, pipeline, sequence, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {

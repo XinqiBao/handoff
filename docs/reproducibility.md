@@ -53,6 +53,20 @@ These fixed two-consumer workloads currently reject the single-consumer CPU affi
 not use their unpinned output for performance conclusions; controlled measurement requires
 explicit, recorded placement for the producer and both consumers.
 
+Fixed-record plumbing can be exercised with:
+
+```sh
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation fixed-record --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5
+./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+  --implementation fixed-record --payload-bytes 64 --capacity 1024 \
+  --iterations 100000 --warmup 10000 --trials 5
+```
+
+These commands validate benchmark plumbing on a development host. Their timing is not controlled
+performance evidence.
+
 ASan/UBSan and TSan are separate because these runtimes are not combined. TSan availability and
 behavior vary by platform and toolchain; report a concrete limitation rather than weakening a valid
 low-level design to obtain a clean run.

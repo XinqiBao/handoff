@@ -13,6 +13,7 @@ add_executable(
   bounded_spsc_test.cpp
   bulk_burst_spsc_test.cpp
   core_test.cpp
+  fixed_record_ring_test.cpp
   sequence_fan_out_test.cpp
   sequence_pipeline_test.cpp
   sequence_ring_test.cpp
@@ -84,6 +85,14 @@ add_test(
 add_test(
   NAME benchmark.pipeline-throughput-smoke
   COMMAND handoff-bench run throughput --implementation pipeline --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.fixed-record-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation fixed-record --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.fixed-record-ping-pong-smoke
+  COMMAND handoff-bench run ping-pong --implementation fixed-record --payload-bytes 8 --capacity 64
           --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.sequence-ping-pong-smoke

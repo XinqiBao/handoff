@@ -1,3 +1,4 @@
+#include "fixed_record_support.hpp"
 #include "rate.hpp"
 #include "workload_support.hpp"
 #include "workloads.hpp"
@@ -23,14 +24,21 @@
 namespace handoff::bench {
 namespace {
 
-enum class GroupOperation { scalar, batch, bulk, burst, sequence, staged };
+enum class GroupOperation { scalar, batch, bulk, burst, fixed_record, sequence, staged };
 
 template <typename T, std::size_t Capacity>
 using BenchmarkSequenceRing = sequence::BoundedSequenceRing<T, Capacity>;
 
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void push_messages(Queue& ring, std::uint64_t count) {
-  if constexpr (Operation == GroupOperation::sequence) {
+  if constexpr (Operation == GroupOperation::fixed_record) {
+    for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
+      const auto record = make_fixed_record<Bytes>(sequence);
+      while (!ring.try_push(record)) {
+        std::this_thread::yield();
+      }
+    }
+  } else if constexpr (Operation == GroupOperation::sequence) {
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       auto claim = ring.try_claim();
       while (!claim) {
@@ -96,7 +104,17 @@ void push_messages(Queue& ring, std::uint64_t count) {
 template <GroupOperation Operation, std::size_t Bytes, std::size_t BatchSize, typename Queue>
 void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
                   std::atomic<bool>& valid) {
-  if constexpr (Operation == GroupOperation::sequence) {
+  if constexpr (Operation == GroupOperation::fixed_record) {
+    typename Queue::value_type record;
+    for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
+      while (!ring.try_pop(record)) {
+        std::this_thread::yield();
+      }
+      if (!observe_fixed_record(record, sequence, checksum)) {
+        valid.store(false, std::memory_order_relaxed);
+      }
+    }
+  } else if constexpr (Operation == GroupOperation::sequence) {
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       auto observation = ring.try_observe();
       while (!observation) {
@@ -167,12 +185,10 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
   }
 }
 
-template <GroupOperation Operation, template <typename, std::size_t> typename Ring,
-          std::size_t Bytes, std::size_t Capacity, std::size_t BatchSize>
+template <GroupOperation Operation, typename Queue, std::size_t Bytes, std::size_t BatchSize>
 TrialResult run_throughput_trial(const Options& options, unsigned int trial,
                                  PlacementResult& producer_placement,
                                  PlacementResult& consumer_placement) {
-  using Queue = Ring<Payload<Bytes>, Capacity>;
   Queue ring;
   TrialControl control;
   Clock::time_point stop;
@@ -240,15 +256,14 @@ TrialResult run_throughput_trial(const Options& options, unsigned int trial,
           .checksum = checksum};
 }
 
-template <GroupOperation Operation, template <typename, std::size_t> typename Ring,
-          std::size_t Bytes, std::size_t Capacity, std::size_t BatchSize>
+template <GroupOperation Operation, typename Queue, std::size_t Bytes, std::size_t BatchSize>
 RunResults run_spsc(const Options& options) {
   RunResults results;
   results.trials.reserve(options.trials);
   for (unsigned int trial = 1; trial <= options.trials; ++trial) {
     PlacementResult producer_placement;
     PlacementResult consumer_placement;
-    auto result = run_throughput_trial<Operation, Ring, Bytes, Capacity, BatchSize>(
+    auto result = run_throughput_trial<Operation, Queue, Bytes, BatchSize>(
         options, trial, producer_placement, consumer_placement);
     if (trial == 1) {
       results.producer_placement = std::move(producer_placement);
@@ -266,22 +281,22 @@ RunResults dispatch_capacity(const Options& options) {
   case 64:
     switch (options.batch_size) {
     case 1:
-      return run_spsc<Operation, Ring, Bytes, 64, 1>(options);
+      return run_spsc<Operation, Ring<Payload<Bytes>, 64>, Bytes, 1>(options);
     case 4:
-      return run_spsc<Operation, Ring, Bytes, 64, 4>(options);
+      return run_spsc<Operation, Ring<Payload<Bytes>, 64>, Bytes, 4>(options);
     case 16:
-      return run_spsc<Operation, Ring, Bytes, 64, 16>(options);
+      return run_spsc<Operation, Ring<Payload<Bytes>, 64>, Bytes, 16>(options);
     default:
       throw std::logic_error("validated batch size was not dispatched");
     }
   case 1'024:
     switch (options.batch_size) {
     case 1:
-      return run_spsc<Operation, Ring, Bytes, 1'024, 1>(options);
+      return run_spsc<Operation, Ring<Payload<Bytes>, 1'024>, Bytes, 1>(options);
     case 4:
-      return run_spsc<Operation, Ring, Bytes, 1'024, 4>(options);
+      return run_spsc<Operation, Ring<Payload<Bytes>, 1'024>, Bytes, 4>(options);
     case 16:
-      return run_spsc<Operation, Ring, Bytes, 1'024, 16>(options);
+      return run_spsc<Operation, Ring<Payload<Bytes>, 1'024>, Bytes, 16>(options);
     default:
       throw std::logic_error("validated batch size was not dispatched");
     }
@@ -299,6 +314,32 @@ RunResults dispatch_payload(const Options& options) {
     return dispatch_capacity<Operation, Ring, 64>(options);
   case 256:
     return dispatch_capacity<Operation, Ring, 256>(options);
+  default:
+    throw std::logic_error("validated payload size was not dispatched");
+  }
+}
+
+template <std::size_t Bytes> RunResults dispatch_record_capacity(const Options& options) {
+  switch (options.capacity_slots) {
+  case 64:
+    return run_spsc<GroupOperation::fixed_record, record::FixedRecordRing<Bytes, 64>, Bytes, 1>(
+        options);
+  case 1'024:
+    return run_spsc<GroupOperation::fixed_record, record::FixedRecordRing<Bytes, 1'024>, Bytes, 1>(
+        options);
+  default:
+    throw std::logic_error("validated capacity was not dispatched");
+  }
+}
+
+RunResults dispatch_record_payload(const Options& options) {
+  switch (options.payload_bytes) {
+  case 8:
+    return dispatch_record_capacity<8>(options);
+  case 64:
+    return dispatch_record_capacity<64>(options);
+  case 256:
+    return dispatch_record_capacity<256>(options);
   default:
     throw std::logic_error("validated payload size was not dispatched");
   }
@@ -322,6 +363,8 @@ RunResults run_throughput(const Options& options) {
     return dispatch_payload<GroupOperation::scalar, spsc::CachedIndexBoundedRing>(options);
   case Implementation::fan_out:
     return run_fan_out_throughput(options);
+  case Implementation::fixed_record:
+    return dispatch_record_payload(options);
   case Implementation::pipeline:
     return run_pipeline_throughput(options);
   case Implementation::sequence:

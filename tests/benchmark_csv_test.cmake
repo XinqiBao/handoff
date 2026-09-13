@@ -109,6 +109,8 @@ validate_sequence_mode(throughput sequence 1)
 validate_sequence_mode(ping-pong sequence "")
 validate_sequence_mode(throughput fan-out 1)
 validate_sequence_mode(throughput pipeline 1)
+validate_sequence_mode(throughput fixed-record 1)
+validate_sequence_mode(ping-pong fixed-record "")
 
 file(REMOVE "${output_path}")
 execute_process(

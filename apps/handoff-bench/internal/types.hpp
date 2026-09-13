@@ -19,6 +19,7 @@ enum class Implementation {
   cache_line,
   cached_index,
   fan_out,
+  fixed_record,
   pipeline,
   sequence,
   staged

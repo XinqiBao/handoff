@@ -45,25 +45,30 @@ template <std::size_t Bytes> Payload<Bytes> make_payload(std::uint64_t sequence)
 }
 
 template <std::size_t Bytes>
-bool observe_payload(const Payload<Bytes>& payload, std::uint64_t expected_sequence,
-                     std::uint64_t& checksum) {
+bool observe_payload_bytes(const std::array<std::byte, Bytes>& bytes,
+                           std::uint64_t expected_sequence, std::uint64_t& checksum) {
   std::uint64_t observed_sequence = 0;
   for (std::size_t index = 0; index < sizeof(observed_sequence); ++index) {
-    observed_sequence |=
-        static_cast<std::uint64_t>(std::to_integer<std::uint8_t>(payload.bytes[index]))
-        << (index * 8U);
+    observed_sequence |= static_cast<std::uint64_t>(std::to_integer<std::uint8_t>(bytes[index]))
+                         << (index * 8U);
   }
 
   bool valid = observed_sequence == expected_sequence;
   checksum ^= observed_sequence + 0x9e3779b97f4a7c15ULL + (checksum << 6U) + (checksum >> 2U);
-  for (std::size_t index = 0; index < payload.bytes.size(); ++index) {
+  for (std::size_t index = 0; index < bytes.size(); ++index) {
     const auto expected = index < sizeof(expected_sequence)
                               ? static_cast<std::byte>((expected_sequence >> (index * 8U)) & 0xffU)
                               : static_cast<std::byte>((expected_sequence + index * 17U) & 0xffU);
-    valid = valid && payload.bytes[index] == expected;
-    checksum += std::to_integer<std::uint8_t>(payload.bytes[index]);
+    valid = valid && bytes[index] == expected;
+    checksum += std::to_integer<std::uint8_t>(bytes[index]);
   }
   return valid;
+}
+
+template <std::size_t Bytes>
+bool observe_payload(const Payload<Bytes>& payload, std::uint64_t expected_sequence,
+                     std::uint64_t& checksum) {
+  return observe_payload_bytes(payload.bytes, expected_sequence, checksum);
 }
 
 template <std::size_t Bytes> std::uint64_t expected_checksum(std::uint64_t iterations) {
