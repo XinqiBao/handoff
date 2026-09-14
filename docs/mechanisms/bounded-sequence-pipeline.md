@@ -79,9 +79,10 @@ independently paced stages.
 
 The `pipeline` throughput workload instantiates one producer and two consumer-stage threads. Both
 stages perform equivalent payload validation and independent checksum work. Timing stops only after
-the downstream stage releases every timed publication; `iterations` and
-`messages_per_second` count those end-to-end completions. The current single-consumer affinity
-options are rejected, so smoke timings are plumbing evidence only.
+the downstream stage releases every timed publication; `iterations` and `messages_per_second`
+count those end-to-end completions. Controlled runs accept a producer CPU and an ordered pair
+mapping to upstream and downstream, with verified per-role result metadata. Unpinned smoke timings
+remain plumbing evidence only.
 
 ## Provenance
 

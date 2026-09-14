@@ -71,8 +71,10 @@ general package manager.
 ## Benchmark data flow
 
 A benchmark command validates its options, constructs state, creates and places threads, performs
-warmup, synchronizes the timed phase, validates observable work, and only then formats or writes
-results. The timed-region exclusions and result fields are defined in
+warmup, synchronizes the timed phase with blocking control notifications, validates observable
+work, and only then formats or writes results. Mechanism-side availability waits remain explicit
+workload behavior and are not changed by the control-plane synchronization. The timed-region
+exclusions and result fields are defined in
 [Benchmark Methodology](benchmark-methodology.md).
 
 The harness should remain switch- or table-driven while the implementation set is small. A plugin

@@ -86,9 +86,9 @@ The `fan-out` throughput implementation instantiates two consumers. Warmup compl
 producer and both consumers finish their warmup phases. The timed phase stops after both consumers
 validate and release every publication. `iterations` and `messages_per_second` count publications,
 not the sum of two deliveries; the stored checksum is emitted only after both independent consumer
-checksums match the same expected value. The current single-consumer affinity options are rejected
-for this topology, so smoke runs are plumbing evidence only and controlled measurement awaits
-explicit placement and metadata for every consumer.
+checksums match the same expected value. Controlled runs accept a producer CPU and an ordered pair
+for consumer 0 and consumer 1. Linux verifies each effective mask and result metadata records every
+role. Unpinned smoke runs remain plumbing evidence only.
 
 ## Provenance
 

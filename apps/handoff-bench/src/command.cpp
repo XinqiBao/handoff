@@ -42,7 +42,7 @@ void print_usage(std::ostream& stream) {
             "[--payload-bytes 8|64|256] [--capacity 64|1024] "
             "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
             "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-            "[--consumer-cpu N] [--output FILE]\n";
+            "[--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n";
 }
 
 template <typename Integer> std::optional<Integer> parse_integer(std::string_view text) {
@@ -58,9 +58,23 @@ bool is_known_option(std::string_view option) {
   return option == "--iterations" || option == "--warmup" || option == "--trials" ||
          option == "--output" || option == "--implementation" || option == "--payload-bytes" ||
          option == "--capacity" || option == "--capacity-bytes" || option == "--batch-size" ||
-         option == "--producer-cpu" || option == "--consumer-cpu" ||
+         option == "--producer-cpu" || option == "--consumer-cpu" || option == "--consumer-cpus" ||
          option == "--producer-interval-ns" || option == "--consumer-stall-every" ||
          option == "--consumer-stall-ns";
+}
+
+std::optional<std::array<unsigned int, 2>> parse_cpu_pair(std::string_view text) {
+  const auto separator = text.find(',');
+  if (separator == std::string_view::npos || separator == 0 || separator + 1 == text.size() ||
+      text.find(',', separator + 1) != std::string_view::npos) {
+    return std::nullopt;
+  }
+  const auto first = parse_integer<unsigned int>(text.substr(0, separator));
+  const auto second = parse_integer<unsigned int>(text.substr(separator + 1));
+  if (!first || !second) {
+    return std::nullopt;
+  }
+  return std::array{*first, *second};
 }
 
 bool applies_to_smoke(std::string_view option) {
@@ -212,6 +226,14 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.consumer_cpu = parsed;
+    } else if (argument == "--consumer-cpus") {
+      const auto parsed = parse_cpu_pair(value);
+      if (!parsed) {
+        errors << "--consumer-cpus must contain exactly two non-negative integers separated by a "
+                  "comma\n";
+        return std::nullopt;
+      }
+      options.consumer_cpus = parsed;
     } else if (argument == "--producer-interval-ns") {
       const auto parsed = parse_integer<std::uint64_t>(value);
       if (!parsed || *parsed > 1'000'000) {
@@ -278,16 +300,39 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     return std::nullopt;
   }
 
-  if ((options.implementation == Implementation::fan_out ||
-       options.implementation == Implementation::pipeline) &&
-      (options.producer_cpu || options.consumer_cpu)) {
-    errors << "CPU affinity options do not apply to multi-consumer implementations\n";
-    return std::nullopt;
-  }
-  if (options.producer_cpu && options.consumer_cpu &&
-      *options.producer_cpu == *options.consumer_cpu) {
-    errors << "producer and consumer CPUs must be different\n";
-    return std::nullopt;
+  const bool multi_consumer = options.implementation == Implementation::fan_out ||
+                              options.implementation == Implementation::pipeline;
+  if (multi_consumer) {
+    if (options.consumer_cpu) {
+      errors << "--consumer-cpu does not apply to multi-consumer implementations; use "
+                "--consumer-cpus\n";
+      return std::nullopt;
+    }
+    if (options.producer_cpu.has_value() != options.consumer_cpus.has_value()) {
+      errors << "multi-consumer placement requires --producer-cpu and --consumer-cpus together\n";
+      return std::nullopt;
+    }
+    if (options.consumer_cpus) {
+      const auto [first, second] = *options.consumer_cpus;
+      if (first == second) {
+        errors << "multi-consumer CPUs must be distinct\n";
+        return std::nullopt;
+      }
+      if (*options.producer_cpu == first || *options.producer_cpu == second) {
+        errors << "producer and consumer CPUs must be distinct\n";
+        return std::nullopt;
+      }
+    }
+  } else {
+    if (options.consumer_cpus) {
+      errors << "--consumer-cpus applies only to multi-consumer implementations\n";
+      return std::nullopt;
+    }
+    if (options.producer_cpu && options.consumer_cpu &&
+        *options.producer_cpu == *options.consumer_cpu) {
+      errors << "producer and consumer CPUs must be different\n";
+      return std::nullopt;
+    }
   }
   if (benchmark == Benchmark::throughput && options.batch_size > 1 &&
       options.implementation != Implementation::basic &&

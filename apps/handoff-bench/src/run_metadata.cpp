@@ -113,7 +113,8 @@ RunMetadata collect_run_metadata() {
                        .git_revision = std::nullopt,
                        .git_dirty = std::nullopt,
                        .build_mode = HANDOFF_BUILD_MODE,
-                       .waiting_behavior = "yield"};
+                       .waiting_behavior = "yield",
+                       .control_waiting_behavior = "atomic-wait"};
 
   if (std::string_view(HANDOFF_SOURCE_DIR).empty()) {
     return metadata;

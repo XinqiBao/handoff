@@ -93,9 +93,12 @@ function(validate_sequence_mode benchmark implementation expected_batch_size)
     file(READ "${output_path}" contents)
     foreach(metadata_pattern IN ITEMS
         "# consumer_count=2"
-        "# consumer_cpus_requested=not-requested"
-        "# consumer_cpus_effective=unavailable"
-        "# consumer_affinity_outcome=not-requested")
+        "# consumer_0_cpu_requested=not-requested"
+        "# consumer_0_cpu_effective=unavailable"
+        "# consumer_0_affinity_outcome=not-requested"
+        "# consumer_1_cpu_requested=not-requested"
+        "# consumer_1_cpu_effective=unavailable"
+        "# consumer_1_affinity_outcome=not-requested")
       if(NOT contents MATCHES "${metadata_pattern}")
         message(
           FATAL_ERROR
@@ -223,6 +226,7 @@ foreach(metadata_pattern IN ITEMS
     "# architecture=[^\n]+"
     "# cpu_model=[^\n]+"
     "# waiting_behavior=yield"
+    "# control_waiting_behavior=atomic-wait"
     "# producer_cpu_requested=not-requested"
     "# producer_cpu_effective=unavailable"
     "# producer_affinity_outcome=not-requested"

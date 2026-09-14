@@ -79,10 +79,10 @@ for workload in throughput ping-pong; do
         run=$((run + 1))
         iterations=5000000
         if [ "$workload" = ping-pong ]; then iterations=500000; fi
-        ./build/release/apps/handoff-bench/handoff-bench run "$workload" \
+        taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run "$workload" \
           --implementation "$implementation" --payload-bytes "$payload" \
           --capacity "$capacity" --iterations "$iterations" --warmup 100000 --trials 3 \
-          --producer-cpu 2 --consumer-cpu 4 \
+          --producer-cpu 1 --consumer-cpu 2 \
           --output \
           "results/sequence-comparison/${workload}-${payload}b-${capacity}s-${run}-${implementation}.csv"
       done

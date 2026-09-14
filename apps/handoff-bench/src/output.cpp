@@ -116,6 +116,15 @@ void print_placement(std::string_view role, const PlacementResult& placement) {
   std::cout << role << " CPU " << *placement.requested << ": " << placement.outcome.message << '\n';
 }
 
+void write_placement_metadata(std::ostream& output, std::string_view role,
+                              const PlacementResult& placement) {
+  output << "# " << role
+         << "_cpu_requested=" << optional_cpu_value(placement.requested, "not-requested") << '\n'
+         << "# " << role
+         << "_cpu_effective=" << optional_cpu_value(placement.effective, "unavailable") << '\n'
+         << "# " << role << "_affinity_outcome=" << affinity_outcome(placement) << '\n';
+}
+
 std::size_t required_byte_capacity(const Options& options) {
   const auto capacity = options.capacity_bytes;
   if (!capacity) {
@@ -156,31 +165,23 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
          << "# architecture=" << metadata.system.architecture << '\n'
          << "# cpu_model=" << metadata.system.cpu_model << '\n'
          << "# waiting_behavior=" << metadata.waiting_behavior << '\n'
+         << "# control_waiting_behavior=" << metadata.control_waiting_behavior << '\n'
          << "# warmup=" << options.warmup << '\n'
          << "# trials=" << options.trials << '\n';
   if (benchmark != Benchmark::smoke) {
-    output << "# producer_cpu_requested="
-           << optional_cpu_value(results.producer_placement.requested, "not-requested") << '\n'
-           << "# producer_cpu_effective="
-           << optional_cpu_value(results.producer_placement.effective, "unavailable") << '\n'
-           << "# producer_affinity_outcome=" << affinity_outcome(results.producer_placement)
-           << '\n';
+    write_placement_metadata(output, "producer", results.producer_placement);
     if (options.implementation == Implementation::fan_out ||
         options.implementation == Implementation::pipeline) {
       const auto consumer_count = options.implementation == Implementation::fan_out
                                       ? fan_out_consumer_count
                                       : pipeline_consumer_count;
-      output << "# consumer_count=" << consumer_count << '\n'
-             << "# consumer_cpus_requested=not-requested\n"
-             << "# consumer_cpus_effective=unavailable\n"
-             << "# consumer_affinity_outcome=not-requested\n";
+      output << "# consumer_count=" << consumer_count << '\n';
+      for (std::size_t index = 0; index < consumer_count; ++index) {
+        write_placement_metadata(output, "consumer_" + std::to_string(index),
+                                 results.consumer_placements[index]);
+      }
     } else {
-      output << "# consumer_cpu_requested="
-             << optional_cpu_value(results.consumer_placement.requested, "not-requested") << '\n'
-             << "# consumer_cpu_effective="
-             << optional_cpu_value(results.consumer_placement.effective, "unavailable") << '\n'
-             << "# consumer_affinity_outcome=" << affinity_outcome(results.consumer_placement)
-             << '\n';
+      write_placement_metadata(output, "consumer", results.consumer_placement);
     }
   }
   if (benchmark == Benchmark::offered_load) {
@@ -301,7 +302,14 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
             << metadata.system.architecture << ", " << metadata.system.compiler << ' '
             << metadata.system.compiler_version << '\n';
   print_placement("producer", results.producer_placement);
-  print_placement("consumer", results.consumer_placement);
+  if (options.implementation == Implementation::fan_out ||
+      options.implementation == Implementation::pipeline) {
+    for (std::size_t index = 0; index < results.consumer_placements.size(); ++index) {
+      print_placement("consumer " + std::to_string(index), results.consumer_placements[index]);
+    }
+  } else {
+    print_placement("consumer", results.consumer_placement);
+  }
 
   std::vector<double> summaries;
   std::vector<double> observed_summaries;

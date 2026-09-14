@@ -10,6 +10,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 
@@ -82,13 +83,14 @@ template <std::size_t Bytes> std::uint64_t expected_checksum(std::uint64_t itera
 
 inline PlacementResult apply_affinity(std::optional<unsigned int> cpu) {
   if (!cpu) {
-    return {
-        .requested = std::nullopt,
-        .effective = std::nullopt,
-        .outcome = {.status = platform::AffinityStatus::unsupported, .message = "not requested"}};
+    return {.requested = std::nullopt,
+            .effective = std::nullopt,
+            .outcome = {.status = platform::AffinityStatus::unsupported,
+                        .effective_cpu = std::nullopt,
+                        .message = "not requested"}};
   }
   auto outcome = platform::pin_current_thread(*cpu);
-  const auto effective = outcome.status == platform::AffinityStatus::applied ? cpu : std::nullopt;
+  const auto effective = outcome.effective_cpu;
   return {.requested = cpu, .effective = effective, .outcome = std::move(outcome)};
 }
 
@@ -101,8 +103,10 @@ inline bool affinity_failed(const PlacementResult& placement) {
 }
 
 inline void wait_for_count(const std::atomic<unsigned int>& count, unsigned int expected) {
-  while (count.load(std::memory_order_acquire) != expected) {
-    std::this_thread::yield();
+  auto observed = count.load(std::memory_order_acquire);
+  while (observed != expected) {
+    count.wait(observed, std::memory_order_acquire);
+    observed = count.load(std::memory_order_acquire);
   }
 }
 
@@ -111,9 +115,35 @@ inline bool wait_for_phase(const std::atomic<bool>& phase, const std::atomic<boo
     if (cancel.load(std::memory_order_acquire)) {
       return false;
     }
-    std::this_thread::yield();
+    phase.wait(false, std::memory_order_acquire);
   }
-  return true;
+  return !cancel.load(std::memory_order_acquire);
+}
+
+inline void signal_count(std::atomic<unsigned int>& count) {
+  // Chain participant releases so the waiter observes every preceding non-atomic result.
+  count.fetch_add(1, std::memory_order_acq_rel);
+  count.notify_one();
+}
+
+inline void release_phase(std::atomic<bool>& phase) {
+  phase.store(true, std::memory_order_release);
+  phase.notify_all();
+}
+
+inline void signal_done(std::atomic<bool>& done) {
+  done.store(true, std::memory_order_release);
+  done.notify_one();
+}
+
+inline void wait_for_done(const std::atomic<bool>& done) {
+  done.wait(false, std::memory_order_acquire);
+}
+
+inline void cancel_trial(TrialControl& control) {
+  control.cancel.store(true, std::memory_order_release);
+  release_phase(control.begin_warmup);
+  release_phase(control.begin_timed);
 }
 
 inline void validate_affinity_or_cancel(TrialControl& control, std::thread& producer,
@@ -126,12 +156,43 @@ inline void validate_affinity_or_cancel(TrialControl& control, std::thread& prod
     return;
   }
 
-  control.cancel.store(true, std::memory_order_release);
+  cancel_trial(control);
   producer.join();
   consumer.join();
   const auto& failed = producer_failed ? producer_placement : consumer_placement;
   const std::string role = producer_failed ? "producer" : "consumer";
   throw std::runtime_error(role + " affinity failed: " + failed.outcome.message);
+}
+
+template <std::size_t ConsumerCount>
+void validate_affinity_or_cancel(
+    TrialControl& control, std::thread& producer, std::array<std::thread, ConsumerCount>& consumers,
+    const PlacementResult& producer_placement,
+    const std::array<PlacementResult, ConsumerCount>& consumer_placements,
+    const std::array<std::string_view, ConsumerCount>& consumer_roles) {
+  const PlacementResult* failed = nullptr;
+  std::string_view role = "producer";
+  if (affinity_failed(producer_placement)) {
+    failed = &producer_placement;
+  } else {
+    for (std::size_t index = 0; index < ConsumerCount; ++index) {
+      if (affinity_failed(consumer_placements[index])) {
+        failed = &consumer_placements[index];
+        role = consumer_roles[index];
+        break;
+      }
+    }
+  }
+  if (failed == nullptr) {
+    return;
+  }
+
+  cancel_trial(control);
+  producer.join();
+  for (auto& consumer : consumers) {
+    consumer.join();
+  }
+  throw std::runtime_error(std::string(role) + " affinity failed: " + failed->outcome.message);
 }
 
 } // namespace handoff::bench

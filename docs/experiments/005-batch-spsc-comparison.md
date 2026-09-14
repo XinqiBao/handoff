@@ -76,12 +76,12 @@ for payload in 8 64 256; do
       run=0
       for implementation in basic batch batch basic; do
         run=$((run + 1))
-        ./build/release/apps/handoff-bench/handoff-bench run throughput \
+        taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run throughput \
           --implementation "$implementation" \
           --payload-bytes "$payload" --capacity "$capacity" \
           --batch-size "$batch_size" \
           --iterations 6000000 --warmup 120000 --trials 3 \
-          --producer-cpu 2 --consumer-cpu 4 \
+          --producer-cpu 1 --consumer-cpu 2 \
           --output \
           "results/batch-comparison/${payload}b-${capacity}s-b${batch_size}-${run}-${implementation}.csv"
       done

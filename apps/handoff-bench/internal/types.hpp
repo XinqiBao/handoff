@@ -2,6 +2,7 @@
 
 #include "handoff/platform/thread_affinity.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -45,6 +46,7 @@ struct Options {
   std::uint64_t consumer_stall_ns{0};
   std::optional<unsigned int> producer_cpu;
   std::optional<unsigned int> consumer_cpu;
+  std::optional<std::array<unsigned int, 2>> consumer_cpus;
   std::optional<std::filesystem::path> output;
 };
 
@@ -75,6 +77,7 @@ struct RunResults {
   std::vector<TrialResult> trials;
   PlacementResult producer_placement;
   PlacementResult consumer_placement;
+  std::array<PlacementResult, 2> consumer_placements;
 };
 
 } // namespace handoff::bench

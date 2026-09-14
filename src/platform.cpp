@@ -96,7 +96,9 @@ SystemInfo current_system_info() {
 AffinityResult pin_current_thread(unsigned int cpu) {
 #if defined(__linux__)
   if (cpu >= static_cast<unsigned int>(CPU_SETSIZE)) {
-    return {.status = AffinityStatus::invalid_cpu, .message = "CPU index exceeds CPU_SETSIZE"};
+    return {.status = AffinityStatus::invalid_cpu,
+            .effective_cpu = std::nullopt,
+            .message = "CPU index exceeds CPU_SETSIZE"};
   }
 
   const auto cpu_index = static_cast<int>(cpu);
@@ -106,12 +108,33 @@ AffinityResult pin_current_thread(unsigned int cpu) {
   const int error = pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
   if (error != 0) {
     return {.status = AffinityStatus::system_error,
+            .effective_cpu = std::nullopt,
             .message = std::system_category().message(error)};
   }
-  return {.status = AffinityStatus::applied, .message = "thread affinity applied"};
+
+  cpu_set_t effective_set;
+  CPU_ZERO(&effective_set);
+  const int read_error =
+      pthread_getaffinity_np(pthread_self(), sizeof(effective_set), &effective_set);
+  if (read_error != 0) {
+    return {.status = AffinityStatus::system_error,
+            .effective_cpu = std::nullopt,
+            .message =
+                "unable to verify thread affinity: " + std::system_category().message(read_error)};
+  }
+
+  if (CPU_COUNT(&effective_set) != 1 || CPU_ISSET(cpu_index, &effective_set) == 0) {
+    return {.status = AffinityStatus::system_error,
+            .effective_cpu = std::nullopt,
+            .message = "effective affinity mask differs from requested CPU"};
+  }
+  return {.status = AffinityStatus::applied,
+          .effective_cpu = cpu,
+          .message = "thread affinity applied and verified"};
 #else
   static_cast<void>(cpu);
   return {.status = AffinityStatus::unsupported,
+          .effective_cpu = std::nullopt,
           .message = "thread affinity is unsupported on this platform"};
 #endif
 }

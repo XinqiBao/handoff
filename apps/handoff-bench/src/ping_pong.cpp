@@ -132,7 +132,7 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
 
   std::thread producer([&] {
     producer_placement = apply_affinity(options.producer_cpu);
-    control.ready.fetch_add(1, std::memory_order_release);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
@@ -151,7 +151,7 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
         control.valid.store(false, std::memory_order_relaxed);
       }
     }
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -173,12 +173,12 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
       }
     }
     stop = Clock::now();
-    control.done.store(true, std::memory_order_release);
+    signal_done(control.done);
   });
 
   std::thread consumer([&] {
     consumer_placement = apply_affinity(options.consumer_cpu);
-    control.ready.fetch_add(1, std::memory_order_release);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
@@ -196,7 +196,7 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
         std::this_thread::yield();
       }
     }
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -216,13 +216,11 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
 
   wait_for_count(control.ready, 2);
   validate_affinity_or_cancel(control, producer, consumer, producer_placement, consumer_placement);
-  control.begin_warmup.store(true, std::memory_order_release);
+  release_phase(control.begin_warmup);
   wait_for_count(control.warmed, 2);
   const auto start = Clock::now();
-  control.begin_timed.store(true, std::memory_order_release);
-  while (!control.done.load(std::memory_order_acquire)) {
-    std::this_thread::yield();
-  }
+  release_phase(control.begin_timed);
+  wait_for_done(control.done);
   producer.join();
   consumer.join();
 

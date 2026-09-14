@@ -53,7 +53,9 @@ void observe_messages(Ring& ring, std::size_t consumer_index, std::uint64_t coun
 }
 
 template <std::size_t Bytes, std::size_t Capacity>
-TrialResult run_fan_out_trial(const Options& options, unsigned int trial) {
+TrialResult
+run_fan_out_trial(const Options& options, unsigned int trial, PlacementResult& producer_placement,
+                  std::array<PlacementResult, fan_out_consumer_count>& consumer_placements) {
   FanOutRing<Bytes, Capacity> ring;
   TrialControl control;
   std::array<std::uint64_t, fan_out_consumer_count> checksums{};
@@ -63,13 +65,14 @@ TrialResult run_fan_out_trial(const Options& options, unsigned int trial) {
   const auto expected = expected_checksum<Bytes>(options.iterations);
 
   std::thread producer([&] {
-    control.ready.fetch_add(1, std::memory_order_release);
+    producer_placement = apply_affinity(options.producer_cpu);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
 
     publish_messages<FanOutRing<Bytes, Capacity>, Bytes>(ring, options.warmup);
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -79,7 +82,11 @@ TrialResult run_fan_out_trial(const Options& options, unsigned int trial) {
 
   for (std::size_t index = 0; index < consumers.size(); ++index) {
     consumers[index] = std::thread([&, index] {
-      control.ready.fetch_add(1, std::memory_order_release);
+      const auto cpu = options.consumer_cpus
+                           ? std::optional<unsigned int>{(*options.consumer_cpus)[index]}
+                           : std::nullopt;
+      consumer_placements[index] = apply_affinity(cpu);
+      signal_count(control.ready);
       if (!wait_for_phase(control.begin_warmup, control.cancel)) {
         return;
       }
@@ -87,7 +94,7 @@ TrialResult run_fan_out_trial(const Options& options, unsigned int trial) {
       std::uint64_t warmup_checksum = 0;
       observe_messages<FanOutRing<Bytes, Capacity>, Bytes>(ring, index, options.warmup,
                                                            warmup_checksum, control.valid);
-      control.warmed.fetch_add(1, std::memory_order_release);
+      signal_count(control.warmed);
       if (!wait_for_phase(control.begin_timed, control.cancel)) {
         return;
       }
@@ -96,20 +103,21 @@ TrialResult run_fan_out_trial(const Options& options, unsigned int trial) {
                                                            checksums[index], control.valid);
       if (consumers_done.fetch_add(1, std::memory_order_acq_rel) + 1 == fan_out_consumer_count) {
         stop = Clock::now();
-        control.done.store(true, std::memory_order_release);
+        signal_done(control.done);
       }
     });
   }
 
   constexpr auto participant_count = static_cast<unsigned int>(fan_out_consumer_count + 1);
   wait_for_count(control.ready, participant_count);
-  control.begin_warmup.store(true, std::memory_order_release);
+  validate_affinity_or_cancel(
+      control, producer, consumers, producer_placement, consumer_placements,
+      std::array<std::string_view, fan_out_consumer_count>{"consumer 0", "consumer 1"});
+  release_phase(control.begin_warmup);
   wait_for_count(control.warmed, participant_count);
   const auto start = Clock::now();
-  control.begin_timed.store(true, std::memory_order_release);
-  while (!control.done.load(std::memory_order_acquire)) {
-    std::this_thread::yield();
-  }
+  release_phase(control.begin_timed);
+  wait_for_done(control.done);
 
   producer.join();
   for (auto& consumer : consumers) {
@@ -138,11 +146,17 @@ TrialResult run_fan_out_trial(const Options& options, unsigned int trial) {
 
 template <std::size_t Bytes, std::size_t Capacity> RunResults run_trials(const Options& options) {
   RunResults results;
-  results.producer_placement = apply_affinity(std::nullopt);
-  results.consumer_placement = apply_affinity(std::nullopt);
   results.trials.reserve(options.trials);
   for (unsigned int trial = 1; trial <= options.trials; ++trial) {
-    results.trials.push_back(run_fan_out_trial<Bytes, Capacity>(options, trial));
+    PlacementResult producer_placement;
+    std::array<PlacementResult, fan_out_consumer_count> consumer_placements;
+    auto result =
+        run_fan_out_trial<Bytes, Capacity>(options, trial, producer_placement, consumer_placements);
+    if (trial == 1) {
+      results.producer_placement = std::move(producer_placement);
+      results.consumer_placements = std::move(consumer_placements);
+    }
+    results.trials.push_back(std::move(result));
   }
   return results;
 }

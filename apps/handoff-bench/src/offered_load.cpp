@@ -130,14 +130,14 @@ TrialResult run_offered_load_trial(const Options& options, unsigned int trial,
 
   std::thread producer([&] {
     producer_placement = apply_affinity(options.producer_cpu);
-    control.ready.fetch_add(1, std::memory_order_release);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
 
     publish_phase<Ring, Bytes>(ring, options.warmup, options.producer_interval_ns,
                                warmup_producer_done, control.valid);
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -148,14 +148,14 @@ TrialResult run_offered_load_trial(const Options& options, unsigned int trial,
 
   std::thread consumer([&] {
     consumer_placement = apply_affinity(options.consumer_cpu);
-    control.ready.fetch_add(1, std::memory_order_release);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
 
     static_cast<void>(observe_phase<Ring, Bytes>(ring, Ring::first_sequence(), options.warmup,
                                                  options, warmup_producer_done, control.valid));
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -164,18 +164,16 @@ TrialResult run_offered_load_trial(const Options& options, unsigned int trial,
     timed_result = observe_phase<Ring, Bytes>(ring, first_timed_sequence, options.iterations,
                                               options, timed_producer_done, control.valid);
     stop = Clock::now();
-    control.done.store(true, std::memory_order_release);
+    signal_done(control.done);
   });
 
   wait_for_count(control.ready, 2);
   validate_affinity_or_cancel(control, producer, consumer, producer_placement, consumer_placement);
-  control.begin_warmup.store(true, std::memory_order_release);
+  release_phase(control.begin_warmup);
   wait_for_count(control.warmed, 2);
   const auto start = Clock::now();
-  control.begin_timed.store(true, std::memory_order_release);
-  while (!control.done.load(std::memory_order_acquire)) {
-    std::this_thread::yield();
-  }
+  release_phase(control.begin_timed);
+  wait_for_done(control.done);
   producer.join();
   consumer.join();
 

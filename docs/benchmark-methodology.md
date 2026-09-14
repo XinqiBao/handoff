@@ -39,6 +39,11 @@ Unless explicitly under study, the timed region excludes:
 Threads should synchronize immediately before a timed phase so startup skew is not measured. Exact
 phase boundaries belong in each workload's mechanism or experiment note.
 
+Harness phase and completion waits use portable atomic blocking notifications so the coordinator
+does not consume a worker or housekeeping core during the timed phase. This control-plane choice
+does not change the current mechanism-side `yield` loops used when publication or observation is
+temporarily unavailable.
+
 ## Warmup and trials
 
 Use an untimed warmup appropriate to the workload, then run multiple independent trials. Preserve
@@ -73,8 +78,10 @@ prove a concurrency algorithm's memory-model argument.
 ## CPU placement
 
 Serious Linux runs should choose explicit producer and consumer CPUs and avoid crossing NUMA nodes
-unless that placement is the experiment. Record requested and effective placement. If affinity is
-unsupported, report that fact and continue only when the remaining measurement is meaningful.
+unless that placement is the experiment. After applying a Linux request, read back the current
+thread mask and require it to contain exactly the requested CPU before reporting effective
+placement. If affinity is unsupported, report that fact and continue only when the remaining
+measurement is meaningful.
 
 NUMA topology discovery is not part of the core harness.
 
@@ -118,16 +125,18 @@ The `fan-out` throughput implementation uses one producer and two reliable consu
 message means one publication has been observed, validated, and released by both consumers;
 `iterations` and rate count these completed publications rather than summing consumer deliveries.
 Both consumers perform the same payload validation and must independently produce the expected
-checksum before a result is emitted. CSV records `consumer_count=2` as metadata. Because the current
-affinity interface names only one consumer, `fan-out` rejects both CPU affinity options instead of
-recording an incomplete placement; its smoke runs are not controlled performance evidence.
+checksum before a result is emitted. CSV records `consumer_count=2` as metadata. Controlled
+placement uses `--producer-cpu P --consumer-cpus C0,C1`; list order maps directly to consumer
+indices. Metadata records requested and verified effective CPUs plus an outcome for each role.
+Partial, duplicate, or producer-overlapping placement is rejected.
 
 The `pipeline` throughput implementation uses one producer followed by fixed upstream and
 downstream consumer stages. A completed message means both stages have performed the same payload
 validation and the downstream stage has released the publication. `iterations` and rate count
 these end-to-end completions, and both independent checksums must match before a result is emitted.
-CSV records `consumer_count=2`; the current single-consumer affinity interface is rejected for the
-same metadata reason as fan-out. The pipeline is not offered as a scalar ping-pong mode.
+CSV records `consumer_count=2`. The same fixed placement interface maps consumer list order to the
+upstream and downstream roles and records each role independently. The pipeline is not offered as
+a scalar ping-pong mode.
 
 The `fixed-record` implementation keeps the selected `payload_bytes` as an inline payload but also
 copies and validates a 16-byte record header containing sequence, type tag, and logical payload
@@ -178,7 +187,8 @@ one-nanosecond denominator.
 
 Lightweight run metadata should accompany results as CSV comments or a simple adjacent file. Record
 at least git revision and dirty state, compiler and version, build mode, OS, CPU model, requested and
-effective CPUs, affinity outcomes, waiting behavior, warmup, and trial count. Facts that can change
+effective CPUs, affinity outcomes, mechanism and control waiting behavior, warmup, and trial count.
+Facts that can change
 after configuration, including Git state, must be collected when the command starts.
 
 ## Interpretation and CI

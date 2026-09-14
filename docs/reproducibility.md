@@ -64,15 +64,17 @@ Fan-out and dependency-pipeline plumbing can be exercised with:
 ```sh
 ./build/release/apps/handoff-bench/handoff-bench run throughput \
   --implementation fan-out --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5
+  --iterations 1000000 --warmup 10000 --trials 5 \
+  --producer-cpu 1 --consumer-cpus 2,3
 ./build/release/apps/handoff-bench/handoff-bench run throughput \
   --implementation pipeline --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5
+  --iterations 1000000 --warmup 10000 --trials 5 \
+  --producer-cpu 1 --consumer-cpus 2,3
 ```
 
-These fixed two-consumer workloads currently reject the single-consumer CPU affinity options. Do
-not use their unpinned output for performance conclusions; controlled measurement requires
-explicit, recorded placement for the producer and both consumers.
+Run controlled forms under `taskset -c 0` so the blocked coordinator and unpinned process work stay
+on CPU 0. Consumer list order maps to fan-out consumer 0/1 and pipeline upstream/downstream. The
+benchmark rejects incomplete, duplicate, or producer-overlapping multi-consumer placement.
 
 Fixed-record plumbing can be exercised with:
 
@@ -173,7 +175,7 @@ For results intended to support a conclusion:
 1. Use a clean native Release build at a recorded, CI-green git revision.
 2. Run the correctness suite and relevant sanitizer checks first.
 3. Minimize unrelated system activity and power-management changes.
-4. On Linux, select CPUs explicitly and confirm effective affinity.
+4. On Linux, select CPUs explicitly and require the read-back effective masks to match exactly.
 5. Keep producer and consumer on one NUMA node unless cross-node placement is intentional.
 6. Run warmup and multiple trials using exact recorded commands.
 7. Preserve raw trials and explain exclusions or deviations.
@@ -201,9 +203,25 @@ Record:
 
 CSV output records baseline run metadata when the command starts. Git fields are reported as
 `unavailable` when the source checkout or Git executable cannot be queried. Effective CPU fields are
-available only after a requested affinity operation succeeds. Record system tuning, topology
+available only after a requested affinity operation succeeds and its Linux mask is verified.
+`waiting_behavior` describes mechanism-side waits; `control_waiting_behavior` separately records
+the blocking harness synchronization. Record system tuning, topology
 details, external diagnostics, and any other missing experiment-specific facts beside the CSV or in
 the experiment document.
+
+## Linux measurement sidecar
+
+Keep host facts outside the benchmark binary. Beside each controlled CSV group, retain a concise
+text sidecar captured immediately before the run. It should contain timestamp and hostname, exact
+SHA and tracked dirty state, compiler and Release flags, kernel and OS, `lscpu`, allowed CPUs and
+NUMA/cache topology, requested role placement, governor/EPP/minimum/maximum/boost state, perf policy,
+load average, relevant active processes, temperature/frequency observations, and thermal-throttle
+counter values before and after the group. Do not capture the environment or credentials.
+
+For the verified four-core N150 host, the canonical two-worker placement is coordinator CPU 0,
+producer CPU 1, and consumer CPU 2. Fixed three-worker workloads add consumer CPU 3 and must note
+that CPU 3 has more historical network softirq activity. Keep the stock `intel_pstate` policy unless
+measured instability justifies a temporary, recorded, and restored control.
 
 Raw local output belongs under the ignored `results/` directory by convention. Commit concise
 experiment records and selected data only when they are needed to reproduce a conclusion.

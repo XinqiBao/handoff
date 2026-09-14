@@ -136,12 +136,36 @@ expect_failure(
   run throughput --implementation pipeline --iterations 18446744073709551615 --warmup 1)
 expect_failure(
   2
-  "CPU affinity options do not apply to multi-consumer implementations"
+  "multi-consumer placement requires --producer-cpu and --consumer-cpus together"
   run throughput --implementation fan-out --producer-cpu 0)
 expect_failure(
   2
-  "CPU affinity options do not apply to multi-consumer implementations"
+  "--consumer-cpu does not apply to multi-consumer implementations; use --consumer-cpus"
   run throughput --implementation pipeline --consumer-cpu 1)
+expect_failure(
+  2
+  "--consumer-cpus must contain exactly two non-negative integers separated by a comma"
+  run throughput --implementation fan-out --consumer-cpus 1)
+expect_failure(
+  2
+  "--consumer-cpus must contain exactly two non-negative integers separated by a comma"
+  run throughput --implementation fan-out --consumer-cpus 1,2,3)
+expect_failure(
+  2
+  "multi-consumer placement requires --producer-cpu and --consumer-cpus together"
+  run throughput --implementation pipeline --consumer-cpus 1,2)
+expect_failure(
+  2
+  "multi-consumer CPUs must be distinct"
+  run throughput --implementation fan-out --producer-cpu 0 --consumer-cpus 1,1)
+expect_failure(
+  2
+  "producer and consumer CPUs must be distinct"
+  run throughput --implementation pipeline --producer-cpu 1 --consumer-cpus 1,2)
+expect_failure(
+  2
+  "--consumer-cpus applies only to multi-consumer implementations"
+  run throughput --implementation basic --consumer-cpus 1,2)
 expect_failure(
   2
   "producer and consumer CPUs must be different"

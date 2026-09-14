@@ -25,7 +25,7 @@ size over 8, 64, and 256 bytes and exact usable capacity over 64 and 1024 slots.
 uses 100,000 warmup messages, 5,000,000 measured messages, and seven trials. The summary statistic is
 the median completed messages per second; all trial rows are retained.
 
-The controlled run requires a quiet Release build on Linux. CPU 2 and CPU 4 are the planned
+The controlled run requires a quiet Release build on Linux. CPU 1 and CPU 2 are the planned
 producer and consumer placements, but the record must be revised before execution if `lscpu` does
 not show that they are online, on distinct physical cores, and in one NUMA node.
 
@@ -88,10 +88,10 @@ lscpu -e=CPU,NODE,CORE,ONLINE
 mkdir -p results/basic-throughput
 for payload in 8 64 256; do
   for capacity in 64 1024; do
-    ./build/release/apps/handoff-bench/handoff-bench run throughput \
+    taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run throughput \
       --implementation basic --payload-bytes "$payload" --capacity "$capacity" \
       --iterations 5000000 --warmup 100000 --trials 7 \
-      --producer-cpu 2 --consumer-cpu 4 \
+      --producer-cpu 1 --consumer-cpu 2 \
       --output "results/basic-throughput/${payload}b-${capacity}s.csv"
   done
 done

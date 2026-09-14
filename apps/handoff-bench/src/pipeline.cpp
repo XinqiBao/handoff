@@ -4,6 +4,7 @@
 
 #include "handoff/sequence/bounded_sequence_pipeline.hpp"
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -67,22 +68,26 @@ void observe_downstream(Ring& ring, std::uint64_t count, std::uint64_t& checksum
 }
 
 template <std::size_t Bytes, std::size_t Capacity>
-TrialResult run_pipeline_trial(const Options& options, unsigned int trial) {
+TrialResult
+run_pipeline_trial(const Options& options, unsigned int trial, PlacementResult& producer_placement,
+                   std::array<PlacementResult, pipeline_consumer_count>& consumer_placements) {
   PipelineRing<Bytes, Capacity> ring;
   TrialControl control;
   Clock::time_point stop;
   std::uint64_t upstream_checksum = 0;
   std::uint64_t downstream_checksum = 0;
   const auto expected = expected_checksum<Bytes>(options.iterations);
+  std::array<std::thread, pipeline_consumer_count> consumers;
 
   std::thread producer([&] {
-    control.ready.fetch_add(1, std::memory_order_release);
+    producer_placement = apply_affinity(options.producer_cpu);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
 
     publish_messages<PipelineRing<Bytes, Capacity>, Bytes>(ring, options.warmup);
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -90,8 +95,12 @@ TrialResult run_pipeline_trial(const Options& options, unsigned int trial) {
     publish_messages<PipelineRing<Bytes, Capacity>, Bytes>(ring, options.iterations);
   });
 
-  std::thread upstream([&] {
-    control.ready.fetch_add(1, std::memory_order_release);
+  consumers[0] = std::thread([&] {
+    const auto cpu = options.consumer_cpus
+                         ? std::optional<unsigned int>{(*options.consumer_cpus)[0]}
+                         : std::nullopt;
+    consumer_placements[0] = apply_affinity(cpu);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
@@ -99,7 +108,7 @@ TrialResult run_pipeline_trial(const Options& options, unsigned int trial) {
     std::uint64_t warmup_checksum = 0;
     observe_upstream<PipelineRing<Bytes, Capacity>, Bytes>(ring, options.warmup, warmup_checksum,
                                                            control.valid);
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -108,8 +117,12 @@ TrialResult run_pipeline_trial(const Options& options, unsigned int trial) {
                                                            upstream_checksum, control.valid);
   });
 
-  std::thread downstream([&] {
-    control.ready.fetch_add(1, std::memory_order_release);
+  consumers[1] = std::thread([&] {
+    const auto cpu = options.consumer_cpus
+                         ? std::optional<unsigned int>{(*options.consumer_cpus)[1]}
+                         : std::nullopt;
+    consumer_placements[1] = apply_affinity(cpu);
+    signal_count(control.ready);
     if (!wait_for_phase(control.begin_warmup, control.cancel)) {
       return;
     }
@@ -117,7 +130,7 @@ TrialResult run_pipeline_trial(const Options& options, unsigned int trial) {
     std::uint64_t warmup_checksum = 0;
     observe_downstream<PipelineRing<Bytes, Capacity>, Bytes>(ring, options.warmup, warmup_checksum,
                                                              control.valid);
-    control.warmed.fetch_add(1, std::memory_order_release);
+    signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
@@ -125,21 +138,23 @@ TrialResult run_pipeline_trial(const Options& options, unsigned int trial) {
     observe_downstream<PipelineRing<Bytes, Capacity>, Bytes>(ring, options.iterations,
                                                              downstream_checksum, control.valid);
     stop = Clock::now();
-    control.done.store(true, std::memory_order_release);
+    signal_done(control.done);
   });
 
   wait_for_count(control.ready, 3);
-  control.begin_warmup.store(true, std::memory_order_release);
+  validate_affinity_or_cancel(control, producer, consumers, producer_placement, consumer_placements,
+                              std::array<std::string_view, pipeline_consumer_count>{
+                                  "upstream consumer", "downstream consumer"});
+  release_phase(control.begin_warmup);
   wait_for_count(control.warmed, 3);
   const auto start = Clock::now();
-  control.begin_timed.store(true, std::memory_order_release);
-  while (!control.done.load(std::memory_order_acquire)) {
-    std::this_thread::yield();
-  }
+  release_phase(control.begin_timed);
+  wait_for_done(control.done);
 
   producer.join();
-  upstream.join();
-  downstream.join();
+  for (auto& consumer : consumers) {
+    consumer.join();
+  }
 
   if (!control.valid.load(std::memory_order_relaxed)) {
     throw std::runtime_error("sequence pipeline payload validation failed");
@@ -161,11 +176,17 @@ TrialResult run_pipeline_trial(const Options& options, unsigned int trial) {
 
 template <std::size_t Bytes, std::size_t Capacity> RunResults run_trials(const Options& options) {
   RunResults results;
-  results.producer_placement = apply_affinity(std::nullopt);
-  results.consumer_placement = apply_affinity(std::nullopt);
   results.trials.reserve(options.trials);
   for (unsigned int trial = 1; trial <= options.trials; ++trial) {
-    results.trials.push_back(run_pipeline_trial<Bytes, Capacity>(options, trial));
+    PlacementResult producer_placement;
+    std::array<PlacementResult, pipeline_consumer_count> consumer_placements;
+    auto result = run_pipeline_trial<Bytes, Capacity>(options, trial, producer_placement,
+                                                      consumer_placements);
+    if (trial == 1) {
+      results.producer_placement = std::move(producer_placement);
+      results.consumer_placements = std::move(consumer_placements);
+    }
+    results.trials.push_back(std::move(result));
   }
   return results;
 }

@@ -26,7 +26,7 @@ over 64 and 1024 slots. Each configuration uses 100,000 warmup exchanges, 500,00
 exchanges, and seven trials. Every exchange produces one RTT sample. Each trial reports median,
 p95, and p99 RTT; the cross-trial summary is the median of trial medians.
 
-The controlled run requires a quiet Release build on Linux. CPU 2 and CPU 4 are the planned
+The controlled run requires a quiet Release build on Linux. CPU 1 and CPU 2 are the planned
 placements under the same topology precondition as the throughput record.
 
 ## Compared variants
@@ -83,10 +83,10 @@ lscpu -e=CPU,NODE,CORE,ONLINE
 mkdir -p results/basic-ping-pong
 for payload in 8 64 256; do
   for capacity in 64 1024; do
-    ./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+    taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run ping-pong \
       --implementation basic --payload-bytes "$payload" --capacity "$capacity" \
       --iterations 500000 --warmup 100000 --trials 7 \
-      --producer-cpu 2 --consumer-cpu 4 \
+      --producer-cpu 1 --consumer-cpu 2 \
       --output "results/basic-ping-pong/${payload}b-${capacity}s.csv"
   done
 done

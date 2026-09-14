@@ -13,6 +13,7 @@ struct RunMetadata {
   std::optional<bool> git_dirty;
   std::string build_mode;
   std::string waiting_behavior;
+  std::string control_waiting_behavior;
 };
 
 RunMetadata collect_run_metadata();

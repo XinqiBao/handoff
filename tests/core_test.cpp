@@ -4,6 +4,13 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#if defined(__linux__)
+#include <sched.h>
+
+#include <optional>
+#include <thread>
+#endif
+
 TEST_CASE("the core reports its version") { CHECK(handoff::version().compare("0.1.0") == 0); }
 
 TEST_CASE("system information identifies the build environment") {
@@ -19,6 +26,28 @@ TEST_CASE("system information identifies the build environment") {
 TEST_CASE("macOS reports thread affinity as unsupported") {
   const auto result = handoff::platform::pin_current_thread(0);
   CHECK(result.status == handoff::platform::AffinityStatus::unsupported);
+  CHECK_FALSE(result.effective_cpu);
   CHECK_FALSE(result.message.empty());
+}
+#endif
+
+#if defined(__linux__)
+TEST_CASE("Linux verifies the effective thread affinity mask") {
+  int current_cpu = -1;
+  std::optional<handoff::platform::AffinityResult> result;
+  std::thread worker([&] {
+    current_cpu = sched_getcpu();
+    if (current_cpu >= 0) {
+      result = handoff::platform::pin_current_thread(static_cast<unsigned int>(current_cpu));
+    }
+  });
+  worker.join();
+
+  REQUIRE(current_cpu >= 0);
+  REQUIRE(result);
+  CHECK(result->status == handoff::platform::AffinityStatus::applied);
+  REQUIRE(result->effective_cpu);
+  CHECK(*result->effective_cpu == static_cast<unsigned int>(current_cpu));
+  CHECK_FALSE(result->message.empty());
 }
 #endif

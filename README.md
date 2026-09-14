@@ -64,15 +64,19 @@ presets are documented in [Reproducibility](docs/reproducibility.md).
 The `smoke` command checks timing, CLI, and result-output plumbing. Its timing is not a handoff
 performance result.
 
-The SPSC commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output` arguments.
+Single-consumer commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output`
+arguments. The fixed two-consumer `fan-out` and `pipeline` throughput modes instead accept complete
+placement through `--producer-cpu CPU --consumer-cpus CPU0,CPU1`; partial, duplicate, and
+overlapping placement is rejected. List order maps to fan-out consumer 0/1 and pipeline
+upstream/downstream. Linux verifies the effective affinity mask after applying each request;
+macOS reports affinity as unsupported.
 Select `basic`, `batch`, `bulk`, `burst`, `byte-record`, `cache-line`, `cached-index`,
 `descriptor-record`, `fan-out`, `fixed-record`, `pipeline`, `sequence`, or `staged` with
 `--implementation`. Throughput also supports `--batch-size 1|4|16` for the `basic`, `batch`,
 `bulk`, `burst`, and
 `staged` implementations. `bulk`, `burst`, `fan-out`, `pipeline`, and `staged` apply only to
 throughput; `fixed-record` and `sequence` are scalar in both workloads. `fan-out` and `pipeline`
-each use two consumer threads and reject the single-consumer CPU affinity options. Run
-`handoff-bench help` for the complete option contract.
+each use two consumer threads. Run `handoff-bench help` for the complete option contract.
 
 Fixed-slot implementations use `--capacity 64|1024`. `byte-record` instead uses
 `--capacity-bytes 4096|65536`; the two options are mutually exclusive.
