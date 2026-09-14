@@ -9,6 +9,27 @@ The supported toolchain is Clang with C++23, CMake 3.28 or newer, and Ninja. The
 configuration needs network access and Git to fetch the pinned Catch2 revision. clang-format and
 clang-tidy are needed only for their corresponding checks.
 
+## Two-machine revision workflow
+
+When development and controlled measurement use different machines, keep one authoritative
+development checkout and treat the Git remote plus an exact commit as the provenance boundary:
+
+1. Make and validate source or documentation changes in the authoritative development checkout.
+2. Review, commit, push, and wait for the required CI checks.
+3. Record the exact CI-green commit SHA selected for measurement.
+4. In an independent Linux execution clone, require a clean tracked/index state, fetch the remote,
+   and check out that exact SHA in detached-HEAD state.
+5. Configure and build natively on Linux; never copy a development-host binary or build tree.
+6. Run the required correctness gates before controlled measurement.
+7. Keep raw results in ignored local storage and transfer them one way to the development machine
+   for analysis when needed.
+8. Make all source, experiment-record, and roadmap changes in the authoritative checkout, then
+   repeat the commit, CI, and exact-SHA cycle.
+
+Do not use a shared network build tree or bidirectional source synchronization for formal results.
+Do not describe an execution clone as "latest main" in an experiment record: identify the measured
+commit. A source-affecting change after measurement invalidates affected evidence until it is rerun.
+
 ## Build presets
 
 ```sh
@@ -149,13 +170,18 @@ timings are not performance evidence.
 
 For results intended to support a conclusion:
 
-1. Use a clean Release build at a recorded git revision.
+1. Use a clean native Release build at a recorded, CI-green git revision.
 2. Run the correctness suite and relevant sanitizer checks first.
 3. Minimize unrelated system activity and power-management changes.
 4. On Linux, select CPUs explicitly and confirm effective affinity.
 5. Keep producer and consumer on one NUMA node unless cross-node placement is intentional.
 6. Run warmup and multiple trials using exact recorded commands.
 7. Preserve raw trials and explain exclusions or deviations.
+
+Begin with the stock host. First measure repeatability, then identify a concrete source of material
+variation, form a hypothesis, apply the smallest reversible control, and remeasure. Record and
+restore temporary controls. Persistent kernel, boot, CPU-isolation, IRQ, or power-policy changes are
+not default benchmark preparation.
 
 Linux `perf stat` or `perf record` may be run externally when useful. Do not make perf-event access a
 core executable dependency. macOS reports thread affinity as unsupported rather than attempting
