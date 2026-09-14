@@ -223,6 +223,29 @@ producer CPU 1, and consumer CPU 2. Fixed three-worker workloads add consumer CP
 that CPU 3 has more historical network softirq activity. Keep the stock `intel_pstate` policy unless
 measured instability justifies a temporary, recorded, and restored control.
 
+### Verified stock-host baseline
+
+On 2026-09-14, commit `273c757109e9b1650ef94938d6086e32dad495bd` passed the Linux Release,
+format, clang-tidy, ASan/UBSan, and TSan gates before a pinned reproducibility pilot on the N150
+host. The benchmark process was restricted to coordinator CPU 0, with producer CPU 1 and consumer
+CPU 2 verified from their effective masks. The workload was basic throughput with a 64-byte
+payload, 1024 slots, 20,000,000 measured messages, 2,000,000 warmup messages, and seven retained
+trials. Every timed trial exceeded 2.4 seconds.
+
+The first group had a median of 8.062 million messages/s, sample CV 0.937%, and a 2.305% full range.
+Because its first-to-last change was -1.129% while the package warmed, a second group was retained
+after a longer 40,000,000-message conditioning run. The warm-state repetition had a median of 8.068
+million messages/s, sample CV 0.280%, 0.915% full range, +0.269% first-to-last change, and a fitted
+slope of +0.025% of the median per trial. Turbostat observed roughly 3.4-3.6 GHz busy frequency and
+70-78 C during the warm group. Hardware thermal-throttle counters did not change.
+
+No governor, EPP, perf policy, IRQ, kernel, or boot setting was changed: the run used the stock
+`intel_pstate` `powersave` governor with `balance_performance` EPP. The result supports using this
+host for bounded relative comparisons after consistent warm-state conditioning. It is not a
+mechanism-performance claim, and effects close to the observed dispersion still require cautious
+interpretation. Raw CSV, sidecars, runtime affinity checks, turbostat output, and analysis remain in
+ignored local storage at `results/l1/l1a-baseline/` on both machines.
+
 Raw local output belongs under the ignored `results/` directory by convention. Commit concise
 experiment records and selected data only when they are needed to reproduce a conclusion.
 

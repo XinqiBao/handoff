@@ -21,8 +21,9 @@ and noise; neither implementation is expected to be a universal winner.
 
 ## Setup
 
-The planned Linux comparison uses the Release preset, CPUs 2 and 4 on distinct physical cores in
-one NUMA node, payloads of 8, 64, and 256 bytes, and exact usable capacities of 64 and 1024 slots.
+The planned Linux comparison uses the Release preset, verified CPUs 1 and 2 on distinct physical
+cores in one NUMA node, payloads of 8, 64, and 256 bytes, and exact usable capacities of 64 and 1024
+slots.
 Throughput uses 5,000,000 measured messages; ping-pong uses 500,000 measured exchanges. Both use
 100,000 warmup operations.
 
@@ -99,8 +100,8 @@ for workload in throughput ping-pong; do
 done
 ```
 
-Planned controlled Linux commands, conditional on confirming CPUs 2 and 4 are online, on distinct
-physical cores, and in one NUMA node:
+Planned controlled Linux commands use the verified same-node physical CPU 1/2 worker pair with the
+blocked coordinator restricted to CPU 0:
 
 ```sh
 lscpu -e=CPU,NODE,CORE,ONLINE

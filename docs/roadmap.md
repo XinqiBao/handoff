@@ -42,8 +42,9 @@ documents and Git.
 | F1 | complete | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
 | F2 | complete | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
 | W1 | complete | Load-shape workloads | Add one F2 offered-load workload covering unpaced pressure, producer pacing, and temporary observer stalls. |
-| L1A | next | Linux measurement integrity | Remove observed harness interference, verify effective placement, support controlled fixed multi-consumer placement, and establish a reproducible stock-host baseline. |
-| L1B | queued | SPSC evolution evidence | Run bounded canonical comparisons for counter placement, remote-index caching, publication granularity, and staged direct-slot access. |
+| L1A | complete | Linux measurement integrity | Remove observed harness interference, verify effective placement, support controlled fixed multi-consumer placement, and establish a reproducible stock-host baseline. |
+| L1B | next | Scalar SPSC evolution evidence | Run bounded canonical comparisons for counter placement and remote-index caching. |
+| L1B2 | queued | Grouped SPSC evolution evidence | Measure publication granularity and staged direct-slot access after the scalar comparisons are understood. |
 | L1C | queued | Sequence-contract evidence | Measure selected single-consumer publication, reliable fan-out, and fixed dependency costs with explicit placement and semantic limits. |
 | L1D | queued | Offered-load evidence | Characterize unpaced pressure, calibrated producer pacing, and bounded observer stalls without a Cartesian sweep. |
 | L1E | queued | PMU investigation and L1 review | Apply selective hardware evidence to observed questions, consolidate durable findings, and review the post-L1 direction. |
@@ -52,81 +53,85 @@ documents and Git.
 | M3 | deferred | SPMC work sharing and MPMC | Keep distinct from broadcast and attempt only with a concrete research question. |
 
 The active path is
-`H1 -> H2 -> C1 -> S3 -> S4 -> D1 -> D2 -> Q1 -> Q2 -> Q3 -> R1 -> R2 -> R3 -> F1 -> F2 -> W1 -> L1A -> L1B -> L1C -> L1D -> L1E`.
+`H1 -> H2 -> C1 -> S3 -> S4 -> D1 -> D2 -> Q1 -> Q2 -> Q3 -> R1 -> R2 -> R3 -> F1 -> F2 -> W1 -> L1A -> L1B -> L1B2 -> L1C -> L1D -> L1E`.
 A suitable physical Linux host and exact-revision execution clone have been verified, so controlled
 measurement preparation can proceed. Multi-producer and general multi-consumer mechanisms remain
 deliberately deferred; this does not defer single-producer broadcast/fan-out.
 
 ## Active stopping boundary
 
-The portable single-producer path through W1 is complete. L1A is now locally executable. L1B through
-L1E are ordered measurement outcomes whose detailed contracts must be written only when they become
-next. M1 through M3 remain deliberately deferred until a concrete multi-producer research question
-justifies reopening that path after the L1 review.
+The portable single-producer path through W1 and the Linux measurement-integrity stage are complete.
+L1B is now locally executable. L1B2 through L1E are ordered measurement outcomes whose detailed
+contracts must be written only when they become next. M1 through M3 remain deliberately deferred
+until a concrete multi-producer research question justifies reopening that path after the L1 review.
 
-## Next stage: L1A Linux measurement integrity
+## Next stage: L1B scalar SPSC evolution evidence
 
 ### Goal
 
-Make controlled measurements trustworthy on the verified Linux host before recording mechanism
-performance. Remove benchmark-control work that can perturb a small CPU, make effective affinity a
-verified fact, add explicit placement for the existing fixed two-consumer workloads, and establish
-that the stock host is repeatable enough for bounded relative comparisons.
+Establish the first controlled mechanism evidence on the verified Linux host. Measure, pairwise,
+what changes when the basic ring separates its producer/consumer counters and when it caches remote
+progress, under one canonical throughput and one canonical ping-pong workload.
 
 ### Evidence motivating the stage
 
-Native Linux Release and quality builds, the correctness suite, single-consumer affinity, and
-generic PMU access have been validated on the host. A discovery run also showed that the benchmark
-coordinator continues yielding throughout the timed phase and can occupy an otherwise unused core.
-The current affinity result reports the requested CPU after a successful set operation without
-reading back the effective mask. Fan-out and pipeline still reject controlled placement. Discovery
-timings are plumbing and environment evidence only, not mechanism results.
+L1A removed coordinator interference, verified effective Linux affinity, and added fixed
+multi-consumer placement. At its CI-green measurement revision, all Linux correctness, format,
+clang-tidy, ASan/UBSan, and TSan gates passed. A stock-HWP warm-state baseline using CPU 0 for the
+blocked coordinator and CPUs 1/2 for workers retained seven trials longer than 2.4 seconds with
+0.280% sample CV, 0.915% full range, no material order drift, and no thermal-throttle events. This
+supports bounded relative comparisons without changing governor or EPP.
 
 ### Scope
 
-1. Replace timed-phase coordinator spinning with a small portable blocking notification while
-   retaining the workload's mechanism-side `yield` waiting behavior.
-2. On Linux, read back and validate the current thread affinity mask after applying a request.
-   Preserve explicit unsupported behavior on macOS and keep platform-specific code localized.
-3. Add the smallest explicit CLI, workload plumbing, result metadata, and validation needed to pin
-   the producer and both fixed consumer roles in fan-out and pipeline runs.
-4. Record the exact-revision two-machine workflow and the external host facts needed beside raw
-   results without turning the benchmark binary into a topology or tuning framework.
-5. Update affected tests and documentation, including planned experiment commands that name CPUs
-   unavailable on the verified host.
-6. After the implementation revision is committed, pushed, and green in CI, run a bounded pinned
-   Release pilot on that exact revision. Retain individual trials and inspect dispersion,
-   frequency/temperature behavior, and throttle counters before considering any host control.
+1. Compare `basic` versus `cache-line` to characterize the complete structural effect of separating
+   the producer-owned tail and consumer-owned head state blocks.
+2. Separately compare `basic` versus `cached-index` to characterize the complete effect of retaining
+   local remote-progress bounds and refreshing them only when a cached bound blocks progress.
+3. Use only 64-byte payloads and 1024 exact usable slots initially. Run both throughput and
+   ping-pong because remote-progress caching has different opportunity in saturated streaming and
+   dependency-bound exchange.
+4. Pilot one iteration count per workload so the fastest timed trial is at least roughly two
+   seconds. Hold that count, warmup, placement, build, and benchmark-side work fixed within every
+   pairwise comparison.
+5. For each pair and workload, use four three-trial commands in ABBA order. This retains six rows
+   per implementation, limits simple command-order drift, and preserves every trial without
+   outlier removal.
+6. Use the L1A warm-state conditioning method, stock HWP policy, coordinator CPU 0, producer CPU 1,
+   and consumer CPU 2. Retain a host sidecar, verified placement metadata, temperature/frequency
+   observations, and throttle-counter deltas beside raw CSV.
+7. Update experiment records 003 and 004 with the exact measurement SHA, commands, per-trial
+   summaries, pairwise results, interpretation, and limits. Promote only conclusions that survive
+   review; keep causal coherence claims out unless later targeted PMU evidence supports them.
 
 ### Non-goals
 
-- no substantive mechanism changes or new handoff topology;
-- no controlled mechanism ranking or completion of a planned performance experiment;
-- no large parameter matrix, record-layout campaign, or benchmark orchestration framework;
-- no mandatory in-process topology discovery or `perf` dependency;
-- no persistent governor, IRQ, kernel, boot, or CPU-isolation changes;
-- no MPSC, generalized sequencing, SPMC, or MPMC work.
+- no batch, bulk, burst, staged, sequence, fan-out, pipeline, record-layout, or offered-load
+  comparison;
+- no automatic payload/capacity sensitivity matrix unless the canonical result is genuinely
+  ambiguous and one specific sensitivity can resolve it;
+- no claim that object layout isolates a single coherence event or that cached indices isolate only
+  an atomic instruction;
+- no PMU collection before an observed result creates a specific hypothesis;
+- no benchmark framework, persistent host tuning, MPSC, SPMC, or MPMC work.
 
 ### Acceptance criteria
 
-- Control-plane blocking does not change queue waiting semantics, timed-region boundaries, completed
-  counts, payload validation, or checksum meaning.
-- Linux affinity metadata comes from a verified effective mask and rejects an unexpected mask;
-  macOS continues to build and reports affinity as unsupported.
-- Fan-out and pipeline accept exactly two distinct consumer CPUs, reject incomplete, duplicate, or
-  producer-overlapping placement, and record requested/effective CPUs and outcomes for both roles.
-- Focused platform, CLI, CSV, failure-path, and single-/multi-consumer smoke tests cover the new
-  behavior.
-- Debug, Release, sanitizer, format, and static-analysis gates pass where applicable on macOS,
-  Linux, and required CI.
-- A clean, CI-green exact revision is checked out and built natively on Linux before the pilot.
-- The stock-host pilot uses explicit same-node physical cores, at least seven retained trials, and
-  trials long enough to expose meaningful run-to-run variation. It records dispersion and thermal/
-  frequency observations and makes no mechanism-performance claim.
-- The complete diff and both worktrees are reviewed; coherent Conventional Commit(s) are pushed;
-  required CI is green; ignored local status identifies the exact next stage and evidence location.
-- On completion, replace this contract with one detailed L1B contract. Split L1B further rather
-  than combining several weakly reviewed experiment families if its evidence scope is too large.
+- Every command runs from one clean, CI-green exact SHA in a fresh native Linux Release build after
+  the required correctness and quality gates.
+- All requested worker affinities are reported as applied with matching effective CPU masks;
+  checksums agree within each workload/configuration; no retained row is silently discarded.
+- The fastest retained trial in each workload is at least roughly two seconds, with six retained
+  rows per implementation per pair and ABBA command order.
+- Analysis reports medians, sample dispersion, full range, order behavior, and pairwise ratios. An
+  effect near the observed host noise is reported as inconclusive rather than ranked.
+- Experiment records 003 and 004 contain exact provenance, controlled and changed variables,
+  results, bounded interpretations, limitations, and reproduction commands. Raw evidence remains
+  under ignored `results/l1/l1b-scalar/` on Linux and Mac.
+- Both worktrees and the complete diff are reviewed; coherent commits are pushed; required CI is
+  green; ignored active status records the evidence location and exact next stage.
+- On completion, replace this contract with one detailed L1B2 contract, revised from the scalar
+  evidence rather than copied mechanically from the queued outcome.
 
 ## Direction after Q3
 

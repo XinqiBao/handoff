@@ -75,8 +75,8 @@ for payload in 8 64 256; do
 done
 ```
 
-Planned controlled Linux commands, conditional on confirming CPUs 2 and 4 are online, on distinct
-physical cores, and in one NUMA node:
+Planned controlled Linux commands use the verified same-node physical CPU 1/2 worker pair with the
+blocked coordinator restricted to CPU 0:
 
 ```sh
 lscpu -e=CPU,NODE,CORE,ONLINE
