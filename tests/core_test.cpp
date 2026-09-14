@@ -44,10 +44,17 @@ TEST_CASE("Linux verifies the effective thread affinity mask") {
   worker.join();
 
   REQUIRE(current_cpu >= 0);
-  REQUIRE(result);
-  CHECK(result->status == handoff::platform::AffinityStatus::applied);
-  REQUIRE(result->effective_cpu);
-  CHECK(*result->effective_cpu == static_cast<unsigned int>(current_cpu));
-  CHECK_FALSE(result->message.empty());
+  if (!result) {
+    FAIL("worker did not report an affinity result");
+    return;
+  }
+  const auto& affinity = *result;
+  CHECK(affinity.status == handoff::platform::AffinityStatus::applied);
+  if (!affinity.effective_cpu) {
+    FAIL("applied affinity did not report an effective CPU");
+    return;
+  }
+  CHECK(*affinity.effective_cpu == static_cast<unsigned int>(current_cpu));
+  CHECK_FALSE(affinity.message.empty());
 }
 #endif
