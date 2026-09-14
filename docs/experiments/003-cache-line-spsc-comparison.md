@@ -1,10 +1,10 @@
 # Experiment: Does counter separation change bounded SPSC performance?
 
 - Type: mechanism isolation
-- Status: planned
+- Status: complete
 - Plumbing revision: `b63246e2d0e2fe6a61dd4a0b90774e329a01d987`
-- Measurement revision: to be recorded before the controlled Linux run
-- Date: 2026-09-12
+- Measurement revision: `ffe279ffaf06366ec0f77f4c5c27782864f523bc`
+- Date: 2026-09-14
 
 ## Question
 
@@ -14,121 +14,117 @@ bounded SPSC workloads?
 
 ## Hypothesis
 
-Counter separation may improve throughput by avoiding write invalidation between adjacent atomics
-when the threads run on different cores. Ping-pong is dependency-bound and may show a smaller or
-different effect. Any effect should depend on payload size, capacity, cache hierarchy, topology,
-and noise; neither implementation is expected to be a universal winner.
+Counter separation may reduce counter-line interference when producer and consumer run on different
+cores. Ping-pong is dependency-bound and may show a smaller or different effect. Object size,
+alignment, cache hierarchy, topology, and noise may all affect the result; neither implementation is
+expected to be a universal winner.
 
 ## Setup
 
-The planned Linux comparison uses the Release preset, verified CPUs 1 and 2 on distinct physical
-cores in one NUMA node, payloads of 8, 64, and 256 bytes, and exact usable capacities of 64 and 1024
-slots.
-Throughput uses 5,000,000 measured messages; ping-pong uses 500,000 measured exchanges. Both use
-100,000 warmup operations.
+The controlled comparison ran on the physical four-core Intel N150 host under Ubuntu 26.04.1 with
+Clang 21.1.8 and a fresh native Release build. The exact measurement revision passed the Linux
+Release, format, clang-tidy, ASan/UBSan, and TSan gates. The process was restricted to CPU 0; the
+producer and consumer reported verified effective placement on physical CPUs 1 and 2 in the same
+NUMA node. The stock `intel_pstate` `powersave` governor, `balance_performance` EPP, boost state,
+and perf policy 4 were unchanged.
 
-For each workload/payload/capacity configuration, four three-trial commands run in ABBA order:
-`basic`, `cache-line`, `cache-line`, `basic`. This retains six trial rows per implementation while
-reducing a simple fixed-order confounder. Individual rows remain in separate CSV files. The primary
-summaries are median messages per second for throughput and median of per-trial median RTTs for
-ping-pong. P95 and p99 RTT remain supporting observations.
+The canonical configuration used a 64-byte payload and 1024 exact usable slots. A 200,000,000-
+message basic-throughput command conditioned the package first. Throughput commands used 20,000,000
+measured messages and 2,000,000 warmup messages. Ping-pong commands used 3,000,000 measured
+exchanges and 300,000 warmup exchanges. Each workload used three one-trial ABBA blocks in the order
+`basic`, `cache-line`, `cache-line`, `basic`, retaining six rows per implementation. The shortest
+timed row was 2.137 seconds. All checksums matched within each workload, every requested affinity
+was applied and verified, and thermal-throttle counters did not change.
 
 ## Compared variants
 
-The single intended independent variable is shared-counter placement:
-
-- `basic`: `head` and `tail` are adjacent atomic members;
+- `basic`: `head` and `tail` are adjacent atomic members.
 - `cache-line`: `head` and `tail` occupy separate 128-byte-aligned state blocks.
 
 Both variants use the same inline slots, compile-time exact usable capacity, monotonic counters,
-modulo addressing, `try_push`/`try_pop` operations, remote-index read on every attempt, and
-relaxed-own/acquire-remote/release-publish memory orders. The benchmark dispatch instantiates the
-same workload templates, so payload generation, validation, waiting, phase control, timing, and CSV
-work are unchanged.
+modulo addressing, scalar `try_push`/`try_pop` operations, remote-index read on every attempt, and
+relaxed-own/acquire-remote/release-publish memory orders. The common workload keeps payload
+generation, validation, mechanism-side `yield` waiting, blocked phase control, timing, and result
+work unchanged.
 
-## Plumbing result
+## Results
 
-The full 24-command matrix (two workloads, two implementations, three payloads, and two capacities)
-ran on the macOS development host with 10,000 measured operations, 1,000 warmup operations, and
-three trials. All commands completed their internal validation. Every one of the 12 matched
-basic/cache-line configurations produced identical checksums, and all CSV header and trial rows had
-14 fields.
+The primary summaries pool all six retained rows for each implementation. Throughput deltas are
+positive when `cache-line` is faster; ping-pong deltas are negative when its RTT is lower.
 
-This establishes workload equivalence and result plumbing only. The ignored local smoke timings are
-not experimental evidence.
+| Workload | Basic median | Cache-line median | Delta | Basic sample CV | Cache-line sample CV |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Throughput | 8,103,996 msg/s | 8,989,830 msg/s | +10.931% | 0.764% | 0.667% |
+| Ping-pong median RTT | 812.0 ns | 747.5 ns | -7.943% | 3.104% | 0.649% |
+
+The throughput full ranges were 2.012% and 1.752% of the respective medians. The ping-pong full
+ranges were 7.020% and 1.472%. Paired block deltas were +11.888%, +10.524%, and +11.212% for
+throughput and -4.765%, -10.233%, and -8.170% for ping-pong. The direction therefore held in every
+block and was materially larger than the 0.280% warm-state basic-throughput CV established in L1A.
+Raw CSV, stdout/stderr, sidecars, temperature and frequency observations, throttle counters, and
+analysis remain in ignored `results/l1/l1b-scalar/repetition/` on both hosts.
 
 ## Interpretation
 
-No performance winner is declared. macOS cannot apply the requested worker affinity, and these
-sub-millisecond smoke runs are dominated by scheduler and clock effects relative to the mechanism
-change. The observed numbers were intentionally not committed or interpreted.
+For this N150, Clang build, canonical payload/capacity, placement, and saturated workload, the
+complete cache-line-separated variant had a stable conditional advantage over the basic ring in
+both completed-message throughput and minimum-ish ping-pong RTT. This supports retaining counter
+separation as a useful structural variant under the measured conditions.
+
+The result does not prove that reduced coherence traffic caused the difference. No PMU event that
+identifies counter-line invalidation was collected, and the comparison includes the variant's
+complete representation change.
 
 ## Limitations
 
-The 128-byte state blocks necessarily increase object size and alignment, so object placement and
-cache-set mapping remain confounders alongside the intended removal of counter co-location. The
-chosen separation is conservative for common 64-byte and 128-byte cache lines but does not discover
-the host line size. The experiment does not isolate cache misses or coherence events without
-external counters, and it does not cover cross-NUMA placement, other waiting strategies, offered
-load, or more than one producer and consumer.
-
-Frequency scaling, thermal state, background work, command order, and timer overhead remain possible
-sources of variation. Results near the measured noise floor must be reported as inconclusive.
+The 128-byte state blocks increase object size and alignment. Object placement, inline storage
+position, compiler code generation, and cache-set mapping remain structural confounders alongside
+counter separation. The experiment covers one CPU, compiler, same-node core pair, payload size,
+capacity, waiting strategy, and warm-state saturated workload. It does not establish cross-machine
+behavior, cross-NUMA behavior, offered-load behavior, or a universal ranking. Ping-pong RTT is a
+round trip and is not exact one-way latency.
 
 ## Reproduction
 
-Plumbing was validated on Apple M2, macOS 26.5.1 (Darwin 25.5.0), Apple Clang 21.0.0, CMake 4.0.1,
-and Ninja 1.13.2 from a clean Release build at the plumbing revision:
+From a clean detached checkout of the measurement revision on the Linux host:
 
 ```sh
-cmake --preset release
-cmake --build --preset release --parallel 4
-mkdir -p results/stage5-smoke
+cmake --preset release --fresh
+cmake --build --preset release --clean-first --parallel 4
+ctest --preset release --no-tests=error
+
+bench=./build/release/apps/handoff-bench/handoff-bench
+result_dir=results/l1/l1b-scalar/repetition
+mkdir -p "$result_dir"
+
+taskset -c 0 "$bench" run throughput \
+  --implementation basic --payload-bytes 64 --capacity 1024 \
+  --iterations 200000000 --warmup 2000000 --trials 1 \
+  --producer-cpu 1 --consumer-cpu 2 \
+  --output "$result_dir/precondition-cache-line.csv"
+
 for workload in throughput ping-pong; do
-  for payload in 8 64 256; do
-    for capacity in 64 1024; do
-      for implementation in basic cache-line; do
-        ./build/release/apps/handoff-bench/handoff-bench run "$workload" \
-          --implementation "$implementation" \
-          --payload-bytes "$payload" --capacity "$capacity" \
-          --iterations 10000 --warmup 1000 --trials 3 \
-          --output \
-          "results/stage5-smoke/${workload}-${implementation}-${payload}b-${capacity}s.csv"
-      done
+  if [ "$workload" = throughput ]; then
+    iterations=20000000
+    warmup=2000000
+  else
+    iterations=3000000
+    warmup=300000
+  fi
+  for block in 1 2 3; do
+    position=0
+    for implementation in basic cache-line cache-line basic; do
+      position=$((position + 1))
+      taskset -c 0 "$bench" run "$workload" \
+        --implementation "$implementation" --payload-bytes 64 --capacity 1024 \
+        --iterations "$iterations" --warmup "$warmup" --trials 1 \
+        --producer-cpu 1 --consumer-cpu 2 \
+        --output \
+        "$result_dir/cache-line-$workload-b$block-$position-$implementation.csv"
     done
   done
 done
 ```
 
-Planned controlled Linux commands use the verified same-node physical CPU 1/2 worker pair with the
-blocked coordinator restricted to CPU 0:
-
-```sh
-lscpu -e=CPU,NODE,CORE,ONLINE
-mkdir -p results/cache-line-comparison
-for workload in throughput ping-pong; do
-  case "$workload" in
-    throughput) iterations=5000000 ;;
-    ping-pong) iterations=500000 ;;
-  esac
-  for payload in 8 64 256; do
-    for capacity in 64 1024; do
-      run=0
-      for implementation in basic cache-line cache-line basic; do
-        run=$((run + 1))
-        taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run "$workload" \
-          --implementation "$implementation" \
-          --payload-bytes "$payload" --capacity "$capacity" \
-          --iterations "$iterations" --warmup 100000 --trials 3 \
-          --producer-cpu 1 --consumer-cpu 2 \
-          --output \
-          "results/cache-line-comparison/${workload}-${payload}b-${capacity}s-${run}-${implementation}.csv"
-      done
-    done
-  done
-done
-```
-
-Before execution, record the clean revision, full toolchain and host metadata, CPU topology, system
-tuning, and exact effective affinity. Retain all trial rows and report observations separately from
-causal explanations.
+The retained sidecar records the host, exact clean SHA, topology, load, stock power policy,
+temperature/frequency observations, and throttle-counter delta.

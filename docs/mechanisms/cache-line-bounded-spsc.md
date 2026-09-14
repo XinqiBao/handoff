@@ -36,3 +36,12 @@ remaining confounders, not additional intended mechanisms.
 The common bounded-FIFO and payload/lifetime suite runs unchanged against both implementations,
 including move-only resource ownership, failed-operation preservation, slot reuse, and the
 million-message integrity test. Layout-specific compile-time checks verify the advertised alignment.
+
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in
+[experiment 003](../experiments/003-cache-line-spsc-comparison.md), the complete separated variant
+improved median throughput by 10.931% and reduced median ping-pong RTT by 7.943% relative to the
+basic ring. All three paired blocks agreed in direction and the effect exceeded the measured host
+noise. This is conditional evidence for the complete layout variant, not proof of a coherence
+cause: object size, alignment, placement, code generation, and cache-set mapping remain confounders.

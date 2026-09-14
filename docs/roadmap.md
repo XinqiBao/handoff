@@ -43,8 +43,8 @@ documents and Git.
 | F2 | complete | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
 | W1 | complete | Load-shape workloads | Add one F2 offered-load workload covering unpaced pressure, producer pacing, and temporary observer stalls. |
 | L1A | complete | Linux measurement integrity | Remove observed harness interference, verify effective placement, support controlled fixed multi-consumer placement, and establish a reproducible stock-host baseline. |
-| L1B | next | Scalar SPSC evolution evidence | Run bounded canonical comparisons for counter placement and remote-index caching. |
-| L1B2 | queued | Grouped SPSC evolution evidence | Measure publication granularity and staged direct-slot access after the scalar comparisons are understood. |
+| L1B | complete | Scalar SPSC evolution evidence | Controlled canonical comparisons characterize counter placement and remote-index caching. |
+| L1B2 | next | Grouped SPSC evolution evidence | Measure publication granularity and staged direct-slot access after the scalar comparisons are understood. |
 | L1C | queued | Sequence-contract evidence | Measure selected single-consumer publication, reliable fan-out, and fixed dependency costs with explicit placement and semantic limits. |
 | L1D | queued | Offered-load evidence | Characterize unpaced pressure, calibrated producer pacing, and bounded observer stalls without a Cartesian sweep. |
 | L1E | queued | PMU investigation and L1 review | Apply selective hardware evidence to observed questions, consolidate durable findings, and review the post-L1 direction. |
@@ -60,59 +60,62 @@ deliberately deferred; this does not defer single-producer broadcast/fan-out.
 
 ## Active stopping boundary
 
-The portable single-producer path through W1 and the Linux measurement-integrity stage are complete.
-L1B is now locally executable. L1B2 through L1E are ordered measurement outcomes whose detailed
-contracts must be written only when they become next. M1 through M3 remain deliberately deferred
-until a concrete multi-producer research question justifies reopening that path after the L1 review.
+The portable single-producer path through W1, Linux measurement integrity, and scalar SPSC evidence
+are complete. L1B2 is now locally executable. L1C through L1E are ordered measurement outcomes
+whose detailed contracts must be written only when they become next. M1 through M3 remain
+deliberately deferred until a concrete multi-producer research question justifies reopening that
+path after the L1 review.
 
-## Next stage: L1B scalar SPSC evolution evidence
+## Next stage: L1B2 grouped SPSC evolution evidence
 
 ### Goal
 
-Establish the first controlled mechanism evidence on the verified Linux host. Measure, pairwise,
-what changes when the basic ring separates its producer/consumer counters and when it caches remote
-progress, under one canonical throughput and one canonical ping-pong workload.
+Measure two bounded grouped-operation questions on the verified Linux host: how fixed all-or-nothing
+publication groups compare with scalar publication, and how direct staged ring-slot access compares
+with an equal all-or-nothing bulk transfer through intermediate arrays.
 
 ### Evidence motivating the stage
 
-L1A removed coordinator interference, verified effective Linux affinity, and added fixed
-multi-consumer placement. At its CI-green measurement revision, all Linux correctness, format,
-clang-tidy, ASan/UBSan, and TSan gates passed. A stock-HWP warm-state baseline using CPU 0 for the
-blocked coordinator and CPUs 1/2 for workers retained seven trials longer than 2.4 seconds with
-0.280% sample CV, 0.915% full range, no material order drift, and no thermal-throttle events. This
-supports bounded relative comparisons without changing governor or EPP.
+L1B found a stable conditional benefit for the complete cache-line-separated scalar variant, while
+cached-index throughput was directionally positive but variable and cached-index ping-pong was
+inconclusive. Neither result calls for a sensitivity matrix or immediate PMU work. The next distinct
+question is publication granularity under saturated throughput. Existing batch, bulk, and staged
+mechanisms have passed their correctness gates and share benchmark-side group generation and
+validation designed for these comparisons.
 
 ### Scope
 
-1. Compare `basic` versus `cache-line` to characterize the complete structural effect of separating
-   the producer-owned tail and consumer-owned head state blocks.
-2. Separately compare `basic` versus `cached-index` to characterize the complete effect of retaining
-   local remote-progress bounds and refreshing them only when a cached bound blocks progress.
-3. Use only 64-byte payloads and 1024 exact usable slots initially. Run both throughput and
-   ping-pong because remote-progress caching has different opportunity in saturated streaming and
-   dependency-bound exchange.
-4. Pilot one iteration count per workload so the fastest timed trial is at least roughly two
-   seconds. Hold that count, warmup, placement, build, and benchmark-side work fixed within every
-   pairwise comparison.
-5. For each pair and workload, use four three-trial commands in ABBA order. This retains six rows
-   per implementation, limits simple command-order drift, and preserves every trial without
-   outlier removal.
+1. Compare `basic` with `batch` at batch sizes 1, 4, and 16 using throughput only. This changes the
+   complete operation shape from scalar publication to all-or-nothing group publication while the
+   workload still generates and validates equal fixed groups on both paths.
+2. Compare `bulk` with `staged` at group size 16 using throughput only. This holds all-or-nothing
+   group progress fixed while changing from transfers through producer/consumer arrays to direct
+   writable/readable ring spans with explicit finish operations.
+3. Use only 64-byte payloads and 1024 exact usable slots. Add group size 4 to `bulk` versus `staged`
+   only if the size-16 result is ambiguous and that specific sensitivity can resolve it. Do not add
+   payload or capacity matrices automatically.
+4. Pilot a common completed-message count so the fastest timed trial in each pair is at least
+   roughly two seconds. Hold total completed messages, warmup, placement, build, payload work,
+   group size, and command order fixed within each comparison.
+5. Use one-trial ABBA blocks and retain at least six rows per implementation/configuration. Prefer
+   three blocks initially; add a fourth only when the first three reveal bounded order behavior
+   that the extra block can distinguish. Preserve every row without outlier removal.
 6. Use the L1A warm-state conditioning method, stock HWP policy, coordinator CPU 0, producer CPU 1,
-   and consumer CPU 2. Retain a host sidecar, verified placement metadata, temperature/frequency
-   observations, and throttle-counter deltas beside raw CSV.
-7. Update experiment records 003 and 004 with the exact measurement SHA, commands, per-trial
-   summaries, pairwise results, interpretation, and limits. Promote only conclusions that survive
-   review; keep causal coherence claims out unless later targeted PMU evidence supports them.
+   and consumer CPU 2. Retain the exact commands, host sidecar, verified placement metadata,
+   temperature/frequency observations, and throttle-counter deltas beside raw CSV.
+7. Update experiment records 005 and 007 with exact provenance, summaries, interpretations, and
+   limits. Keep experiment 006 planned: the current steady-state workload does not deliberately
+   constrain availability or count partial burst calls, so it cannot answer the bulk-versus-burst
+   partial-progress question.
 
 ### Non-goals
 
-- no batch, bulk, burst, staged, sequence, fan-out, pipeline, record-layout, or offered-load
-  comparison;
-- no automatic payload/capacity sensitivity matrix unless the canonical result is genuinely
-  ambiguous and one specific sensitivity can resolve it;
-- no claim that object layout isolates a single coherence event or that cached indices isolate only
-  an atomic instruction;
-- no PMU collection before an observed result creates a specific hypothesis;
+- no ping-pong, sequence, fan-out, pipeline, record-layout, or offered-load comparison;
+- no `bulk` versus `burst` measurement or claim about partial-progress behavior;
+- no automatic payload, capacity, or group-size matrix;
+- no end-to-end no-copy, DPDK compatibility, or isolated-instruction claim;
+- no PMU collection unless a stable grouped-operation result creates a concrete cycles or
+  instructions hypothesis that cannot be answered from the timed results alone;
 - no benchmark framework, persistent host tuning, MPSC, SPMC, or MPMC work.
 
 ### Acceptance criteria
@@ -120,18 +123,20 @@ supports bounded relative comparisons without changing governor or EPP.
 - Every command runs from one clean, CI-green exact SHA in a fresh native Linux Release build after
   the required correctness and quality gates.
 - All requested worker affinities are reported as applied with matching effective CPU masks;
-  checksums agree within each workload/configuration; no retained row is silently discarded.
-- The fastest retained trial in each workload is at least roughly two seconds, with six retained
-  rows per implementation per pair and ABBA command order.
-- Analysis reports medians, sample dispersion, full range, order behavior, and pairwise ratios. An
-  effect near the observed host noise is reported as inconclusive rather than ranked.
-- Experiment records 003 and 004 contain exact provenance, controlled and changed variables,
+  checksums agree within each configuration; total completed messages are equal; no retained row is
+  silently discarded.
+- The fastest retained trial in each configuration is at least roughly two seconds, with at least
+  six retained rows per implementation and interleaved ABBA order.
+- Analysis reports medians, sample dispersion, full range, block behavior, and pairwise ratios. An
+  effect near the observed host noise or with inconsistent paired direction is reported as
+  inconclusive rather than ranked.
+- Experiment records 005 and 007 contain exact provenance, controlled and changed variables,
   results, bounded interpretations, limitations, and reproduction commands. Raw evidence remains
-  under ignored `results/l1/l1b-scalar/` on Linux and Mac.
+  under ignored `results/l1/l1b2-grouped/` on Linux and Mac.
 - Both worktrees and the complete diff are reviewed; coherent commits are pushed; required CI is
   green; ignored active status records the evidence location and exact next stage.
-- On completion, replace this contract with one detailed L1B2 contract, revised from the scalar
-  evidence rather than copied mechanically from the queued outcome.
+- On completion, replace this contract with one detailed L1C contract revised from the accumulated
+  L1 evidence rather than copied mechanically from the queued outcome.
 
 ## Direction after Q3
 

@@ -66,5 +66,11 @@ remote caches must refresh across slot wraparound.
 
 The benchmark CLI names the variant `cached-index` and dispatches it through the same throughput
 and ping-pong workload templates as the existing rings. Small runs validate plumbing only. The
-planned comparison is recorded separately and requires controlled Linux evidence before any
-performance conclusion.
+controlled comparison is recorded in
+[experiment 004](../experiments/004-cached-index-spsc-comparison.md).
+
+On its final Intel N150 repetition, cached indices showed 3.164% higher median throughput and a
+positive delta in every paired block, but the cached variant's 2.663% sample CV and 8.669% full
+range made the effect size unstable. Ping-pong was inconclusive because cached-index RTTs were
+strongly bimodal and the paired deltas disagreed. These observations do not establish a universal
+ranking or a cache/coherence cause.
