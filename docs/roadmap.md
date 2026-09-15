@@ -45,8 +45,8 @@ documents and Git.
 | L1A | complete | Linux measurement integrity | Remove observed harness interference, verify effective placement, support controlled fixed multi-consumer placement, and establish a reproducible stock-host baseline. |
 | L1B | complete | Scalar SPSC evolution evidence | Controlled canonical comparisons characterize counter placement and remote-index caching. |
 | L1B2 | complete | Grouped SPSC evolution evidence | Controlled comparisons characterize publication groups and staged direct-slot access. |
-| L1C | next | Sequence-contract evidence | Measure selected single-consumer publication, reliable fan-out, and fixed dependency costs with explicit placement and semantic limits. |
-| L1D | queued | Offered-load evidence | Characterize unpaced pressure, calibrated producer pacing, and bounded observer stalls without a Cartesian sweep. |
+| L1C | complete | Sequence-contract evidence | Controlled comparisons characterize single-consumer publication, reliable fan-out, and fixed dependency contracts. |
+| L1D | next | Offered-load evidence | Characterize unpaced pressure, calibrated producer pacing, and bounded observer stalls without a Cartesian sweep. |
 | L1E | queued | PMU investigation and L1 review | Apply selective hardware evidence to observed questions, consolidate durable findings, and review the post-L1 direction. |
 | M1 | deferred | Bounded MPSC | Reconsider after the single-producer mechanism families establish specific multi-producer questions. |
 | M2 | deferred | Multi-producer sequencing | Study selected availability or synchronization ideas only when motivated by MPSC findings. |
@@ -60,90 +60,92 @@ deliberately deferred; this does not defer single-producer broadcast/fan-out.
 
 ## Active stopping boundary
 
-The portable single-producer path through W1, Linux measurement integrity, and scalar and grouped
-SPSC evidence are complete. L1C is now locally executable. L1D and L1E are ordered measurement
-outcomes whose detailed contracts must be written only when they become next. M1 through M3 remain
-deliberately deferred until a concrete multi-producer research question justifies reopening that
-path after the L1 review.
+The portable single-producer path through W1 and controlled evidence through L1C are complete. L1D
+is now locally executable. L1E remains an ordered measurement outcome whose detailed contract must
+be written only when it becomes next. M1 through M3 remain deliberately deferred until a concrete
+multi-producer research question justifies reopening that path after the L1 review.
 
-## Next stage: L1C sequence-contract evidence
+## Next stage: L1D offered-load evidence
 
 ### Goal
 
-Measure three bounded sequence-contract questions on the verified Linux host: how the complete
-single-consumer sequence implementation compares with basic head/tail SPSC, what completed-
-publication cost accompanies reliable delivery to two independent consumers, and how a fixed
-upstream/downstream dependency compares with independent fan-out when both perform two validations.
+Characterize how unpaced publication, one calibrated paced no-stall setting, and one or two bounded
+observer-stall durations change the observed and overwritten shares of the lossy
+`sequence-payload` ring on the verified Linux host.
 
 ### Evidence motivating the stage
 
-L1B2 found no stable size-1 batch ranking, a directionally repeated but variable size-4 batch
-advantage, a small positive size-16 batch observation, and a clear conditional size-16 staged
-advantage over bulk. Those grouped results do not require another sensitivity or immediate PMU
-work. The next distinct questions concern richer sequencing contracts. The sequence, fan-out, and
-pipeline mechanisms have passed their correctness gates, and L1A added verified placement and
-blocked coordinator control for both one- and two-consumer workloads.
+W1 already defines and tests exact offered/observed/overwritten accounting, absolute-deadline
+producer pacing, final drain, retry accounting, and periodic observer stalls. L1C completed the
+lossless sequence-contract questions without creating an immediate PMU need. The remaining primary
+L1 workload question is how the existing lossy sequence-payload contract behaves under bounded,
+measured load shapes. Nominal sleep intervals are not arrival-rate guarantees, so a small pilot
+must locate useful regimes before formal settings are fixed.
 
 ### Scope
 
-1. Compare `basic` with `sequence` in throughput and ping-pong at a 64-byte payload and 1024 exact
-   usable slots. Treat this as an implementation comparison: head/tail assignment and the complete
-   claim/populate/publish/observe/release design differ in token lifecycle, local state, direct
-   throughput slot access, and consumer value-transfer shape.
-2. Compare `sequence` with `fan-out` in throughput at the same payload and capacity. Count completed
-   publications, not aggregate deliveries, and state explicitly that `fan-out` performs two
-   reliable deliveries and uses an additional worker. This comparison characterizes the richer
-   contract; it does not isolate consumer count, an atomic operation, or topology.
-3. Compare `fan-out` with `pipeline` in throughput at the same payload and capacity. Both routes use
-   one producer, two consumers, two validations, and downstream-complete publication counts. The
-   changed contract is independent observation with minimum gating versus fixed ordered dependency
-   and downstream gating.
-4. Pilot iteration and warmup counts separately for scalar throughput, ping-pong, and three-worker
-   throughput so the fastest timed row in every pair is at least roughly two seconds. Hold counts,
-   build, payload work, placement, result semantics, and command order fixed within each pair.
-5. Use one-trial ABBA blocks and retain at least six rows per implementation/configuration. Start
-   with three blocks; add a fourth only when bounded order behavior or dispersion makes it capable
-   of resolving the stated comparison. Preserve every row without outlier removal.
-6. Use the L1A warm-state conditioning method and stock HWP policy. Restrict each process to
-   coordinator CPU 0. Place the producer on CPU 1 and the single consumer on CPU 2; place fan-out
-   consumer 0 or pipeline upstream on CPU 2 and fan-out consumer 1 or pipeline downstream on CPU 3.
-   Retain verified effective masks for every role. Record CPU 3's greater historical network
-   softirq activity as a four-core-host limitation.
-7. Retain exact commands, a host sidecar, temperature/frequency observations, and throttle-counter
-   deltas beside raw CSV under ignored `results/l1/l1c-sequence/`. Update experiment records 008,
-   009, and 010 with exact provenance, all retained summaries, interpretations, and semantic limits.
-   Promote only stable observations to the three sequence mechanism notes.
+1. Use only `sequence-payload` with a 64-byte payload, 1024 slots, coordinator CPU 0, producer CPU
+   1, and observer CPU 2. Keep payload generation, observation, retry policy, warmup shape, timed
+   window, final drain, build, host policy, and placement fixed except for the stated load-shape
+   variable.
+2. Run a bounded no-stall calibration pilot at nominal producer intervals 0, 1,000, 10,000, and
+   100,000 ns. Pilot counts may differ so each setting completes promptly while still exposing a
+   useful actual offered rate. Use measured offered and observed rates, not nominal intervals, to
+   choose one paced no-stall setting that materially differs from unpaced pressure.
+3. Starting from that one paced setting, hold the stall interval fixed at a simple documented
+   observation count such as 1024. Use the pilot's actual offered rate and the ring capacity to
+   choose one or two stall durations predicted to create visible but interpretable overwrite
+   episodes. Change only stall duration across those settings; do not sweep pacing, stall interval,
+   and duration together.
+4. Pilot formal iteration and warmup counts per selected setting so each retained timed observation
+   window is at least roughly two seconds without making the slowest paced group needlessly long.
+   Retain at least six one-trial rows per formal setting, rotate setting order between blocks, and
+   preserve every row without outlier removal.
+5. Check every pilot and formal row for
+   `offered_messages = observed_messages + overwritten_messages`. Retain observed and overwritten
+   counts and shares, retry attempts, observed payload bytes, checksum, common elapsed window, and
+   actual offered and observed rates. Report distributions and block/order behavior rather than a
+   combined score.
+6. Use the L1A warm-state conditioning method and stock HWP policy. Retain verified producer and
+   observer masks, exact commands, a host sidecar, temperature/frequency observations, and thermal-
+   throttle deltas under ignored `results/l1/l1d-offered-load/` on Linux and Mac.
+7. Update experiment 014 with exact provenance, calibrated nominal and actual rates, every formal
+   setting and summary, observed scheduler limitations, interpretation, and claim limits. Promote
+   only stable aggregate behavior to the sequence-payload mechanism note.
 
 ### Non-goals
 
-- no payload, capacity, placement, consumer-count, slow-consumer, or waiting-strategy matrix;
-- no offered-load, record-layout, grouped-operation, or bulk/burst measurement;
-- no isolated cost claim for sequence numbering, one atomic, one token, or one delivery;
-- no claim of LMAX API, ABI, Java-memory-model, or benchmark compatibility;
-- no equation of one-consumer and two-consumer semantic work, and no general dependency graph;
-- no PMU collection unless a stable result creates a concrete hypothesis that timed evidence cannot
-  answer; L1E remains the intended selective hardware-evidence stage;
-- no source or benchmark-framework expansion, persistent host tuning, MPSC, SPMC, or MPMC work.
+- no comparison with lossless queues or claim that offered-load rate is completed handoff
+  throughput;
+- no payload, capacity, placement, observer-count, pacing, or stall Cartesian sweep;
+- no per-publication or one-way latency, arbitrary arrival process, exact scheduler pacing claim,
+  or universal overload score;
+- no change to overwrite/resynchronization semantics, hidden producer gating, or benchmark
+  framework unless a correctness defect is demonstrated;
+- no record-layout campaign, general runner, persistent host tuning, or MPSC/MPMC work;
+- no PMU collection merely to decorate load-shape rows; L1E remains the selective hardware-
+  evidence stage.
 
 ### Acceptance criteria
 
 - Every command runs from one clean, CI-green exact SHA in a fresh native Linux Release build after
   the required correctness and quality gates.
-- Single- and two-consumer affinity requests report applied placement with exact verified masks;
-  checksums agree for every required consumer or stage; completed-publication counts and workload
-  semantics match inside each comparison; no retained row is silently discarded.
-- The fastest retained trial in every pair is at least roughly two seconds, with at least six rows
-  per implementation/configuration and interleaved one-trial ABBA order.
-- Analysis reports medians, sample dispersion, full range, block behavior, and pairwise ratios. An
-  effect near host noise or with inconsistent paired direction is inconclusive rather than ranked.
-- Records 008-010 distinguish implementation comparison from richer-contract comparison, identify
-  one versus two deliveries and two independent versus ordered validations, and contain exact
-  provenance, controlled and changed variables, results, limits, and reproduction commands. Raw
-  evidence remains under ignored `results/l1/l1c-sequence/` on Linux and Mac.
+- Every requested affinity is applied with an exact verified mask, every retained row satisfies the
+  accounting invariant, and observed byte counts and checksums agree with the messages actually
+  observed.
+- The pilot remains logarithmic and bounded. The formal group contains unpaced pressure, exactly one
+  paced no-stall baseline, and no more than two stall durations at that same pacing and stall
+  interval, with at least six retained rows per setting and roughly two-second or longer windows.
+- Analysis reports medians, sample dispersion, full range, per-setting counts and shares, actual
+  rates, retry behavior, and order behavior. It distinguishes scheduler-driven pacing limitations
+  from mechanism observations and makes no per-message latency inference.
+- Experiment 014 contains exact provenance, controlled and changed variables, calibrated settings,
+  results, limits, and reproduction commands. Raw evidence remains under ignored
+  `results/l1/l1d-offered-load/` on Linux and Mac.
 - Both worktrees and the complete diff are reviewed; coherent commits are pushed; required CI is
   green; ignored active status records the evidence location and exact next stage.
-- On completion, replace this contract with one detailed L1D contract revised from the accumulated
-  L1 evidence rather than copied mechanically from the queued outcome.
+- On completion, replace this contract with one detailed L1E contract based on the strongest
+  observation-driven PMU hypothesis from L1B through L1D and the remaining milestone-review needs.
 
 ## Direction after Q3
 

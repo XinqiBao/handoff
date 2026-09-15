@@ -95,3 +95,13 @@ role. Unpinned smoke runs remain plumbing evidence only.
 Independent consumer sequences and slowest-reader producer gating come from the repository's
 [LMAX Disruptor inspiration note](../inspirations/lmax-disruptor.md). This implementation supplies
 its own C++ ownership and acquire/release argument and makes no compatibility claim.
+
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in
+[experiment 009](../experiments/009-sequence-fan-out-comparison.md), two-consumer fan-out completed
+43.389% fewer publications per second at the pooled median than the single-consumer sequence route.
+All three paired blocks agreed, although fan-out throughput drifted upward and the exact magnitude
+was variable. This is the conditional cost of a complete richer contract: fan-out performs two
+reliable deliveries and validations, uses an additional worker, and scans two gating sequences.
+It is not an isolated consumer-count, atomic, minimum-scan, topology, or LMAX cost.

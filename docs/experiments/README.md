@@ -14,15 +14,15 @@ Do not commit routine smoke timings as experimental evidence.
 - [Basic versus cached-index SPSC](004-cached-index-spsc-comparison.md)
 - [Basic scalar versus all-or-nothing batch SPSC](005-batch-spsc-comparison.md)
 - [Bulk versus staged direct-slot SPSC](007-staged-spsc-comparison.md)
+- [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
+- [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
+- [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
 
 ## Planned experiments
 
 - [Basic SPSC throughput across payload and capacity](001-basic-spsc-throughput.md)
 - [Basic SPSC ping-pong RTT across payload and capacity](002-basic-spsc-ping-pong.md)
 - [Fixed bulk versus best-effort burst SPSC](006-bulk-burst-spsc-comparison.md)
-- [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
-- [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
-- [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
 - [Generic payload versus fixed record slots](011-fixed-record-comparison.md)
 - [Fixed slots versus a variable-record byte ring](012-variable-record-comparison.md)
 - [Record descriptor and payload separation](013-descriptor-payload-comparison.md)

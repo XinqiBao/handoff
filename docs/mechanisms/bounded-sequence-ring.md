@@ -85,3 +85,14 @@ the benchmark must not attribute any future result solely to sequence numbering.
 Claim/populate/publish, producer cursor, and consumer gating concepts come from the repository's
 [LMAX Disruptor inspiration note](../inspirations/lmax-disruptor.md). This baseline applies a direct
 C++ acquire/release argument and deliberately excludes the surrounding Disruptor API and runtime.
+
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in
+[experiment 008](../experiments/008-sequence-publication-comparison.md), saturated throughput did
+not support a ranking against the basic head/tail ring: the sequence median was 2.359% lower, but
+dispersion was larger and paired block direction reversed. Sequence ping-pong RTT was 3.173% higher
+at the pooled median and higher in all three paired blocks, but the effect was close to dispersion
+and sensitive to command position. This is a small conditional direction for the complete
+implementation, not a precise stable penalty or an isolated cost of sequences, tokens, direct slot
+access, or one atomic operation.

@@ -89,3 +89,13 @@ remain plumbing evidence only.
 Dependency gating comes from the repository's
 [LMAX Disruptor inspiration note](../inspirations/lmax-disruptor.md). This implementation supplies
 its own C++ ownership and acquire/release argument and makes no compatibility claim.
+
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in
+[experiment 010](../experiments/010-sequence-dependency-comparison.md), the pipeline and fan-out
+pooled throughput medians differed by only -0.009%, while both had roughly 4.1% sample CV and paired
+block direction alternated. The evidence does not rank fixed dependency ordering against
+independent fan-out. It only places both complete two-validation routes in the same approximate
+throughput regime for this workload while preserving their distinct ordered and independent
+observation semantics.
