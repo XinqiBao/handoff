@@ -17,6 +17,7 @@ Do not commit routine smoke timings as experimental evidence.
 - [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
+- [Lossy sequence-payload behavior under offered load](014-sequence-payload-offered-load.md)
 
 ## Planned experiments
 
@@ -26,4 +27,3 @@ Do not commit routine smoke timings as experimental evidence.
 - [Generic payload versus fixed record slots](011-fixed-record-comparison.md)
 - [Fixed slots versus a variable-record byte ring](012-variable-record-comparison.md)
 - [Record descriptor and payload separation](013-descriptor-payload-comparison.md)
-- [Lossy sequence-payload behavior under offered load](014-sequence-payload-offered-load.md)

@@ -71,7 +71,21 @@ Tests cover exact capacities, zero and maximum payloads, oversized input, direct
 future and invalid reads, exact-wrap overwrite, output sizing and stability, independent observers,
 range-based resynchronization, finite exhaustion, and mixed-length concurrent overwrite integrity.
 
-The existing throughput and ping-pong workloads count every offered message as a required completed
-handoff. Adding hidden producer gating or retries would change this mechanism's delivery semantics.
-Benchmark integration therefore waits for W1 to report offered, observed, and overwritten
-publications explicitly. Development and hosted CI timing remains plumbing evidence only.
+The throughput and ping-pong workloads count every offered message as a required completed handoff,
+so this mechanism is deliberately excluded from them. Its offered-load integration instead reports
+offered, observed, and overwritten publications explicitly without adding hidden producer gating.
+Development and hosted CI timing remains plumbing evidence only.
+
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in
+[experiment 014](../experiments/014-sequence-payload-offered-load.md), the observer validated every
+publication in both an unpaced run at a median 1.837 million offers/s and a scheduler-paced run at
+approximately 100,000 offers/s. Loss is therefore permitted by the contract but was not inevitable
+under continuous observation on this host.
+
+At the paced rate, the 1024-slot ring represented roughly 10.24 ms of publication. A 20 ms observer
+stall after every 1024 successful observations produced a stable 50.507% median overwritten share;
+a 50 ms stall produced 79.520%, with all six rows at each setting closely agreeing. These are
+conditional aggregate load-shape observations, not exact scheduler timing, per-message latency, or
+a universal overload threshold.
