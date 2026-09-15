@@ -12,14 +12,14 @@ Do not commit routine smoke timings as experimental evidence.
 
 - [Basic versus cache-line-separated SPSC](003-cache-line-spsc-comparison.md)
 - [Basic versus cached-index SPSC](004-cached-index-spsc-comparison.md)
+- [Basic scalar versus all-or-nothing batch SPSC](005-batch-spsc-comparison.md)
+- [Bulk versus staged direct-slot SPSC](007-staged-spsc-comparison.md)
 
 ## Planned experiments
 
 - [Basic SPSC throughput across payload and capacity](001-basic-spsc-throughput.md)
 - [Basic SPSC ping-pong RTT across payload and capacity](002-basic-spsc-ping-pong.md)
-- [Basic scalar versus all-or-nothing batch SPSC](005-batch-spsc-comparison.md)
 - [Fixed bulk versus best-effort burst SPSC](006-bulk-burst-spsc-comparison.md)
-- [Bulk versus staged direct-slot SPSC](007-staged-spsc-comparison.md)
 - [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)

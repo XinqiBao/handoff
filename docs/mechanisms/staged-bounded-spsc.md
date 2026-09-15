@@ -82,3 +82,12 @@ disappeared. Ping-pong rejects the staged mode because it does not study grouped
 The staged lifecycle and two-span wrap representation come from the DPDK ring ideas recorded in the
 repository's [DPDK inspiration note](../inspirations/dpdk-ring.md). This experiment retains only the
 small SP/SC mechanism needed for local study.
+
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in
+[experiment 007](../experiments/007-staged-spsc-comparison.md), staged direct span access completed
+4.796% more messages per second at group size 16 than the equal all-or-nothing bulk route. All three
+paired blocks agreed and staged had a 0.157% sample CV. This is evidence for the complete staged
+route under one measured workload, not an end-to-end no-copy, DPDK compatibility, or isolated-copy
+claim.

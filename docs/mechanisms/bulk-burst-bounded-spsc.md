@@ -65,6 +65,10 @@ consumer. Therefore `iterations`, checksum validation, and messages per second d
 handoffs, not burst attempts or requested counts. Ping-pong does not exercise these group semantics
 and rejects both modes.
 
+The bulk route also serves as the equal all-or-nothing baseline for the direct-slot comparison in
+[experiment 007](../experiments/007-staged-spsc-comparison.md). That experiment measured bulk versus
+staged at group size 16; it did not measure burst calls or answer the partial-progress question.
+
 ## Provenance
 
 The fixed-count bulk versus best-effort burst distinction comes from DPDK's ring library as recorded

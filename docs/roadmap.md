@@ -44,8 +44,8 @@ documents and Git.
 | W1 | complete | Load-shape workloads | Add one F2 offered-load workload covering unpaced pressure, producer pacing, and temporary observer stalls. |
 | L1A | complete | Linux measurement integrity | Remove observed harness interference, verify effective placement, support controlled fixed multi-consumer placement, and establish a reproducible stock-host baseline. |
 | L1B | complete | Scalar SPSC evolution evidence | Controlled canonical comparisons characterize counter placement and remote-index caching. |
-| L1B2 | next | Grouped SPSC evolution evidence | Measure publication granularity and staged direct-slot access after the scalar comparisons are understood. |
-| L1C | queued | Sequence-contract evidence | Measure selected single-consumer publication, reliable fan-out, and fixed dependency costs with explicit placement and semantic limits. |
+| L1B2 | complete | Grouped SPSC evolution evidence | Controlled comparisons characterize publication groups and staged direct-slot access. |
+| L1C | next | Sequence-contract evidence | Measure selected single-consumer publication, reliable fan-out, and fixed dependency costs with explicit placement and semantic limits. |
 | L1D | queued | Offered-load evidence | Characterize unpaced pressure, calibrated producer pacing, and bounded observer stalls without a Cartesian sweep. |
 | L1E | queued | PMU investigation and L1 review | Apply selective hardware evidence to observed questions, consolidate durable findings, and review the post-L1 direction. |
 | M1 | deferred | Bounded MPSC | Reconsider after the single-producer mechanism families establish specific multi-producer questions. |
@@ -60,82 +60,89 @@ deliberately deferred; this does not defer single-producer broadcast/fan-out.
 
 ## Active stopping boundary
 
-The portable single-producer path through W1, Linux measurement integrity, and scalar SPSC evidence
-are complete. L1B2 is now locally executable. L1C through L1E are ordered measurement outcomes
-whose detailed contracts must be written only when they become next. M1 through M3 remain
+The portable single-producer path through W1, Linux measurement integrity, and scalar and grouped
+SPSC evidence are complete. L1C is now locally executable. L1D and L1E are ordered measurement
+outcomes whose detailed contracts must be written only when they become next. M1 through M3 remain
 deliberately deferred until a concrete multi-producer research question justifies reopening that
 path after the L1 review.
 
-## Next stage: L1B2 grouped SPSC evolution evidence
+## Next stage: L1C sequence-contract evidence
 
 ### Goal
 
-Measure two bounded grouped-operation questions on the verified Linux host: how fixed all-or-nothing
-publication groups compare with scalar publication, and how direct staged ring-slot access compares
-with an equal all-or-nothing bulk transfer through intermediate arrays.
+Measure three bounded sequence-contract questions on the verified Linux host: how the complete
+single-consumer sequence implementation compares with basic head/tail SPSC, what completed-
+publication cost accompanies reliable delivery to two independent consumers, and how a fixed
+upstream/downstream dependency compares with independent fan-out when both perform two validations.
 
 ### Evidence motivating the stage
 
-L1B found a stable conditional benefit for the complete cache-line-separated scalar variant, while
-cached-index throughput was directionally positive but variable and cached-index ping-pong was
-inconclusive. Neither result calls for a sensitivity matrix or immediate PMU work. The next distinct
-question is publication granularity under saturated throughput. Existing batch, bulk, and staged
-mechanisms have passed their correctness gates and share benchmark-side group generation and
-validation designed for these comparisons.
+L1B2 found no stable size-1 batch ranking, a directionally repeated but variable size-4 batch
+advantage, a small positive size-16 batch observation, and a clear conditional size-16 staged
+advantage over bulk. Those grouped results do not require another sensitivity or immediate PMU
+work. The next distinct questions concern richer sequencing contracts. The sequence, fan-out, and
+pipeline mechanisms have passed their correctness gates, and L1A added verified placement and
+blocked coordinator control for both one- and two-consumer workloads.
 
 ### Scope
 
-1. Compare `basic` with `batch` at batch sizes 1, 4, and 16 using throughput only. This changes the
-   complete operation shape from scalar publication to all-or-nothing group publication while the
-   workload still generates and validates equal fixed groups on both paths.
-2. Compare `bulk` with `staged` at group size 16 using throughput only. This holds all-or-nothing
-   group progress fixed while changing from transfers through producer/consumer arrays to direct
-   writable/readable ring spans with explicit finish operations.
-3. Use only 64-byte payloads and 1024 exact usable slots. Add group size 4 to `bulk` versus `staged`
-   only if the size-16 result is ambiguous and that specific sensitivity can resolve it. Do not add
-   payload or capacity matrices automatically.
-4. Pilot a common completed-message count so the fastest timed trial in each pair is at least
-   roughly two seconds. Hold total completed messages, warmup, placement, build, payload work,
-   group size, and command order fixed within each comparison.
-5. Use one-trial ABBA blocks and retain at least six rows per implementation/configuration. Prefer
-   three blocks initially; add a fourth only when the first three reveal bounded order behavior
-   that the extra block can distinguish. Preserve every row without outlier removal.
-6. Use the L1A warm-state conditioning method, stock HWP policy, coordinator CPU 0, producer CPU 1,
-   and consumer CPU 2. Retain the exact commands, host sidecar, verified placement metadata,
-   temperature/frequency observations, and throttle-counter deltas beside raw CSV.
-7. Update experiment records 005 and 007 with exact provenance, summaries, interpretations, and
-   limits. Keep experiment 006 planned: the current steady-state workload does not deliberately
-   constrain availability or count partial burst calls, so it cannot answer the bulk-versus-burst
-   partial-progress question.
+1. Compare `basic` with `sequence` in throughput and ping-pong at a 64-byte payload and 1024 exact
+   usable slots. Treat this as an implementation comparison: head/tail assignment and the complete
+   claim/populate/publish/observe/release design differ in token lifecycle, local state, direct
+   throughput slot access, and consumer value-transfer shape.
+2. Compare `sequence` with `fan-out` in throughput at the same payload and capacity. Count completed
+   publications, not aggregate deliveries, and state explicitly that `fan-out` performs two
+   reliable deliveries and uses an additional worker. This comparison characterizes the richer
+   contract; it does not isolate consumer count, an atomic operation, or topology.
+3. Compare `fan-out` with `pipeline` in throughput at the same payload and capacity. Both routes use
+   one producer, two consumers, two validations, and downstream-complete publication counts. The
+   changed contract is independent observation with minimum gating versus fixed ordered dependency
+   and downstream gating.
+4. Pilot iteration and warmup counts separately for scalar throughput, ping-pong, and three-worker
+   throughput so the fastest timed row in every pair is at least roughly two seconds. Hold counts,
+   build, payload work, placement, result semantics, and command order fixed within each pair.
+5. Use one-trial ABBA blocks and retain at least six rows per implementation/configuration. Start
+   with three blocks; add a fourth only when bounded order behavior or dispersion makes it capable
+   of resolving the stated comparison. Preserve every row without outlier removal.
+6. Use the L1A warm-state conditioning method and stock HWP policy. Restrict each process to
+   coordinator CPU 0. Place the producer on CPU 1 and the single consumer on CPU 2; place fan-out
+   consumer 0 or pipeline upstream on CPU 2 and fan-out consumer 1 or pipeline downstream on CPU 3.
+   Retain verified effective masks for every role. Record CPU 3's greater historical network
+   softirq activity as a four-core-host limitation.
+7. Retain exact commands, a host sidecar, temperature/frequency observations, and throttle-counter
+   deltas beside raw CSV under ignored `results/l1/l1c-sequence/`. Update experiment records 008,
+   009, and 010 with exact provenance, all retained summaries, interpretations, and semantic limits.
+   Promote only stable observations to the three sequence mechanism notes.
 
 ### Non-goals
 
-- no ping-pong, sequence, fan-out, pipeline, record-layout, or offered-load comparison;
-- no `bulk` versus `burst` measurement or claim about partial-progress behavior;
-- no automatic payload, capacity, or group-size matrix;
-- no end-to-end no-copy, DPDK compatibility, or isolated-instruction claim;
-- no PMU collection unless a stable grouped-operation result creates a concrete cycles or
-  instructions hypothesis that cannot be answered from the timed results alone;
-- no benchmark framework, persistent host tuning, MPSC, SPMC, or MPMC work.
+- no payload, capacity, placement, consumer-count, slow-consumer, or waiting-strategy matrix;
+- no offered-load, record-layout, grouped-operation, or bulk/burst measurement;
+- no isolated cost claim for sequence numbering, one atomic, one token, or one delivery;
+- no claim of LMAX API, ABI, Java-memory-model, or benchmark compatibility;
+- no equation of one-consumer and two-consumer semantic work, and no general dependency graph;
+- no PMU collection unless a stable result creates a concrete hypothesis that timed evidence cannot
+  answer; L1E remains the intended selective hardware-evidence stage;
+- no source or benchmark-framework expansion, persistent host tuning, MPSC, SPMC, or MPMC work.
 
 ### Acceptance criteria
 
 - Every command runs from one clean, CI-green exact SHA in a fresh native Linux Release build after
   the required correctness and quality gates.
-- All requested worker affinities are reported as applied with matching effective CPU masks;
-  checksums agree within each configuration; total completed messages are equal; no retained row is
-  silently discarded.
-- The fastest retained trial in each configuration is at least roughly two seconds, with at least
-  six retained rows per implementation and interleaved ABBA order.
+- Single- and two-consumer affinity requests report applied placement with exact verified masks;
+  checksums agree for every required consumer or stage; completed-publication counts and workload
+  semantics match inside each comparison; no retained row is silently discarded.
+- The fastest retained trial in every pair is at least roughly two seconds, with at least six rows
+  per implementation/configuration and interleaved one-trial ABBA order.
 - Analysis reports medians, sample dispersion, full range, block behavior, and pairwise ratios. An
-  effect near the observed host noise or with inconsistent paired direction is reported as
-  inconclusive rather than ranked.
-- Experiment records 005 and 007 contain exact provenance, controlled and changed variables,
-  results, bounded interpretations, limitations, and reproduction commands. Raw evidence remains
-  under ignored `results/l1/l1b2-grouped/` on Linux and Mac.
+  effect near host noise or with inconsistent paired direction is inconclusive rather than ranked.
+- Records 008-010 distinguish implementation comparison from richer-contract comparison, identify
+  one versus two deliveries and two independent versus ordered validations, and contain exact
+  provenance, controlled and changed variables, results, limits, and reproduction commands. Raw
+  evidence remains under ignored `results/l1/l1c-sequence/` on Linux and Mac.
 - Both worktrees and the complete diff are reviewed; coherent commits are pushed; required CI is
   green; ignored active status records the evidence location and exact next stage.
-- On completion, replace this contract with one detailed L1C contract revised from the accumulated
+- On completion, replace this contract with one detailed L1D contract revised from the accumulated
   L1 evidence rather than copied mechanically from the queued outcome.
 
 ## Direction after Q3

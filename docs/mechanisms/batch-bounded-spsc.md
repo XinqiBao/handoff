@@ -60,3 +60,13 @@ The throughput benchmark uses explicit fixed batch sizes. `basic` performs equiv
 for each generated batch, while `batch` uses one all-or-nothing operation; total messages, payload
 generation, observation, waiting behavior, and checksum work remain equal. Ping-pong remains a
 scalar exchange and rejects `--batch-size` because it does not model a batch handoff.
+
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in
+[experiment 005](../experiments/005-batch-spsc-comparison.md), size 1 was inconclusive because
+paired block directions disagreed. Size 4 showed a directionally repeated but variable +5.715%
+median batch advantage, and size 16 showed a smaller +1.483% conditional advantage with every
+paired block positive. These group-size-specific observations are not a publication-scaling curve:
+changing the compile-time group size also changes the common workload's generation and validation
+loop shape.
