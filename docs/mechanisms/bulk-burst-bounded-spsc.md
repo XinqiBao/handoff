@@ -69,6 +69,16 @@ The bulk route also serves as the equal all-or-nothing baseline for the direct-s
 [experiment 007](../experiments/007-staged-spsc-comparison.md). That experiment measured bulk versus
 staged at group size 16; it did not measure burst calls or answer the partial-progress question.
 
+## Measured observation
+
+On the controlled Intel N150 configuration recorded in experiment 007, staged completed 4.796%
+more messages per second than bulk in the original size-16 comparison and 4.966% more in a later
+selective PMU follow-up. Worker-only counters did not support fewer retired instructions per
+completed message as the explanation: approximate instructions/message were nearly equal, while
+staged showed fewer approximate cycles/message and higher IPC. This is a result for the complete
+routes, not an isolated cost of bulk assignments, staged spans, token operations, or one ring
+instruction sequence.
+
 ## Provenance
 
 The fixed-count bulk versus best-effort burst distinction comes from DPDK's ring library as recorded

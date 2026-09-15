@@ -91,3 +91,10 @@ On the controlled Intel N150 configuration recorded in
 paired blocks agreed and staged had a 0.157% sample CV. This is evidence for the complete staged
 route under one measured workload, not an end-to-end no-copy, DPDK compatibility, or isolated-copy
 claim.
+
+A later selective worker-only PMU follow-up reproduced a 4.966% throughput advantage. Staged
+retired 5.041% more instructions per second, while its approximate instructions/message differed by
+only +0.134% and did not have a consistent block direction. Approximate cycles/message were 4.474%
+lower and IPC was 4.888% higher, both with consistent paired directions. This weakens the hypothesis
+that fewer retired instructions per completed message explains the advantage, but does not isolate
+which complete-route or compiler difference improves execution efficiency.

@@ -47,7 +47,7 @@ documents and Git.
 | L1B2 | complete | Grouped SPSC evolution evidence | Controlled comparisons characterize publication groups and staged direct-slot access. |
 | L1C | complete | Sequence-contract evidence | Controlled comparisons characterize single-consumer publication, reliable fan-out, and fixed dependency contracts. |
 | L1D | complete | Offered-load evidence | Controlled unpaced, calibrated pacing, and bounded observer-stall runs characterize lossy delivery shares. |
-| L1E | next | PMU investigation and L1 review | Apply selective hardware evidence to an observed question, consolidate durable findings, and review the post-L1 direction. |
+| L1E | complete | PMU investigation and L1 review | Selective worker-only counters test the staged/bulk instruction hypothesis and close the L1 evidence milestone. |
 | M1 | deferred | Bounded MPSC | Reconsider after the single-producer mechanism families establish specific multi-producer questions. |
 | M2 | deferred | Multi-producer sequencing | Study selected availability or synchronization ideas only when motivated by MPSC findings. |
 | M3 | deferred | SPMC work sharing and MPMC | Keep distinct from broadcast and attempt only with a concrete research question. |
@@ -60,95 +60,21 @@ deliberately deferred; this does not defer single-producer broadcast/fan-out.
 
 ## Active stopping boundary
 
-The portable single-producer path through W1 and controlled evidence through L1D are complete. L1E
-is now locally executable. M1 through M3 remain deliberately deferred until the L1 review identifies
-a concrete multi-producer research question; completing L1 does not activate them automatically.
+The portable single-producer mechanism path through W1 and the controlled Linux evidence milestone
+through L1E are complete. No stage is currently `next`.
 
-## Next stage: L1E selective PMU investigation and milestone review
+The L1E worker-only PMU follow-up reproduced staged's size-16 throughput advantage but weakened the
+hypothesis that fewer retired instructions per completed message explains it. Approximate
+instructions/message were nearly equal and lacked a consistent paired direction; staged instead
+showed consistently fewer approximate cycles/message and higher IPC. Experiment 007 records the
+method, exact results, and attribution limits.
 
-### Goal
-
-Test one concrete explanation for the stable staged-versus-bulk throughput observation with a
-targeted worker-only PMU method, then consolidate L1's durable findings and decide whether any
-secondary record-layout or multi-producer question is ready to become executable.
-
-### Evidence motivating the stage
-
-L1B2 found that staged direct-slot access completed 4.796% more messages/s than the equal
-all-or-nothing bulk route at group size 16, with all three paired blocks agreeing and 0.971% versus
-0.157% sample CV. The complete routes differ in intermediate assignment, span traversal, and token
-work, so fewer executed instructions per completed message is a concrete testable hypothesis.
-Generic cycles and instructions are available on this host. By contrast, generic cache-miss
-counters cannot test the coherence explanation for cache-line separation, variable batching
-effects do not motivate a precise PMU question, and L1D's stable stall accounting does not need
-hardware counters to establish its load-shape result.
-
-### Scope
-
-1. Reuse the canonical L1B2 workload: `bulk` versus `staged` throughput, 64-byte payload, 1024
-   slots, group size 16, coordinator CPU 0, producer CPU 1, and consumer CPU 2. Hold payload
-   generation and validation, completed-message count, placement, build, waiting, and host policy
-   fixed.
-2. Before formal collection, verify `cycles:u` and `instructions:u` availability and run one
-   bounded attachment pilot. Launch a deliberately long one-trial benchmark, identify producer and
-   consumer TIDs from exact CPU masks in `/proc/<pid>/task/*/status`, wait past a deliberately long
-   warmup, and attach `perf stat` only to those two TIDs for a documented middle window. Reject the
-   method if the TIDs, timed-phase placement, complete window, event scaling, or benchmark
-   completion cannot be verified.
-3. If the pilot succeeds, collect only user-mode cycles and instructions for an equal fixed middle
-   window. Use long equal-count runs and three one-trial ABBA blocks, retaining six PMU windows and
-   benchmark rows per implementation. Record raw counts, time enabled/running or scaling, IPC,
-   counts per second, complete-trial throughput, and an explicitly approximate normalization by
-   complete-trial messages/s. Do not present that approximation as exact per-message attribution.
-4. Temporarily set `kernel.perf_event_paranoid` from 4 to 2 with a shell trap, restore it on every
-   exit path, and verify the final value. Keep the benchmark process owned by the unprivileged user.
-   Use the stock governor/EPP and L1A conditioning; retain sidecars, exact commands, TID/mask
-   evidence, perf stderr, benchmark CSV, temperatures/frequencies, and throttle deltas under ignored
-   `results/l1/l1e-pmu/`.
-5. Decide whether the PMU evidence supports, weakens, or leaves unresolved the hypothesis that the
-   staged route executes fewer instructions per completed message. Separate observed counters from
-   explanations about removed assignments, compiler decisions, span traversal, or token work.
-6. Add the PMU provenance and bounded interpretation to experiment 007 and the affected bulk/staged
-   mechanism notes. Consolidate only conclusions already supported by L1A-L1E; do not create a
-   general performance ranking.
-7. Complete the L1 milestone review in the roadmap. State whether one record-layout question,
-   bounded MPSC question, or neither has enough evidence and value to become the next executable
-   stage. Do not activate work merely to keep the queue moving; a clean L1 boundary with no `next`
-   stage is valid.
-
-### Non-goals
-
-- no counter sweep, model-specific event, cache-miss coherence claim, kernel profiling, or PMU
-  decoration of earlier comparisons;
-- no whole-process counter interpretation as timed worker work and no exact per-message claim from
-  a sampled middle window;
-- no source-level perf hook unless the attachment pilot demonstrably cannot delimit useful worker
-  evidence and the smallest portable boundary is reviewed first;
-- no rerun of scalar, sequence, offered-load, payload, capacity, batch-size, or placement matrices;
-- no persistent perf, governor, kernel, boot, IRQ, or isolation change;
-- no record-layout implementation campaign, general benchmark runner, MPSC/MPMC implementation, or
-  automatic activation of deferred work.
-
-### Acceptance criteria
-
-- Every command runs from one clean, CI-green exact SHA in a fresh native Linux Release build after
-  the required correctness and quality gates.
-- The attachment pilot verifies exact worker TIDs and masks, starts after warmup, covers the complete
-  requested middle window, and leaves benchmark checksums and affinity metadata valid. Formal
-  events are available without unacceptable multiplexing or scaling.
-- Three ABBA blocks retain every benchmark row and PMU window. Analysis reports medians,
-  dispersion, block direction, raw/scaled counts, IPC, counts per second, throughput, and the limits
-  of approximate normalization. Effects near dispersion or with inconsistent direction remain
-  inconclusive.
-- Perf policy is restored to 4 and verified; no persistent host state changes; temperature,
-  frequency, and throttle evidence is retained; raw artifacts exist on both hosts under ignored
-  `results/l1/l1e-pmu/`.
-- Experiment 007 and affected mechanism notes show the complete observation -> hypothesis ->
-  targeted evidence -> bounded interpretation chain with exact throughput and PMU revisions.
-- Both worktrees and the complete diff are reviewed; coherent commits are pushed; required CI is
-  green; ignored active status records the clean L1 boundary and any evidence-backed next stage.
-- The roadmap marks L1E complete, records the milestone decision, and has either exactly one
-  evidence-backed `next` stage or no `next` stage when further work remains deliberately deferred.
+The milestone review does not promote a secondary record-layout or multi-producer stage. Planned
+experiments 011 through 013 remain valid bounded record-layout questions, but L1 produced no
+specific storage-layout bottleneck or workload priority that makes one the clear next experiment.
+Likewise, the single-producer evidence did not identify a concrete producer-contention question
+that would justify activating M1. M1 through M3 therefore remain deferred. A future roadmap change
+should begin from a newly stated research question rather than extending the queue mechanically.
 
 ## Direction after Q3
 
