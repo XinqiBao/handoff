@@ -3,8 +3,9 @@
 ## Measurement goals
 
 Benchmarks should explain conditional behavior, not produce a universal queue ranking. Every
-recorded experiment begins with a question or hypothesis and identifies whether it isolates a
-mechanism property or compares representative implementations.
+recorded experiment begins with a question or hypothesis. Mechanism results identify whether they
+isolate a design property or compare representative implementations; host calibration is identified
+separately and does not imply a mechanism ranking.
 
 Correctness is a prerequisite for performance comparison. Smoke commands verify plumbing only and
 must not be presented as performance evidence.

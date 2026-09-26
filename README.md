@@ -20,6 +20,10 @@ observed or overwritten under producer pacing and temporary observer stalls. The
 provides equivalent correctness tests, steady-state throughput and ping-pong round-trip latency
 workloads, a C++23 build, and a small platform capability layer.
 
+The initial single-producer research phase and selected controlled Linux comparisons are complete.
+The current [research direction](docs/roadmap.md) examines concurrent claims, completion, ordered
+visibility, and bounded reuse before choosing further mechanisms.
+
 ## Requirements
 
 - Clang with C++23 support

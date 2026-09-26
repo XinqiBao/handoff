@@ -23,8 +23,8 @@ development checkout and treat the Git remote plus an exact commit as the proven
 6. Run the required correctness gates before controlled measurement.
 7. Keep raw results in ignored local storage and transfer them one way to the development machine
    for analysis when needed.
-8. Make all source, experiment-record, and roadmap changes in the authoritative checkout, then
-   repeat the commit, CI, and exact-SHA cycle.
+8. Make all source, experiment-record, and research-direction changes in the authoritative
+   checkout, then repeat the commit, CI, and exact-SHA cycle.
 
 Do not use a shared network build tree or bidirectional source synchronization for formal results.
 Do not describe an execution clone as "latest main" in an experiment record: identify the measured
@@ -218,33 +218,9 @@ NUMA/cache topology, requested role placement, governor/EPP/minimum/maximum/boos
 load average, relevant active processes, temperature/frequency observations, and thermal-throttle
 counter values before and after the group. Do not capture the environment or credentials.
 
-For the verified four-core N150 host, the canonical two-worker placement is coordinator CPU 0,
-producer CPU 1, and consumer CPU 2. Fixed three-worker workloads add consumer CPU 3 and must note
-that CPU 3 has more historical network softirq activity. Keep the stock `intel_pstate` policy unless
-measured instability justifies a temporary, recorded, and restored control.
-
-### Verified stock-host baseline
-
-On 2026-09-14, commit `273c757109e9b1650ef94938d6086e32dad495bd` passed the Linux Release,
-format, clang-tidy, ASan/UBSan, and TSan gates before a pinned reproducibility pilot on the N150
-host. The benchmark process was restricted to coordinator CPU 0, with producer CPU 1 and consumer
-CPU 2 verified from their effective masks. The workload was basic throughput with a 64-byte
-payload, 1024 slots, 20,000,000 measured messages, 2,000,000 warmup messages, and seven retained
-trials. Every timed trial exceeded 2.4 seconds.
-
-The first group had a median of 8.062 million messages/s, sample CV 0.937%, and a 2.305% full range.
-Because its first-to-last change was -1.129% while the package warmed, a second group was retained
-after a longer 40,000,000-message conditioning run. The warm-state repetition had a median of 8.068
-million messages/s, sample CV 0.280%, 0.915% full range, +0.269% first-to-last change, and a fitted
-slope of +0.025% of the median per trial. Turbostat observed roughly 3.4-3.6 GHz busy frequency and
-70-78 C during the warm group. Hardware thermal-throttle counters did not change.
-
-No governor, EPP, perf policy, IRQ, kernel, or boot setting was changed: the run used the stock
-`intel_pstate` `powersave` governor with `balance_performance` EPP. The result supports using this
-host for bounded relative comparisons after consistent warm-state conditioning. It is not a
-mechanism-performance claim, and effects close to the observed dispersion still require cautious
-interpretation. Raw CSV, sidecars, runtime affinity checks, turbostat output, and analysis remain in
-ignored local storage at `results/l1/l1a-baseline/` on both machines.
+The Phase I [Linux measurement host baseline](experiments/linux-host-baseline.md) records the
+verified N150 placement, stock policy, conditioning, and observed repeatability. Recheck these
+facts before a new controlled run; a previous host observation is not a permanent tuning rule.
 
 Raw local output belongs under the ignored `results/` directory by convention. Commit concise
 experiment records and selected data only when they are needed to reproduce a conclusion.

@@ -14,10 +14,10 @@ Read additional documents according to the task instead of loading the entire re
 - roadmap or project-policy work: all stable project documents needed to check consistency.
 
 Tracked repository documents are the canonical source for architecture, semantics, methodology,
-and roadmap state. The ignored `.context/` directory may hold current local status or bounded work
+research direction, and measured evidence. The ignored `.context/` directory may hold bounded work
 notes; it must not override tracked project truth. Do not commit prompts, session transcripts,
-routine reports, or `.context/` contents. If local status disagrees with Git, CI, or the tracked
-roadmap, trust the inspected evidence and tracked documents, then correct the local status.
+routine reports, or `.context/` contents. If local status disagrees with Git, CI, or tracked
+documents, trust the inspected evidence and tracked documents, then correct the local status.
 
 ## Engineering rules
 
@@ -34,31 +34,19 @@ roadmap, trust the inspected evidence and tracked documents, then correct the lo
 - Use C++23 and Clang. Keep portable behavior on Linux and macOS; isolate optional Linux features.
 - Use Conventional Commits with short English subjects.
 
-## Stage execution
+## Research package execution
 
-The roadmap stage is the unit of planning, validation, and commit history; it is not necessarily a
-conversation boundary. A long-running session may complete consecutive eligible stages without
-asking for a new prompt after each one.
+A coherent question or change is the unit of planning, validation, and commit history; it need not
+be a conversation boundary. Before starting, inspect the branch, worktree, recent history, relevant
+CI state, routed documents, and the current research direction. State the question, non-goals,
+semantics, and validation criteria. Split a large package into understandable boundaries when its
+semantics are clear. Do not leave several mechanisms half-implemented to extend a session.
 
-Before each stage:
-
-1. Inspect the branch, worktree, recent history, and relevant CI state.
-2. Reread the routed documents and the current roadmap entry.
-3. Define the stage goal, non-goals, and validation criteria.
-
-After each stage:
-
-1. Run the relevant builds, tests, sanitizers, formatting, static analysis, and smoke commands.
-2. Review the complete diff and `git status` for scope, readability, and documentation accuracy.
-3. Mark only completed work in `docs/roadmap.md`; identify exactly one next executable stage and
-   replace its detailed `Next stage` contract when work remains. Do not accumulate completed stage
-   packets in the roadmap.
-4. Create coherent Conventional Commit(s) with a visible stage boundary, push them, and wait for
-   the required CI checks.
-5. Update local `.context/` status when present, then continue to the next eligible roadmap stage.
-
-Stop at a clean stage boundary only when the requested roadmap scope is exhausted, a semantic
-choice materially needs user input, external measurement hardware is required, or CI remains red
-after reasonable repair attempts. If a future stage is too large but its semantics are clear, split
-it into smaller roadmap stages rather than stopping or implementing it as one opaque change. Do not
-leave several mechanisms half-implemented merely to continue the session.
+After each package, run checks appropriate to its scope: builds, tests, sanitizers, formatting,
+static analysis, and benchmark smoke commands where relevant. Review the complete diff and Git
+status for scope, readability, and documentation accuracy. Keep mechanism notes and completed
+experiment records current; update the research direction when findings change it. Make coherent
+Conventional Commits, push, and wait for required CI checks. Update bounded local `.context/`
+status only when present and useful. Continue with another eligible package when its question and
+validation are clear; stop for a material semantic choice, external measurement hardware, red CI
+after reasonable repair, or exhausted requested scope.

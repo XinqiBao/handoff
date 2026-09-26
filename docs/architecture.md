@@ -98,4 +98,4 @@ reported clearly and should continue when the requested experiment remains meani
 - Add abstractions only after repeated code demonstrates that they clarify rather than hide the
   mechanism.
 - Keep storage and publication semantics explicit; avoid premature universal APIs.
-- Let evidence from earlier experiments revise later roadmap stages.
+- Let evidence from earlier experiments revise the current research direction.

@@ -1,12 +1,15 @@
 # Experiment Records
 
-Experiments begin with a question or hypothesis, not an unbounded collection of numbers. Each record
-identifies itself as a mechanism-isolation experiment or an implementation comparison and follows
-the repository [benchmark methodology](../benchmark-methodology.md).
+Experiments begin with a question or hypothesis, not an unbounded collection of numbers. Each
+mechanism result identifies itself as a mechanism-isolation experiment or an implementation
+comparison. Host calibration may instead be recorded as measurement-method characterization. All
+follow the repository [benchmark methodology](../benchmark-methodology.md).
 
 Use [`template.md`](template.md) for a new experiment. Keep setup and results specific to the
 question, preserve individual trials where practical, and separate observations from explanations.
 Do not commit routine smoke timings as experimental evidence.
+Create a planned record only when a question has a defensible protocol and is promoted for
+execution. Earlier unmeasured plans remain in Git history, not in the active experiment index.
 
 ## Completed experiments
 
@@ -18,12 +21,4 @@ Do not commit routine smoke timings as experimental evidence.
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
 - [Lossy sequence-payload behavior under offered load](014-sequence-payload-offered-load.md)
-
-## Planned experiments
-
-- [Basic SPSC throughput across payload and capacity](001-basic-spsc-throughput.md)
-- [Basic SPSC ping-pong RTT across payload and capacity](002-basic-spsc-ping-pong.md)
-- [Fixed bulk versus best-effort burst SPSC](006-bulk-burst-spsc-comparison.md)
-- [Generic payload versus fixed record slots](011-fixed-record-comparison.md)
-- [Fixed slots versus a variable-record byte ring](012-variable-record-comparison.md)
-- [Record descriptor and payload separation](013-descriptor-payload-comparison.md)
+- [Linux measurement host baseline](linux-host-baseline.md)

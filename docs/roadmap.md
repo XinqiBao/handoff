@@ -1,103 +1,86 @@
-# Roadmap
+# Research Direction
 
-This file is the canonical execution queue and completion record. It expresses technical order,
-not dates. Earlier findings may reorder later stages, but changes should preserve explicit
-dependencies and keep one stage marked `next` while locally executable work remains.
+This document records the current research boundary and criteria for promoting a question into
+work. Mechanism notes describe implemented contracts; experiment records own measured evidence;
+Git preserves the completed stage history. Candidate directions below are not an execution queue.
 
-Only the unique `next` stage receives a full execution contract below. Queued stages retain a
-one-line outcome and only the acceptance constraints needed to preserve an existing decision. When
-the next stage completes, replace its contract with one for its successor instead of retaining a
-growing archive of stage plans. Mechanism and experiment history belongs in their respective
-documents and Git.
+## Current state
 
-## Status meanings
+The initial single-producer phase is complete. The repository has bounded SPSC counter, layout,
+batch, bulk/burst, and staged variants; sequence publication, reliable fan-out, and a fixed
+dependency pipeline; three record-storage layouts; and lossy sequence-addressed metadata and
+payload observation. Controlled Linux records cover selected scalar and grouped SPSC comparisons,
+sequence contracts, lossy offered load, and a selective PMU follow-up. They establish conditional
+results for one host and workload set, not a general ranking. The mechanism and experiment indexes
+identify the implemented variants and completed evidence.
 
-- `complete`: implemented, validated, documented, committed, and pushed;
-- `next`: the next locally executable stage;
-- `queued`: ordered future work whose prerequisites are not yet complete;
-- `blocked-external`: ready in principle but requires an unavailable environment or evidence;
-- `deferred`: intentionally outside the active path and reconsidered only after higher-value work.
+The next research boundary is concurrent ownership of bounded storage. With multiple producers,
+claim order can differ from completion order. A design must separately account for exclusive
+reservation, payload readiness, externally visible ordered progress, and safe reuse. A delayed
+producer can hold a publication hole even while later producers finish. That semantic distinction,
+rather than a topology checklist, motivates the first Phase II package.
 
-## Execution queue
+## First research package: producer claims and ordered visibility
 
-| ID | Status | Stage | Outcome |
-| --- | --- | --- | --- |
-| B0 | complete | Repository bootstrap | Portable C++23 build, tests, tooling, CI, platform skeleton, and project documentation. |
-| S1 | complete | Basic bounded SPSC | Fixed inline slots, exact usable capacity, non-blocking FIFO operations, and conservative publication ordering. |
-| B1 | complete | Baseline SPSC workloads | Shared throughput and ping-pong workloads, trials, summaries, CSV output, and optional affinity. |
-| S2 | complete | Cache-line-separated SPSC | A preserved variant changing only producer/consumer counter placement. |
-| H1 | complete | Benchmark source decomposition | Split the benchmark executable by direct responsibility without changing workload or result behavior. |
-| H2 | complete | CLI, result, and metadata hardening | Correct known failure paths, make result semantics explicit, and record reliable run metadata. |
-| C1 | complete | Existing SPSC contract coverage | Complete payload/lifetime tests and documentation for the two implemented rings. |
-| S3 | complete | Cached remote indices | Preserve a distinct SPSC variant that reduces shared-index reads without batching or layout changes beyond what the mechanism needs. |
-| S4 | complete | All-or-nothing SPSC batching | Add fixed-count batch operations and isolate publication granularity from other changes. |
-| D1 | complete | DPDK-inspired bulk and burst | Contrast fixed-count all-or-nothing bulk operations with explicitly best-effort burst operations in SP/SC. |
-| D2 | complete | DPDK-inspired staged SP/SC | Study separate head reservation and tail publication through a small `reserve -> write -> finish` API, including wrap spans. |
-| Q1 | complete | Sequence publication baseline | Introduce monotonic sequence claiming, publication, producer cursor, and single-consumer gating without a full Disruptor API. |
-| Q2 | complete | Disruptor-inspired fan-out | Add independent reliable consumers and explicit slowest-reader gating. |
-| Q3 | complete | Disruptor-inspired dependencies | Add consumer dependency gating as a separate sequencing experiment. |
-| R1 | complete | Fixed header/payload slots | Study fixed-capacity records with explicit header and inline payload layout. |
-| R2 | complete | Variable record byte ring | Store contiguous aligned `[header][payload]` records in one circular byte buffer using padding markers at wrap. |
-| R3 | complete | Descriptor ring and payload storage | Separate compact descriptors from payload bytes and define their reservation, publication, and reuse contracts. |
-| F1 | complete | Firedancer-inspired metadata ring | Study sequence-addressed metadata, independent consumer progress, broadcast observation, and detectable overwrite. |
-| F2 | complete | Firedancer-inspired metadata/data handoff | Combine the metadata mechanism with chunk-addressed payload storage and explicit reuse/publication rules. |
-| W1 | complete | Load-shape workloads | Add one F2 offered-load workload covering unpaced pressure, producer pacing, and temporary observer stalls. |
-| L1A | complete | Linux measurement integrity | Remove observed harness interference, verify effective placement, support controlled fixed multi-consumer placement, and establish a reproducible stock-host baseline. |
-| L1B | complete | Scalar SPSC evolution evidence | Controlled canonical comparisons characterize counter placement and remote-index caching. |
-| L1B2 | complete | Grouped SPSC evolution evidence | Controlled comparisons characterize publication groups and staged direct-slot access. |
-| L1C | complete | Sequence-contract evidence | Controlled comparisons characterize single-consumer publication, reliable fan-out, and fixed dependency contracts. |
-| L1D | complete | Offered-load evidence | Controlled unpaced, calibrated pacing, and bounded observer-stall runs characterize lossy delivery shares. |
-| L1E | complete | PMU investigation and L1 review | Selective worker-only counters test the staged/bulk instruction hypothesis and close the L1 evidence milestone. |
-| M1 | deferred | Bounded MPSC | Reconsider after the single-producer mechanism families establish specific multi-producer questions. |
-| M2 | deferred | Multi-producer sequencing | Study selected availability or synchronization ideas only when motivated by MPSC findings. |
-| M3 | deferred | SPMC work sharing and MPMC | Keep distinct from broadcast and attempt only with a concrete research question. |
+Question: when two producers reserve adjacent positions and complete payload writes in reverse
+order, what progress can each make while a single consumer must observe FIFO order and storage
+remains bounded?
 
-The active path is
-`H1 -> H2 -> C1 -> S3 -> S4 -> D1 -> D2 -> Q1 -> Q2 -> Q3 -> R1 -> R2 -> R3 -> F1 -> F2 -> W1 -> L1A -> L1B -> L1B2 -> L1C -> L1D -> L1E`.
-A suitable physical Linux host and exact-revision execution clone have been verified, so controlled
-measurement preparation can proceed. Multi-producer and general multi-consumer mechanisms remain
-deliberately deferred; this does not defer single-producer broadcast/fan-out.
+The first comparison should keep fixed-size inline slots, one consumer, lossless delivery, scalar
+operations, and the same payload work. A serialized producer route is a control for the cost and
+progress limits of exclusive whole-operation ownership. A concurrent-claim route should reserve
+distinct positions and publish one contiguous tail in claim order, exposing the classic ordered
+publication dependency. These are structural inspirations from DPDK, not API ports. Implement the
+smallest control that makes the comparison interpretable; an existing SPSC ring guarded by a
+producer lock may suffice if the exact ownership boundary is stated.
 
-## Active stopping boundary
+Before implementation, write the precise API and invariants: claim uniqueness; capacity charged
+at reservation, including unfinished claims; no consumer access past a hole; release/acquire paths
+from each payload write to consumer read and from consumer release to producer reuse; generation or
+counter handling at physical wrap; finite sequence behavior; and the fate of an unfinished claim.
+In particular, an ordered tail cannot advance past an abandoned claim without an explicit recovery
+protocol. Do not silently promise cancellation or nonblocking completion.
 
-The portable single-producer mechanism path through W1 and the controlled Linux evidence milestone
-through L1E are complete. No stage is currently `next`.
+Use controlled scheduling in tests to pause the first claimant after reservation, finish the next
+payload, check that the consumer sees no hole, then release the first and verify order and safe
+reuse across wrap. Also test full capacity with claims in flight, unique ownership, and sustained
+integrity. TSan supports exercised executions; the C++ memory-order argument belongs in the
+mechanism note.
 
-The L1E worker-only PMU follow-up reproduced staged's size-16 throughput advantage but weakened the
-hypothesis that fewer retired instructions per completed message explains it. Approximate
-instructions/message were nearly equal and lacked a consistent paired direction; staged instead
-showed consistently fewer approximate cycles/message and higher IPC. Experiment 007 records the
-method, exact results, and attribution limits.
+Measure both a steady-state control comparison and a bounded producer-stall scenario if the latter
+can isolate reservation, completion, visible publication, consumer completion, and in-flight work.
+Define accounting and phase boundaries before collecting performance data. A test or smoke run
+alone is not controlled evidence. The stall result should determine whether per-slot availability
+or relaxed/cooperative tail advancement is the next useful comparison.
 
-The milestone review does not promote a secondary record-layout or multi-producer stage. Planned
-experiments 011 through 013 remain valid bounded record-layout questions, but L1 produced no
-specific storage-layout bottleneck or workload priority that makes one the clear next experiment.
-Likewise, the single-producer evidence did not identify a concrete producer-contention question
-that would justify activating M1. M1 through M3 therefore remain deferred. A future roadmap change
-should begin from a newly stated research question rather than extending the queue mechanically.
+This package excludes multi-consumer ownership, variable-size allocation, cancellation/recovery,
+general wait policies, DPDK compatibility, and generic benchmark dispatch infrastructure.
 
-## Direction after Q3
+## Candidate questions
 
-Each mechanism stage follows the same sequence:
+- **Publication progress:** Can per-slot generation-tagged readiness or cooperative frontier
+  advancement let later finishers return without making later messages visible across a hole?
+  Compare only after the ordered-tail baseline exposes a meaningful stall or coordination cost.
+- **Competing consumers:** How should each publication acquire exactly one consumer owner, unlike
+  existing reliable fan-out? Study consumer release and reuse separately from producer contention.
+- **Dependencies:** What changes when a fixed dependency chain becomes a small static fork/join,
+  such as `P -> {A, B} -> C`? Avoid a runtime graph framework.
+- **Ordered stages:** SORING-like acquire/release and helping combine worker ownership with a
+  contiguous stage frontier. Consider this after the simpler ownership and progress obligations are
+  understood.
+- **Storage pressure:** Revisit record layouts only for a stronger workload, such as mixed lengths,
+  wrap padding, independent descriptor/byte limits, or payload lifetime. Existing fixed-length
+  benchmark modes do not settle those questions.
 
-1. State semantics, invariants, ownership, memory-order argument, and non-goals in a mechanism note.
-2. Implement the smallest locally understandable mechanism and preserve meaningful baselines.
-3. Pass common and mechanism-specific correctness gates from the testing strategy.
-4. Integrate only the benchmark dimensions needed for the stage and smoke-test the plumbing.
-5. Create a question-led planned experiment; do not claim performance without controlled evidence.
-6. Review, update this queue, commit, push, wait for CI, and continue when the next stage is eligible.
+An SPSC path per producer with consumer-side polling is another useful architectural control if a
+shared producer claim structure proves costly. It changes polling, fairness, and global ordering,
+so it must be evaluated as an implementation comparison with an explicit merge policy.
 
-Existing SPSC acquire/release ordering is already the conservative correct baseline. Do not invent a
-weaker `memory-order refinement` variant merely to fill a roadmap item; change ordering only as part
-of a specific mechanism with a written C++ happens-before argument.
+## Promotion criteria
 
-DPDK, LMAX Disruptor, and Firedancer remain high-priority inspirations, not ports or compatibility
-targets. Their stages should reproduce named structural ideas while excluding surrounding APIs,
-runtimes, allocators, networking, and platform infrastructure.
-
-## Completion criteria
-
-A stage is complete only when its documented semantics and implementation agree, required
-correctness and quality checks pass, benchmark claims match the measurement method, the complete
-diff contains no accidental scope, its coherent commit history is pushed, and required CI is green.
-A conversation may complete several such stages; stage boundaries must remain visible in history.
+Promote a direction only when it has a precise semantic question, a small isolatable mechanism or
+comparison, explicit invariants and C++ memory-order reasoning, deterministic adversarial and
+concurrent tests, a workload that distinguishes the alternatives, and interpretable observations
+relative to mechanisms already present. Preserve useful intermediate variants. Validate and review
+each coherent research package, record only completed work as completed, commit, push, and check CI.
+Do not create speculative experiment protocols or infer performance from benchmark smoke runs.

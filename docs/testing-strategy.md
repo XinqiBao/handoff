@@ -41,6 +41,9 @@ Add tests beside the mechanism for obligations introduced by its design:
 - batch operations: all-or-nothing versus best-effort behavior, boundary sizes, ordering, and wrap;
 - reservation APIs: exclusive ownership, publish visibility, release, and abandoned-operation
   rules;
+- concurrent producer claims: unique reservation; reverse-order completion of adjacent claims;
+  ordered visibility across a hole; closing the hole; full capacity with claims in flight; safe
+  reuse across physical wrap; finite sequence behavior; and the declared fate of unfinished claims;
 - variable records: size bounds, alignment, padding markers, exact-tail cases, and almost-full wrap;
 - broadcast: independent progress, slowest-reader gating, and the declared reader lifecycle;
 - dependency pipelines: role ordering, unavailable downstream observations, dependency release and

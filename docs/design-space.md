@@ -47,6 +47,11 @@ Candidate representations include head/tail indices, monotonic global sequences,
 sequences, consumer gating sequences, and separate reservation/commit state. These terms are not
 synonyms: documentation should name the state and the invariant it carries.
 
+For concurrent claims, distinguish exclusive ownership of a bounded slot, completed payload
+initialization, a consumer-visible contiguous publication frontier, and the consumer release that
+permits reuse. A claimed position is not necessarily ready or visible. A ready position after a hole
+is not necessarily consumable under ordered delivery.
+
 ## Ownership and publication
 
 Relevant operation shapes include:

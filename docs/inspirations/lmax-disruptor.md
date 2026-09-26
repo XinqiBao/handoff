@@ -18,6 +18,12 @@ observe each published event, and dependency graphs can gate downstream consumer
 is a separate choice; the system should not be described generically as lock-free because a blocking
 wait strategy uses a lock and condition.
 
+The current multi-producer sequencer atomically claims from a shared cursor and marks each slot's
+generation-tagged availability on publish. The cursor can include claimed but unpublished entries;
+consumers scan from their next required sequence to find the highest contiguous available entry.
+Gating prevents reuse across wrap before required consumers release the old generation. This is
+conceptually distinct from one cooperative producer tail that already names the contiguous frontier.
+
 ## Intentionally excluded
 
 - the complete Java API, DSL, event-factory model, and handler lifecycle;
@@ -25,14 +31,15 @@ wait strategy uses a lock and condition.
 - historical benchmark figures as current cross-platform evidence;
 - an unqualified `zero-copy` or lock-free claim.
 
-## Possible use in handoff
+## Use in handoff
 
-Later mechanism-isolation work may study sequence claiming, publication, producer cursors, consumer
-gating, independent readers, dependency graphs, and eventually multi-producer availability tracking.
-Each C++ mechanism needs its own memory-model argument and correctness tests.
+The repository already studies single-producer sequence claims, publication, reliable fan-out, and
+a fixed dependency chain. Per-slot multi-producer availability is a possible follow-up to an
+ordered-tail baseline; it needs its own C++ memory-model argument, wrap proof, and adversarial tests.
 
 ## Primary sources
 
 - [Official Disruptor user guide](https://lmax-exchange.github.io/disruptor/user-guide/)
 - [Sequencer API at a fixed revision](https://github.com/LMAX-Exchange/disruptor/blob/c871ca49826a6be7ada6957f6fbafcfecf7b1f87/src/main/java/com/lmax/disruptor/Sequencer.java)
+- [MultiProducerSequencer at the same revision](https://github.com/LMAX-Exchange/disruptor/blob/c871ca49826a6be7ada6957f6fbafcfecf7b1f87/src/main/java/com/lmax/disruptor/MultiProducerSequencer.java)
 - [Original technical paper](https://lmax-exchange.github.io/disruptor/files/Disruptor-1.0.pdf)

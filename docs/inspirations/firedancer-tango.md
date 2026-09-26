@@ -28,11 +28,12 @@ Tango channels were necessarily broadcast, lossy, or backpressured.
 - workspace, topology, process, allocator, and networking infrastructure;
 - unqualified lock-free or `zero-copy` claims.
 
-## Possible use in handoff
+## Use in handoff
 
-A later Firedancer-inspired mechanism may combine sequence-addressed descriptors, chunk-addressed
-payload, independent consumer progress, broadcast, and explicit overrun detection. It remains
-distinct from a variable record byte ring that stores headers and payloads in one circular buffer.
+The repository already has a sequence-addressed metadata ring and a chunk-addressed payload
+extension with independent observation and detectable overwrite. Their lossy contract remains
+distinct from reliable fan-out and from the variable-record byte ring. Further Tango-inspired work
+needs a new question rather than repeating this implemented combination.
 
 ## Primary sources
 
