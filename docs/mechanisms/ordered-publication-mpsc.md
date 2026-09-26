@@ -100,3 +100,11 @@ implementations rather than one atomic operation.
 
 The unfinished-claim obligation excludes exceptions or owner death after claim
 unless the caller still completes publication. Recovery is a separate question.
+
+## Measured observation
+
+The controlled [two-producer implementation comparison](../experiments/015-mpsc-ordered-publication.md)
+on one Intel N150 placement found all six ordered-tail rows above all six serialized-control
+rows under a saturated 64-byte, 1024-slot workload. The serialized rows varied substantially, so
+the median gap is not a precise stable cost estimate. The result compares whole routes and does
+not isolate publication-tail coordination from producer serialization or payload access.

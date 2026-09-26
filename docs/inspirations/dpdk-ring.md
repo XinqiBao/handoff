@@ -47,7 +47,7 @@ extension of the existing single-owner `handoff` pipeline.
 ## Use in handoff
 
 The implemented SP/SC bulk, burst, and staged rings already isolate those operation shapes. The
-first proposed multi-producer package instead studies claim order versus ordered tail publication,
+first multi-producer package studies claim order versus ordered tail publication,
 with a serialized producer control. RTS and SORING are candidate later questions only if observed
 progress behavior justifies their added state and coordination.
 

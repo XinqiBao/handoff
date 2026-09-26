@@ -47,18 +47,23 @@ executions; the C++ memory-order argument remains in the mechanism note.
 The steady-state comparison measures completed handoffs. A separate bounded publication-hole
 diagnostic records reservation, payload completion, publication return, visibility, consumer
 completion, and backpressure at a controlled phase boundary. It does not measure rates or stall
-duration. Controlled Linux performance evidence remains a separate gate; smoke runs do not
-support a ranking. The diagnostic establishes that later completion is useful bounded in-flight
-work but cannot advance visibility under the chosen FIFO frontier.
+duration. Smoke runs do not support a ranking. The diagnostic establishes that later completion
+is useful bounded in-flight work but cannot advance visibility under the chosen FIFO frontier. The
+controlled [two-producer comparison](experiments/015-mpsc-ordered-publication.md) found the concurrent route
+faster in every retained row on one N150 placement, with substantial serialized-route variation.
+This supports preserving both routes as controls, not interpreting their gap as the cost of one
+frontier operation.
 
 This package excludes multi-consumer ownership, variable-size allocation, cancellation/recovery,
 general wait policies, DPDK compatibility, and generic benchmark dispatch infrastructure.
 
 ## Candidate questions
 
-- **Publication progress:** Can per-slot generation-tagged readiness or cooperative frontier
-  advancement let later finishers return without making later messages visible across a hole?
-  Compare only after the ordered-tail baseline exposes a meaningful stall or coordination cost.
+- **Publication progress:** The ordered-tail baseline now exposes a definite semantic stall:
+  later payload work can finish while later `publish()` calls cannot return across a hole. Can
+  per-slot generation-tagged readiness or cooperative frontier advancement let later finishers
+  return without making later messages visible across that hole? These alternatives require
+  separate state and memory-model arguments; the throughput comparison does not rank them.
 - **Competing consumers:** How should each publication acquire exactly one consumer owner, unlike
   existing reliable fan-out? Study consumer release and reuse separately from producer contention.
 - **Dependencies:** What changes when a fixed dependency chain becomes a small static fork/join,
