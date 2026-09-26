@@ -64,6 +64,39 @@ minimal checksum so consumer work and payload reads remain observable to the opt
 Keep equivalent benchmark-side work, payload generation, validation, and termination conditions
 consistent across implementations.
 
+The two-producer `mpsc-serialized` and `mpsc-ordered` throughput modes compare complete
+implementations with one consumer and fixed inline payloads. Both generate each payload from its
+assigned FIFO position and validate every consumer completion in position order. The serialized
+route holds a producer mutex through position assignment, payload generation, full retries, and
+`BasicBoundedRing::try_push`. The ordered route claims a position with CAS, generates into its
+slot, and waits for its turn at one publication frontier. Each producer performs a fixed half of
+warmup and timed messages, with any odd remainder assigned to producer 0. Timed completion is the
+consumer's final validated handoff; the same payload generator and checksum are used in both
+routes. `--producer-cpus P0,P1 --consumer-cpu C` is an all-or-none three-role placement request,
+and metadata records both producer roles. Mutex admission, reservation retries, direct slot
+access, publication waiting, and cache traffic all differ. This is an implementation comparison,
+not an isolated frontier cost.
+
+## Publication-hole diagnostic
+
+`publication-hole` is a bounded progress workload for `mpsc-ordered`, not a rate or latency
+benchmark. It has no warmup, timed phase, or CPU placement. P0 claims position zero and waits
+before writing. P1 claims each of the remaining `Capacity - 1` positions, completes their
+payloads, and calls nonblocking `try_publish()` once for each claim before reporting readiness.
+The coordinator checks that one more claim fails and that the consumer sees no position. At this
+controlled snapshot, `Capacity` reservations and `Capacity - 1` payloads are complete, all
+`Capacity - 1` later publication attempts have been rejected, zero blocking publication calls
+have returned, zero positions are visible, and zero consumer completions have occurred. The
+probe establishes that the hole rejects later publication; it does not time scheduler entry into
+the following wait loop. No shared diagnostic counter is added to the mechanism hot path.
+
+The coordinator then allows P0 to write and publish. P1 publishes its held
+positions in order, and the consumer validates and releases all `Capacity`
+messages. The final count and checksum establish recovery after the deliberate
+delay. This workload demonstrates bounded admission and ordered progress, but
+does not measure stall duration, fairness, CPU use, or throughput. Its CSV has
+a separate progress schema so those counts cannot be mistaken for rates.
+
 ## Ping-pong latency
 
 Collect repeated round-trip time samples and report their distribution. A value derived as RTT/2 is

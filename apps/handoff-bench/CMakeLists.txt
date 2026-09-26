@@ -3,10 +3,12 @@ add_executable(
   main.cpp
   src/command.cpp
   src/fan_out.cpp
+  src/mpsc.cpp
   src/offered_load.cpp
   src/output.cpp
   src/pipeline.cpp
   src/ping_pong.cpp
+  src/publication_hole.cpp
   src/run_metadata.cpp
   src/throughput.cpp)
 target_include_directories(handoff-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/internal")

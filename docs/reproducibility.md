@@ -76,6 +76,25 @@ Run controlled forms under `taskset -c 0` so the blocked coordinator and unpinne
 on CPU 0. Consumer list order maps to fan-out consumer 0/1 and pipeline upstream/downstream. The
 benchmark rejects incomplete, duplicate, or producer-overlapping multi-consumer placement.
 
+The two-producer throughput comparison can be exercised with:
+
+```sh
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation mpsc-serialized --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5 \
+  --producer-cpus 1,2 --consumer-cpu 3
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation mpsc-ordered --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5 \
+  --producer-cpus 1,2 --consumer-cpu 3
+./build/release/apps/handoff-bench/handoff-bench run publication-hole \
+  --payload-bytes 64 --capacity 1024
+```
+
+For a controlled run on the historical four-core host, restrict the coordinator to CPU 0 and
+recheck current placement, interference, and repeatability first. The publication-hole command
+reports logical progress counts only; its output is not timing evidence.
+
 Fixed-record plumbing can be exercised with:
 
 ```sh

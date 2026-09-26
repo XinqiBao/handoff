@@ -18,6 +18,12 @@ function(expect_failure expected_exit expected_error)
 endfunction()
 
 expect_failure(2 "unknown option: --unknown" run throughput --unknown)
+expect_failure(
+  2 "option --iterations does not apply to publication-hole"
+  run publication-hole --iterations 10)
+expect_failure(
+  2 "option --producer-cpus does not apply to publication-hole"
+  run publication-hole --producer-cpus 1,2)
 expect_failure(2 "option --implementation does not apply to smoke" run smoke --implementation basic)
 expect_failure(2 "option --batch-size does not apply to ping-pong" run ping-pong --batch-size 4)
 expect_failure(
@@ -170,6 +176,30 @@ expect_failure(
   2
   "producer and consumer CPUs must be different"
   run throughput --producer-cpu 0 --consumer-cpu 0)
+expect_failure(
+  2
+  "MPSC implementations apply only to throughput"
+  run ping-pong --implementation mpsc-ordered)
+expect_failure(
+  2
+  "MPSC placement requires --producer-cpus and --consumer-cpu together"
+  run throughput --implementation mpsc-ordered --producer-cpus 1,2)
+expect_failure(
+  2
+  "MPSC producer and consumer CPUs must be distinct"
+  run throughput --implementation mpsc-serialized --producer-cpus 1,1 --consumer-cpu 2)
+expect_failure(
+  2
+  "MPSC producer and consumer CPUs must be distinct"
+  run throughput --implementation mpsc-ordered --producer-cpus 1,2 --consumer-cpu 2)
+expect_failure(
+  2
+  "--producer-cpus applies only to MPSC implementations"
+  run throughput --implementation basic --producer-cpus 1,2)
+expect_failure(
+  2
+  "--producer-cpus must contain exactly two non-negative integers"
+  run throughput --implementation mpsc-ordered --producer-cpus 1)
 expect_failure(
   1
   "unable to open output file"

@@ -36,6 +36,8 @@ std::string_view benchmark_name(Benchmark benchmark) {
     return "ping-pong";
   case Benchmark::offered_load:
     return "offered-load";
+  case Benchmark::publication_hole:
+    return "publication-hole";
   }
   throw std::logic_error("unknown benchmark");
 }
@@ -62,6 +64,10 @@ std::string_view implementation_name(Implementation implementation) {
     return "fan-out";
   case Implementation::fixed_record:
     return "fixed-record";
+  case Implementation::mpsc_ordered:
+    return "mpsc-ordered";
+  case Implementation::mpsc_serialized:
+    return "mpsc-serialized";
   case Implementation::pipeline:
     return "pipeline";
   case Implementation::sequence:
@@ -156,6 +162,39 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
     return false;
   }
 
+  if (benchmark == Benchmark::publication_hole) {
+    if (!results.progress) {
+      throw std::logic_error("publication-hole result is missing");
+    }
+    const auto& progress = *results.progress;
+    output << "# git_revision=" << optional_string_value(metadata.git_revision) << '\n'
+           << "# git_dirty=" << optional_bool_value(metadata.git_dirty) << '\n'
+           << "# compiler=" << metadata.system.compiler << '\n'
+           << "# compiler_version=" << metadata.system.compiler_version << '\n'
+           << "# build_mode=" << metadata.build_mode << '\n'
+           << "# operating_system=" << metadata.system.operating_system << '\n'
+           << "# cpu_model=" << metadata.system.cpu_model << '\n'
+           << "benchmark,implementation,payload_bytes,capacity_slots,claims_before_release,"
+              "payloads_completed_before_release,publication_attempts_rejected_before_release,"
+              "publication_returns_before_release,"
+              "visible_before_release,consumer_completions_before_release,"
+              "further_claim_rejected,final_consumer_completions,checksum\n"
+           << "publication-hole,mpsc-ordered," << options.payload_bytes << ','
+           << options.capacity_slots << ',' << progress.claimed_before_release << ','
+           << progress.payloads_completed_before_release << ','
+           << progress.publication_attempts_rejected_before_release << ','
+           << progress.publication_returns_before_release << ',' << progress.visible_before_release
+           << ',' << progress.consumer_completions_before_release << ','
+           << (progress.further_claim_rejected ? "true" : "false") << ','
+           << progress.final_consumer_completions << ',' << progress.checksum << '\n';
+    output.flush();
+    if (!output) {
+      std::cerr << "unable to write output file: " << path << '\n';
+      return false;
+    }
+    return true;
+  }
+
   output << "# git_revision=" << optional_string_value(metadata.git_revision) << '\n'
          << "# git_dirty=" << optional_bool_value(metadata.git_dirty) << '\n'
          << "# compiler=" << metadata.system.compiler << '\n'
@@ -169,7 +208,16 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
          << "# warmup=" << options.warmup << '\n'
          << "# trials=" << options.trials << '\n';
   if (benchmark != Benchmark::smoke) {
-    write_placement_metadata(output, "producer", results.producer_placement);
+    if (options.implementation == Implementation::mpsc_ordered ||
+        options.implementation == Implementation::mpsc_serialized) {
+      output << "# producer_count=" << mpsc_producer_count << '\n';
+      for (std::size_t index = 0; index < mpsc_producer_count; ++index) {
+        write_placement_metadata(output, "producer_" + std::to_string(index),
+                                 results.producer_placements[index]);
+      }
+    } else {
+      write_placement_metadata(output, "producer", results.producer_placement);
+    }
     if (options.implementation == Implementation::fan_out ||
         options.implementation == Implementation::pipeline) {
       const auto consumer_count = options.implementation == Implementation::fan_out
@@ -267,6 +315,24 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
 
 void print_results(Benchmark benchmark, const Options& options, const RunResults& results,
                    const RunMetadata& metadata) {
+  if (benchmark == Benchmark::publication_hole) {
+    if (!results.progress) {
+      throw std::logic_error("publication-hole result is missing");
+    }
+    const auto& progress = *results.progress;
+    std::cout << "publication-hole / mpsc-ordered / " << options.payload_bytes << " B / "
+              << options.capacity_slots << " slots\n"
+              << "before first publication: " << progress.claimed_before_release << " claims, "
+              << progress.payloads_completed_before_release << " payloads completed, "
+              << progress.publication_attempts_rejected_before_release
+              << " publication attempts rejected, " << progress.publication_returns_before_release
+              << " later publication returns, " << progress.visible_before_release << " visible, "
+              << progress.consumer_completions_before_release << " consumed, further claim "
+              << (progress.further_claim_rejected ? "rejected" : "accepted") << '\n'
+              << "after closing hole: " << progress.final_consumer_completions
+              << " consumed, checksum " << progress.checksum << '\n';
+    return;
+  }
   std::cout << benchmark_name(benchmark);
   if (benchmark == Benchmark::smoke) {
     std::cout << " (harness plumbing only; not a handoff benchmark)";
@@ -287,6 +353,9 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
         std::cout << " / " << fan_out_consumer_count << " consumers";
       } else if (options.implementation == Implementation::pipeline) {
         std::cout << " / " << pipeline_consumer_count << " stages";
+      } else if (options.implementation == Implementation::mpsc_ordered ||
+                 options.implementation == Implementation::mpsc_serialized) {
+        std::cout << " / " << mpsc_producer_count << " producers";
       }
     } else if (benchmark == Benchmark::offered_load) {
       std::cout << " / producer interval " << options.producer_interval_ns << " ns";
@@ -301,7 +370,14 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
   std::cout << "\nsystem: " << metadata.system.operating_system << ", "
             << metadata.system.architecture << ", " << metadata.system.compiler << ' '
             << metadata.system.compiler_version << '\n';
-  print_placement("producer", results.producer_placement);
+  if (options.implementation == Implementation::mpsc_ordered ||
+      options.implementation == Implementation::mpsc_serialized) {
+    for (std::size_t index = 0; index < mpsc_producer_count; ++index) {
+      print_placement("producer " + std::to_string(index), results.producer_placements[index]);
+    }
+  } else {
+    print_placement("producer", results.producer_placement);
+  }
   if (options.implementation == Implementation::fan_out ||
       options.implementation == Implementation::pipeline) {
     for (std::size_t index = 0; index < results.consumer_placements.size(); ++index) {

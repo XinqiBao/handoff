@@ -11,7 +11,7 @@
 
 namespace handoff::bench {
 
-enum class Benchmark { smoke, throughput, ping_pong, offered_load };
+enum class Benchmark { smoke, throughput, ping_pong, offered_load, publication_hole };
 enum class Implementation {
   basic,
   batch,
@@ -23,6 +23,8 @@ enum class Implementation {
   descriptor_record,
   fan_out,
   fixed_record,
+  mpsc_ordered,
+  mpsc_serialized,
   pipeline,
   sequence,
   sequence_payload,
@@ -30,6 +32,7 @@ enum class Implementation {
 };
 
 inline constexpr std::size_t fan_out_consumer_count = 2;
+inline constexpr std::size_t mpsc_producer_count = 2;
 inline constexpr std::size_t pipeline_consumer_count = 2;
 
 struct Options {
@@ -45,6 +48,7 @@ struct Options {
   std::uint64_t consumer_stall_every{0};
   std::uint64_t consumer_stall_ns{0};
   std::optional<unsigned int> producer_cpu;
+  std::optional<std::array<unsigned int, 2>> producer_cpus;
   std::optional<unsigned int> consumer_cpu;
   std::optional<std::array<unsigned int, 2>> consumer_cpus;
   std::optional<std::filesystem::path> output;
@@ -73,9 +77,23 @@ struct PlacementResult {
   platform::AffinityResult outcome;
 };
 
+struct ProgressResult {
+  std::size_t claimed_before_release{};
+  std::size_t payloads_completed_before_release{};
+  std::size_t publication_attempts_rejected_before_release{};
+  std::size_t publication_returns_before_release{};
+  std::size_t visible_before_release{};
+  std::size_t consumer_completions_before_release{};
+  bool further_claim_rejected{};
+  std::size_t final_consumer_completions{};
+  std::uint64_t checksum{};
+};
+
 struct RunResults {
   std::vector<TrialResult> trials;
+  std::optional<ProgressResult> progress;
   PlacementResult producer_placement;
+  std::array<PlacementResult, 2> producer_placements;
   PlacementResult consumer_placement;
   std::array<PlacementResult, 2> consumer_placements;
 };

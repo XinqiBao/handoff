@@ -21,8 +21,10 @@ provides equivalent correctness tests, steady-state throughput and ping-pong rou
 workloads, a C++23 build, and a small platform capability layer.
 
 The initial single-producer research phase and selected controlled Linux comparisons are complete.
-The current [research direction](docs/roadmap.md) examines concurrent claims, completion, ordered
-visibility, and bounded reuse before choosing further mechanisms.
+The first Phase II package adds a serialized two-producer control and a bounded concurrent-claim
+MPSC ring with one ordered publication frontier. Its publication-hole diagnostic exposes the
+difference between completed payload work and consumer-visible progress. The current
+[research direction](docs/roadmap.md) keeps later coordination designs as candidate questions.
 
 ## Requirements
 
@@ -63,19 +65,29 @@ presets are documented in [Reproducibility](docs/reproducibility.md).
   --implementation sequence-payload --payload-bytes 64 --capacity 1024 \
   --producer-interval-ns 0 --consumer-stall-every 0 --consumer-stall-ns 0 \
   --iterations 1000000 --warmup 10000 --trials 5
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation mpsc-ordered --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5
+./build/release/apps/handoff-bench/handoff-bench run publication-hole \
+  --payload-bytes 64 --capacity 64
 ```
 
 The `smoke` command checks timing, CLI, and result-output plumbing. Its timing is not a handoff
 performance result.
 
-Single-consumer commands support optional `--producer-cpu`, `--consumer-cpu`, and `--output`
-arguments. The fixed two-consumer `fan-out` and `pipeline` throughput modes instead accept complete
-placement through `--producer-cpu CPU --consumer-cpus CPU0,CPU1`; partial, duplicate, and
+Single-producer, single-consumer commands support optional `--producer-cpu`, `--consumer-cpu`, and
+`--output` arguments. The fixed two-consumer `fan-out` and `pipeline` throughput modes accept
+complete placement through `--producer-cpu CPU --consumer-cpus CPU0,CPU1`; partial, duplicate, and
 overlapping placement is rejected. List order maps to fan-out consumer 0/1 and pipeline
-upstream/downstream. Linux verifies the effective affinity mask after applying each request;
-macOS reports affinity as unsupported.
+upstream/downstream. Linux verifies the effective affinity mask after applying each request; macOS
+reports affinity as unsupported.
+The two-producer `mpsc-serialized` and `mpsc-ordered` throughput modes accept complete placement
+through `--producer-cpus CPU0,CPU1 --consumer-cpu CPU`; partial or overlapping placement is
+rejected. `publication-hole` is an untimed progress diagnostic for `mpsc-ordered` and accepts only
+payload size, slot capacity, and optional output path.
 Select `basic`, `batch`, `bulk`, `burst`, `byte-record`, `cache-line`, `cached-index`,
-`descriptor-record`, `fan-out`, `fixed-record`, `pipeline`, `sequence`, or `staged` with
+`descriptor-record`, `fan-out`, `fixed-record`, `mpsc-ordered`, `mpsc-serialized`, `pipeline`,
+`sequence`, or `staged` with
 `--implementation`. Throughput also supports `--batch-size 1|4|16` for the `basic`, `batch`,
 `bulk`, `burst`, and
 `staged` implementations. `bulk`, `burst`, `fan-out`, `pipeline`, and `staged` apply only to

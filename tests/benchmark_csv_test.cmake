@@ -106,12 +106,30 @@ function(validate_sequence_mode benchmark implementation expected_batch_size)
       endif()
     endforeach()
   endif()
+  if(implementation STREQUAL "mpsc-ordered" OR implementation STREQUAL "mpsc-serialized")
+    file(READ "${output_path}" contents)
+    foreach(metadata_pattern IN ITEMS
+        "# producer_count=2"
+        "# producer_0_cpu_requested=not-requested"
+        "# producer_0_cpu_effective=unavailable"
+        "# producer_0_affinity_outcome=not-requested"
+        "# producer_1_cpu_requested=not-requested"
+        "# producer_1_cpu_effective=unavailable"
+        "# producer_1_affinity_outcome=not-requested"
+        "# consumer_cpu_requested=not-requested")
+      if(NOT contents MATCHES "${metadata_pattern}")
+        message(FATAL_ERROR "${implementation} metadata matching '${metadata_pattern}' is missing")
+      endif()
+    endforeach()
+  endif()
 endfunction()
 
 validate_sequence_mode(throughput sequence 1)
 validate_sequence_mode(ping-pong sequence "")
 validate_sequence_mode(throughput fan-out 1)
 validate_sequence_mode(throughput pipeline 1)
+validate_sequence_mode(throughput mpsc-ordered 1)
+validate_sequence_mode(throughput mpsc-serialized 1)
 validate_sequence_mode(throughput fixed-record 1)
 validate_sequence_mode(ping-pong fixed-record "")
 
@@ -203,6 +221,25 @@ endfunction()
 validate_descriptor_record_mode(throughput 1)
 validate_descriptor_record_mode(ping-pong "")
 
+file(REMOVE "${output_path}")
+execute_process(
+  COMMAND "${BENCHMARK_EXECUTABLE}" run publication-hole --payload-bytes 8 --capacity 64
+          --output "${output_path}"
+  RESULT_VARIABLE result
+  OUTPUT_VARIABLE output
+  ERROR_VARIABLE error
+  TIMEOUT 30)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "publication-hole failed with ${result}\nstdout: ${output}\nstderr: ${error}")
+endif()
+file(READ "${output_path}" contents)
+if(NOT contents MATCHES
+   "benchmark,implementation,payload_bytes,capacity_slots,claims_before_release,payloads_completed_before_release,publication_attempts_rejected_before_release,publication_returns_before_release,visible_before_release,consumer_completions_before_release,further_claim_rejected,final_consumer_completions,checksum")
+  message(FATAL_ERROR "publication-hole CSV header is missing: ${contents}")
+endif()
+if(NOT contents MATCHES "publication-hole,mpsc-ordered,8,64,64,63,63,0,0,0,true,64,[0-9]+")
+  message(FATAL_ERROR "publication-hole CSV accounting is wrong: ${contents}")
+endif()
 file(REMOVE "${output_path}")
 execute_process(
   COMMAND

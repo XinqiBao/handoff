@@ -14,11 +14,12 @@ sequence contracts, lossy offered load, and a selective PMU follow-up. They esta
 results for one host and workload set, not a general ranking. The mechanism and experiment indexes
 identify the implemented variants and completed evidence.
 
-The next research boundary is concurrent ownership of bounded storage. With multiple producers,
-claim order can differ from completion order. A design must separately account for exclusive
-reservation, payload readiness, externally visible ordered progress, and safe reuse. A delayed
-producer can hold a publication hole even while later producers finish. That semantic distinction,
-rather than a topology checklist, motivates the first Phase II package.
+The first Phase II package implements concurrent ownership of bounded storage. With multiple
+producers, claim order can differ from completion order. The ordered-tail mechanism distinguishes
+exclusive reservation, payload readiness, externally visible ordered progress, and safe reuse.
+Its deterministic hole diagnostic shows that a delayed first claimant allows later producers to
+claim and finish payload work up to capacity, while their publication calls and the consumer
+remain behind the hole. This is a semantic and progress result, not a performance ranking.
 
 ## First research package: producer claims and ordered visibility
 
@@ -26,32 +27,29 @@ Question: when two producers reserve adjacent positions and complete payload wri
 order, what progress can each make while a single consumer must observe FIFO order and storage
 remains bounded?
 
-The first comparison should keep fixed-size inline slots, one consumer, lossless delivery, scalar
-operations, and the same payload work. A serialized producer route is a control for the cost and
-progress limits of exclusive whole-operation ownership. A concurrent-claim route should reserve
-distinct positions and publish one contiguous tail in claim order, exposing the classic ordered
-publication dependency. These are structural inspirations from DPDK, not API ports. Implement the
-smallest control that makes the comparison interpretable; an existing SPSC ring guarded by a
-producer lock may suffice if the exact ownership boundary is stated.
+The implemented comparison keeps fixed-size inline slots, one consumer, lossless delivery, scalar
+operations, and the same payload work. The serialized route holds a mutex across payload
+generation, full retries, and the basic SPSC push. The concurrent route reserves distinct
+positions with CAS and publishes one contiguous tail in claim order. These are structural
+inspirations from DPDK, not API ports. The [mechanism note](mechanisms/ordered-publication-mpsc.md)
+owns the exact contract and memory-model argument.
 
-Before implementation, write the precise API and invariants: claim uniqueness; capacity charged
-at reservation, including unfinished claims; no consumer access past a hole; release/acquire paths
-from each payload write to consumer read and from consumer release to producer reuse; generation or
-counter handling at physical wrap; finite sequence behavior; and the fate of an unfinished claim.
-In particular, an ordered tail cannot advance past an abandoned claim without an explicit recovery
-protocol. Do not silently promise cancellation or nonblocking completion.
+Claims charge capacity immediately. No consumer access crosses a hole; producer-to-consumer and
+consumer-to-reuse paths use release/acquire synchronization. Logical positions never wrap, though
+physical slots do. A claimed producer must eventually publish: cancellation and abandoned-claim
+recovery are outside this package.
 
-Use controlled scheduling in tests to pause the first claimant after reservation, finish the next
-payload, check that the consumer sees no hole, then release the first and verify order and safe
-reuse across wrap. Also test full capacity with claims in flight, unique ownership, and sustained
-integrity. TSan supports exercised executions; the C++ memory-order argument belongs in the
-mechanism note.
+Controlled tests pause the first claimant, finish later payloads, verify that the consumer sees
+no hole, then close it and check FIFO and reuse across wrap. They also cover full capacity,
+concurrent claim uniqueness, finite exhaustion, and sustained integrity. TSan supports exercised
+executions; the C++ memory-order argument remains in the mechanism note.
 
-Measure both a steady-state control comparison and a bounded producer-stall scenario if the latter
-can isolate reservation, completion, visible publication, consumer completion, and in-flight work.
-Define accounting and phase boundaries before collecting performance data. A test or smoke run
-alone is not controlled evidence. The stall result should determine whether per-slot availability
-or relaxed/cooperative tail advancement is the next useful comparison.
+The steady-state comparison measures completed handoffs. A separate bounded publication-hole
+diagnostic records reservation, payload completion, publication return, visibility, consumer
+completion, and backpressure at a controlled phase boundary. It does not measure rates or stall
+duration. Controlled Linux performance evidence remains a separate gate; smoke runs do not
+support a ranking. The diagnostic establishes that later completion is useful bounded in-flight
+work but cannot advance visibility under the chosen FIFO frontier.
 
 This package excludes multi-consumer ownership, variable-size allocation, cancellation/recovery,
 general wait policies, DPDK compatibility, and generic benchmark dispatch infrastructure.

@@ -15,6 +15,7 @@ add_executable(
   core_test.cpp
   descriptor_payload_ring_test.cpp
   fixed_record_ring_test.cpp
+  ordered_mpsc_test.cpp
   sequence_fan_out_test.cpp
   sequence_metadata_ring_test.cpp
   sequence_payload_ring_test.cpp
@@ -28,7 +29,7 @@ handoff_configure_target(handoff_tests)
 
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
 include(Catch)
-catch_discover_tests(handoff_tests DISCOVERY_MODE PRE_TEST)
+catch_discover_tests(handoff_tests DISCOVERY_MODE PRE_TEST PROPERTIES TIMEOUT 120)
 
 add_test(NAME benchmark.list COMMAND handoff-bench list)
 set_tests_properties(benchmark.list PROPERTIES PASS_REGULAR_EXPRESSION
@@ -70,6 +71,10 @@ add_test(
   COMMAND handoff-bench run offered-load --implementation sequence-payload --payload-bytes 8
           --capacity 64 --producer-interval-ns 1000 --consumer-stall-every 16
           --consumer-stall-ns 10000 --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.publication-hole
+  COMMAND handoff-bench run publication-hole --payload-bytes 8 --capacity 64)
+set_tests_properties(benchmark.publication-hole PROPERTIES TIMEOUT 30)
 add_test(
   NAME benchmark.cache-line-throughput-smoke
   COMMAND handoff-bench run throughput --implementation cache-line --payload-bytes 8 --capacity 64
