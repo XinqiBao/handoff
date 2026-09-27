@@ -140,27 +140,34 @@ template <typename Ring, std::size_t Bytes, std::size_t Capacity> RunResults run
   return results;
 }
 
-template <template <typename, std::size_t> typename Ring, std::size_t Bytes>
+template <Implementation Route, std::size_t Bytes, std::size_t Capacity>
+using ProbeRing =
+    std::conditional_t<Route == Implementation::mpsc_ordered,
+                       mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity>,
+                       std::conditional_t<Route == Implementation::mpsc_count,
+                                          mpsc::CompletionCountRing<Payload<Bytes>, Capacity>,
+                                          mpsc::SlotAvailabilityRing<Payload<Bytes>, Capacity>>>;
+
+template <Implementation Route, std::size_t Bytes>
 RunResults dispatch_capacity(const Options& options) {
   switch (options.capacity_slots) {
   case 64:
-    return run_probe<Ring<Payload<Bytes>, 64>, Bytes, 64>();
+    return run_probe<ProbeRing<Route, Bytes, 64>, Bytes, 64>();
   case 1'024:
-    return run_probe<Ring<Payload<Bytes>, 1'024>, Bytes, 1'024>();
+    return run_probe<ProbeRing<Route, Bytes, 1'024>, Bytes, 1'024>();
   default:
     throw std::logic_error("validated publication-hole capacity was not dispatched");
   }
 }
 
-template <template <typename, std::size_t> typename Ring>
-RunResults dispatch_payload(const Options& options) {
+template <Implementation Route> RunResults dispatch_payload(const Options& options) {
   switch (options.payload_bytes) {
   case 8:
-    return dispatch_capacity<Ring, 8>(options);
+    return dispatch_capacity<Route, 8>(options);
   case 64:
-    return dispatch_capacity<Ring, 64>(options);
+    return dispatch_capacity<Route, 64>(options);
   case 256:
-    return dispatch_capacity<Ring, 256>(options);
+    return dispatch_capacity<Route, 256>(options);
   default:
     throw std::logic_error("validated publication-hole payload size was not dispatched");
   }
@@ -171,11 +178,11 @@ RunResults dispatch_payload(const Options& options) {
 RunResults run_publication_hole(const Options& options) {
   switch (options.implementation) {
   case Implementation::mpsc_ordered:
-    return dispatch_payload<mpsc::OrderedPublicationRing>(options);
+    return dispatch_payload<Implementation::mpsc_ordered>(options);
   case Implementation::mpsc_count:
-    return dispatch_payload<mpsc::CompletionCountRing>(options);
+    return dispatch_payload<Implementation::mpsc_count>(options);
   case Implementation::mpsc_slot:
-    return dispatch_payload<mpsc::SlotAvailabilityRing>(options);
+    return dispatch_payload<Implementation::mpsc_slot>(options);
   default:
     throw std::logic_error("validated publication-hole implementation was not dispatched");
   }
