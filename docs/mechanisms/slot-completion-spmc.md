@@ -5,6 +5,8 @@ release with producer-discovered contiguous reuse. It has one ordered producer,
 competing consumers, live fixed inline slots, and one owner per published
 position. Consumers have const direct slot access until their final read and
 `release()`. The ring must outlive its tokens and threads.
+The benchmark keeps one claim in flight per worker; the API does not track
+worker identity and permits a caller to hold multiple claims.
 
 The sole producer claims at most one position at a time and writes its slot.
 `publish()` release-stores the next one-past position; `cancel()` leaves an
@@ -43,3 +45,9 @@ then check that the producer alone discovers the completed prefix when the
 hole closes. A second test leaves a newer owner unfinished. Shared tests
 cover exact capacity, repeated physical wrap, unique delivery, payload
 integrity, and finite exhaustion.
+
+The controlled [consumer-coordination comparison](../experiments/017-spmc-consumer-coordination.md)
+retains this route for its independent release-call return and producer-only
+prefix discovery. It measured above the other two complete routes in every
+canonical N150 row. One repeatability row was unusually high, so the data do
+not isolate the cause or a stable gap size.

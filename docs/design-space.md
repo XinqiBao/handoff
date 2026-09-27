@@ -40,6 +40,18 @@ completion, and name who discovers the reusable prefix. A worker's successful
 release is a handoff fact; fairness is a separate observed distribution, not a
 consequence of FIFO acquisition or aggregate throughput.
 
+The lifecycle is `free -> producer-owned -> published -> consumer-owned ->
+consumer-complete -> reusable`. **Consumer completion** follows the owner's
+last slot access and is represented by a release cursor or a matching slot
+tag. **Release-call return** says the owner finished its protocol; it may
+precede producer discovery. **Producer-visible reclamation** is the prefix
+that the producer has observed as safe; **physical reuse** occurs only when
+the producer next writes a mapped slot. The serialized route prevents a later
+acquisition across an owner hole. Shared claim plus ordered release allows
+overlapping work but waits at the release cursor. Shared claim plus independent
+slot completion lets later release calls return while producer reuse remains
+contiguous. All three require cooperation after consumer acquisition.
+
 A consumer dependency chain constrains a downstream consumer to advance only after its upstream
 dependency. A fixed chain and an arbitrary runtime dependency graph are distinct mechanism scopes.
 

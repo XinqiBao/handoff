@@ -76,6 +76,17 @@ Run controlled forms under `taskset -c 0` so the blocked coordinator and unpinne
 on CPU 0. Consumer list order maps to fan-out consumer 0/1 and pipeline upstream/downstream. The
 benchmark rejects incomplete, duplicate, or producer-overlapping multi-consumer placement.
 
+The same placement form applies to `spmc-serialized`, `spmc-ordered`, and
+`spmc-slot` throughput. These deliver each publication to one worker and end
+timing after the producer verifies the final reusable prefix. For example:
+
+```sh
+taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation spmc-slot --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5 \
+  --producer-cpu 1 --consumer-cpus 2,3
+```
+
 The two-producer throughput comparison can be exercised with:
 
 ```sh

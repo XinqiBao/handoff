@@ -2,8 +2,10 @@
 
 `OrderedReleaseRing<T, Capacity, Sequence>` studies shared consumer claims with
 one ordered release cursor. One producer publishes fixed inline values in
-position order; competing consumers each own at most one position. Each slot
-contains a live default-constructed `T`. This is work sharing, not fan-out.
+position order; the benchmark keeps one claim in flight per worker. The API
+does not track worker identity and permits a caller to hold multiple claims.
+Each slot contains a live default-constructed `T`. This is work sharing, not
+fan-out.
 
 The producer alone owns `next_publish` and one optional claim token. A
 successful `try_claim()` checks `next_publish - released < Capacity`, grants
@@ -42,3 +44,8 @@ failed nonblocking releases and full-capacity rejection, then close the hole.
 Another test holds a newer owner while the earlier prefix becomes reusable.
 Shared tests cover repeated physical wrap, unique delivery, payload integrity,
 and the finite boundary.
+
+The controlled [consumer-coordination comparison](../experiments/017-spmc-consumer-coordination.md)
+retains this route because later workers can acquire and process across a hole
+even though release calls wait. Its N150 rate lies between serialization and
+per-slot completion in the canonical rows, with one unexplained low row.

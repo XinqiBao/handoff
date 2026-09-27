@@ -30,7 +30,7 @@ across these areas.
 | Single-producer handoff and publication | Established baselines | Retain distinct ownership, batching, and sequence controls; revisit only for a new question. |
 | Record storage and lossy observation | Established baselines; selective follow-up | Mixed lengths, independent limits, and lifetime may justify new work. |
 | Producer coordination and completion | Established shared-ring comparison | Separate reservation, payload completion, publication-call return, ordered visibility, and reuse. |
-| Consumer coordination and work sharing | Next frontier | Give each publication one consumer owner; release and reuse differ from reliable fan-out. |
+| Consumer coordination and work sharing | Established three-route comparison | Unique acquisition, release-call return, and producer reuse have distinct progress contracts. |
 | Broadcast and dependencies | Fixed examples established; richer topology candidate | Explore small static fork/join or ordered stages when their invariants are isolatable. |
 | Helping and contiguous stage progress | Exploratory | Relate worker completion to stage visibility without a runtime graph framework. |
 | Selected MPMC composition | Exploratory, dependent on ownership work | Study only a bounded composition with a distinct semantic question. |
@@ -81,141 +81,57 @@ and capacities, and how a separate recovery protocol could handle an abandoned
 claim without violating bounded reuse. Those require their own protocols and
 evidence; the current program does not answer them.
 
+## Consumer-coordination program: conclusion
+
+The bounded fixed-slot SPMC question is answered for one ordered producer, two
+competing consumers in the canonical workload, and no abandoned-owner recovery.
+The [serialized control](mechanisms/serialized-consumer-spmc.md) holds a mutex
+from acquisition through release, so an early stalled owner prevents later
+acquisition. The [ordered-release ring](mechanisms/ordered-release-spmc.md)
+grants unique positions by CAS and permits overlapping processing, but later
+release calls wait for the shared predecessor cursor. The
+[slot-completion ring](mechanisms/slot-completion-spmc.md) also grants unique
+positions, lets later owners release and return across a hole, and makes the
+sole producer acquire-discover the contiguous safe reuse prefix. A returned
+release is not by itself physical reuse. The earliest unfinished physical slot
+eventually blocks cyclic publication in every route.
+
+All three keep direct slot access valid through the owner's final read, charge
+exact capacity, and stop at finite logical position exhaustion. The tests
+establish unique acquisition and payload integrity under cooperation, not
+exactly-once successful user effects or fairness. An abandoned owner retains
+capacity; no route provides recovery or operation-wide lock-free/wait-free
+progress. Exact C++ ordering arguments and ownership obligations live in
+the mechanism notes.
+
+[Experiment 017](experiments/017-spmc-consumer-coordination.md) contains
+three-owner untimed hole facts, correctness gates, and a controlled two-worker
+N150 comparison at exact CI-green SHA. Every canonical block measured slot
+completion above ordered release above serialization as complete routes.
+One ordered row dipped, and a targeted repeatability bracket found a high
+slot row; the cause and stable gap sizes remain unresolved. Host endpoint
+checks did not show thermal throttling but cannot exclude transient frequency
+or interference. Fan-out rates are not equivalent delivery.
+
+The three routes are retained because they separate acquisition overlap,
+release-call return, and producer discovery. A shared consumer completion
+count was skipped: it can delay an already-completed prefix behind a newer
+unfinished claim without a new consumer-side question. Consumer-helped
+reclamation and local turn-based reuse were skipped: producer-only discovery
+already answers the basic hole question, and one ordered cyclic producer
+cannot skip the earliest still-owned physical slot. Producer-owned SPSC
+partitioning changes FIFO merge authority. MPMC composition, owner failure,
+leases, timeouts, and cancellation after acquisition remain separate scope.
+
 ## Next frontier
 
-### Question and boundary
-
-For one producer and competing consumers of a bounded fixed-slot ring, how do
-unique acquisition, processing completion, return from `release()`, and safe
-producer reuse relate when consumers finish out of acquisition order? This is
-work sharing: each published position has one consumer owner. It is distinct
-from reliable fan-out, where every reader must receive every publication.
-Fan-out is a semantic contrast, not an equivalent throughput control.
-
-Keep the producer single and its publication ordered so consumer coordination
-is the variable. Begin with a fixed small consumer count, one outstanding
-position per consumer, exact slot capacity, and finite non-wrapping logical
-positions. The mechanism guarantees at most one owner per acquired position,
-producer-to-owner visibility, and no overwrite while an owner may still access
-its slot. Under cooperating participants, every published position is eventually
-acquired and its owner calls `release()` after its final access. This is not an
-exactly-once successful processing guarantee: user work can fail, and the ring
-cannot verify its effects. An abandoned acquired position retains capacity;
-recovery, cancellation after acquisition, owner death, leases, and timeouts are
-separate questions. Producer claim cancellation before publication can follow
-the existing single-producer token contract.
-
-The conceptual lifecycle is `free -> producer-owned -> published ->
-consumer-owned -> consumer-complete -> reusable`. Acquisition assigns a unique
-FIFO position; it does not mean processing has finished. Consumer completion is
-the owner's final slot access followed by a release operation. A release call
-may either wait for its turn or record completion and return; the latter does
-not by itself make the slot reusable. The producer may overwrite a physical
-slot only after it has acquired proof that the previous owner finished. In the
-initial cyclic mapping, the producer publishes positions in order, so an early
-unfinished slot eventually blocks wrap even if later consumers finish. FIFO
-describes assignment of positions, not wall-clock processing completion or a
-fair distribution of work across consumers.
-
-### Representative design points
-
-1. **Serialized consumer control.** Use a small fixed ring whose competing
-   consumer operations hold one mutex across acquisition, payload access, and
-   release; keep the producer independent. This establishes the same complete
-   handoff contract but admits only one consumer operation at a time. It is a
-   useful control for the cost of allowing overlapping work, not an isolated
-   atomic-cost baseline. Keep its implementation and contract small and explicit;
-   do not pass the existing SPSC ring's single-thread consumer role among workers.
-   A stalled owner prevents other consumers from acquiring; the producer can
-   fill remaining capacity.
-2. **Shared claim, ordered release.** A CAS grants each consumer a distinct
-   published position. A consumer finishing a later position waits for the
-   preceding release cursor before returning from `release()`, then advances
-   that cursor. The producer gates reuse on the contiguous cursor. This asks
-   whether concurrent ownership and processing are useful even when completion
-   calls serialize at the release frontier. A stalled early owner lets later
-   consumers acquire and do work, but their release calls cannot return; an
-   abandoned owner permanently blocks the frontier. A nonblocking release
-   attempt may make this progress property testable without scheduler timing.
-3. **Independent per-slot completion, producer-discovered reuse.** The unique
-   claim cursor remains, but each owner release-marks its own generation-tagged
-   slot and returns independently. The sole producer checks completed tags from
-   its oldest unreusable position and advances a contiguous reusable prefix
-   before admitting a new publication. This asks whether later workers can
-   finish and return across a hole without making unsafe reuse possible. A
-   stalled owner eventually stops the producer at capacity; when it finishes,
-   the producer alone can discover an already-completed prefix, even if a newer
-   owner is unfinished or no consumer acts again. Tags must identify the exact
-   logical generation. This is a distinct return/progress contract from ordered
-   release, not merely another implementation of its waiting call.
-
-These are two concurrent mechanisms plus one serialized control, not a quota.
-An RTS-like shared completion count is not an initial candidate: with a newer outstanding
-claim it can withhold an already-completed release prefix, repeating a known
-producer-side distinction without a new consumer question. Consumer-helped
-frontier advancement is also conditional; producer-only discovery already
-answers the basic hole question, while helping adds races and shared traffic.
-Per-slot local reuse without a global released cursor, as in
-[Rigtorp's bounded turn-based queue at a pinned revision](https://github.com/rigtorp/MPMCQueue/blob/b9808ede08f26fa9df4df4e081d19cace8f6c6ea/include/rigtorp/MPMCQueue.h)
-is a possible focused follow-up if the prefix representation itself
-becomes a question. With one ordered producer and cyclic positions, it cannot
-skip the first still-owned physical slot at wrap. That queue uses shared
-producer and consumer position claims plus per-slot acquire/release turn tags;
-its `pop` moves and destroys an object before releasing the slot, unlike the
-planned direct-slot processing lifetime. Its broader MPMC and dynamic-storage
-concerns are outside this program. An MPMC composition changes both ownership
-sides and is outside this program unless the consumer contract
-proves unintelligible in SPMC; the current model gives no such need.
-No route should claim operation-wide lock-free or wait-free progress merely
-because its ownership cursor uses CAS: a stalled owner can block reuse and a
-claimant can starve under contention.
-
-### Diagnostics and evidence
-
-Build deterministic ownership and progress tests before any timed comparison.
-Publish at least three positions; have C0 acquire N and wait on a latch, C1
-acquire N+1 and finish, and C2 acquire N+2 and finish. Verify unique ownership,
-which calls return, the reusable prefix, full-capacity rejection, and the
-absence of overwrite. Then close C0's hole and verify who advances reuse and
-whether N+1 becomes reusable while a still newer acquired position remains
-unfinished. Repeat across physical wrap and near the finite counter limit.
-Use latches/barriers and explicit state checks, not sleeps or scheduler luck.
-Keep this diagnostic untimed and separate from benchmark rates.
-
-Each mechanism note and test suite must justify the C++ synchronization chain:
-producer publication to consumer read; unique consumer claim; last consumer
-slot access to completion state; and completion state to the producer's next
-write of that physical slot. Ordered release must carry earlier owners' reads
-through the advancing tail; per-slot completion needs acquire observation of
-the matching generation before reuse. Cover empty/full, failed operations,
-adversarial holes, repeated reuse, payload integrity, finite exhaustion,
-abandoned-owner consequence, and concurrent distribution without claiming
-fairness from a passing integrity run. ASan/UBSan and TSan support exercised
-paths but do not prove the happens-before argument. Avoid blanket `seq_cst`.
-
-After correctness gates, use one equivalent complete-handoff workload: one
-producer, a fixed small set of consumers, the same fixed payload generation and
-validation, one final release per publication, and rate measured as fully
-processed and producer-verified reusable publications per second. The timed
-phase ends only after all worker releases and producer discovery of the final
-reusable prefix; add equivalent final-state checks for every route. Record
-per-consumer counts separately from correctness and throughput. Keep warmup,
-retries, placement, timed boundaries, and payload work equivalent. Verify full role
-placement on the controlled Linux host and use the exact-SHA, CI-green workflow
-in [Reproducibility](reproducibility.md). The historical N150 has four physical
-cores, so one producer plus three consumers leaves no spare core for a pinned
-coordinator; choose a defensible two-consumer canonical placement there, while
-the three-owner hole remains an untimed diagnostic. Add targeted sensitivity
-only for a concrete hypothesis or confound. Compare complete routes rather
-than calling a rate gap the cost of one atomic or inferring fairness from rate.
-
-Implement and validate one route at a time, interpret its progress diagnostic
-and canonical measurement, then decide whether the next point still isolates a
-useful distinction. The implementation program may reorder closely related
-packages, skip a redundant route, or add one small intermediate variant with a
-stated question. It should close with a synthesis of ownership, completion,
-release, reuse, retained mechanisms, skipped candidates, deterministic facts,
-host-specific observations, unresolved causes, and the next frontier. Move
-stable terms into [Design Space](design-space.md), exact contracts into mechanism
-notes, evidence into experiment records, and condense this active detail when
-the program is complete. Do not automatically designate MPMC as next.
+The immediate evidence gap is the cost behind the N150 complete-route
+differences. A targeted study should first establish whether shared claim
+traffic, ordered release waiting, per-slot tag traffic, or producer scanning
+dominates under the canonical workload, with a concrete counter or
+source-level ablation and repeatability controls. Perf-event access on the
+current host is restricted, so no cache/coherence cause is claimed. A
+separate semantic frontier is a small fixed dependency or fork/join stage
+that specifies completion and reuse under multiple owners without a runtime
+graph framework. Select it only when its invariant and equivalent workload
+are clear; do not infer that general MPMC is the automatic next step.

@@ -15,6 +15,7 @@ Each `try_acquire()` takes the consumer mutex. On empty it returns no token and
 unlocks. On success the token retains the mutex across all processing and
 `release()`. The token gives const direct slot access. `release()` advances both
 the mutex-protected acquisition cursor and atomic reusable prefix, then unlocks.
+The mutex itself enforces one outstanding consumer claim across all workers.
 Destroying an active consumer token terminates: cancellation after acquisition
 would otherwise create a permanent ownership hole. The ring must outlive tokens
 and participating threads. A consumer blocked on the mutex cannot acquire a
@@ -34,4 +35,8 @@ operation-wide lock-free or wait-free guarantee.
 
 The latch test holds an owner with a full ring, checks that a second consumer
 cannot return and the producer cannot overwrite, then closes the hole and
-checks physical reuse. A `uint8_t` test checks the finite boundary.
+checks physical reuse. A `uint8_t` test checks the finite boundary. In the
+controlled [consumer-coordination comparison](../experiments/017-spmc-consumer-coordination.md),
+this control measured below both concurrent routes on the N150 canonical
+workload; it differs in mutex admission and permitted processing overlap, so
+the gap is a complete-route observation.
