@@ -40,6 +40,17 @@ finished ranges. Release, a later stage, or the final consumer can help finalize
 ranges. This is a later composition of worker ownership and ordered stage progress, not a direct
 extension of the existing single-owner `handoff` pipeline.
 
+On the consumer side, classic multi-consumer dequeue CAS-reserves a unique head
+range, copies the objects, then waits for the preceding consumer tail before
+returning and making that range reusable to producers. RTS uses a consumer
+head/tail completion count: a finisher can return without waiting for its
+predecessor, while the tail position advances only when the count catches the
+head count. A newer outstanding dequeue can therefore delay an already-finished
+prefix. HTS admits one consumer transaction at a time by requiring consumer
+head and tail to match. These are dequeue/copy lifetimes in DPDK; `handoff`'s
+planned direct-slot work sharing keeps ownership until the worker's final slot
+access, which can be substantially later than a dequeue copy.
+
 ## Intentionally excluded
 
 - API or ABI compatibility with `rte_ring`;
@@ -51,19 +62,22 @@ extension of the existing single-owner `handoff` pipeline.
 ## Use in handoff
 
 The implemented SP/SC bulk, burst, and staged rings already isolate those operation shapes. The
-first multi-producer package studies claim order versus ordered tail publication,
-with a serialized producer control. The active program examines RTS-like producer completion counts
-as a distinct completion/visibility point; it need not adopt RTS consumer coordination or its
-distance gate. SORING remains a candidate for later staged-worker questions.
+first multi-producer package studied claim order versus ordered tail publication,
+with a serialized producer control. The completed producer program also studied an RTS-like
+completion count. The active consumer program uses classic consumer head/tail,
+RTS, HTS, and SORING to distinguish unique ownership, independent completion,
+and contiguous reuse; it does not copy DPDK's dequeue/copy lifetime or distance
+gate. SORING's multi-stage composition remains outside this focused program.
 
 ## Primary sources
 
 - [DPDK 25.11 Ring Library Programmer's Guide](https://doc.dpdk.org/guides-25.11/prog_guide/ring_lib.html)
 - [`rte_ring` 25.11 API reference](https://doc.dpdk.org/api-25.11/rte__ring_8h.html)
 - [Ring core definitions at a fixed revision](https://github.com/DPDK/dpdk/blob/d55ccd4e6de64e3f797f60de9e81f1d60f849775/lib/ring/rte_ring_core.h)
-- [Current classic producer head and ordered tail implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_elem_pvt.h)
+- [Current classic producer and consumer head/tail implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_elem_pvt.h)
 - [Current shared-head claim implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_c11_pvt.h)
-- [Current RTS producer coordination](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_rts_elem_pvt.h)
+- [Current RTS producer and consumer coordination](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_rts_elem_pvt.h)
 - [RTS mode contract and distance gate](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_rts.h)
 - [Current HTS coordination](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_hts.h)
+- [Current HTS consumer head/tail implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_hts_elem_pvt.h)
 - [Current SORING ordered-stage implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/soring.c)

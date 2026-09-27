@@ -25,8 +25,20 @@ the same publications.
 
 ## Delivery model
 
-- **Work sharing**: each message is consumed by one eligible consumer.
+- **Work sharing**: one consumer acquires exclusive ownership of each published
+  position. Unique acquisition does not guarantee successful execution of user
+  work; that requires participant cooperation and, for external effects, a
+  separate protocol.
 - **Broadcast (fan-out)**: independent consumers observe each required message.
+
+For work sharing, distinguish FIFO **acquisition** of positions from processing
+completion order, return from a consumer's release call, and producer-visible
+reclamation. A consumer can finish later work before an earlier owner, while
+cyclic slot reuse may still wait for the earliest unfinished physical slot.
+State whether release waits for a contiguous predecessor or records independent
+completion, and name who discovers the reusable prefix. A worker's successful
+release is a handoff fact; fairness is a separate observed distribution, not a
+consequence of FIFO acquisition or aggregate throughput.
 
 A consumer dependency chain constrains a downstream consumer to advance only after its upstream
 dependency. A fixed chain and an arbitrary runtime dependency graph are distinct mechanism scopes.
@@ -47,7 +59,7 @@ Candidate representations include head/tail indices, monotonic global sequences,
 sequences, consumer gating sequences, and separate reservation/commit state. These terms are not
 synonyms: documentation should name the state and the invariant it carries.
 
-For concurrent claims, distinguish exclusive ownership of a bounded slot, completed payload
+For concurrent producer claims, distinguish exclusive ownership of a bounded slot, completed payload
 initialization, completion of the producer's publication call, a consumer-visible contiguous
 publication frontier, consumer release, and physical slot reuse. Reservation order defines FIFO
 position for shared ordered rings; payload and call completion may occur in a different order. A
@@ -62,6 +74,16 @@ unfinished claims against bounded capacity; state whether release is the sole pe
 With producer-owned paths, define whether FIFO means per-producer order or a global merge order.
 These choices also determine what a stalled claimant can block and which participant must poll or
 help progress.
+
+For concurrent consumer claims, distinguish the shared next-to-acquire cursor,
+each owner's last slot access, independent completion metadata (if any), a
+contiguous producer-visible reusable frontier (if any), and actual overwrite of
+a physical slot. A shared claim cursor alone cannot authorize reuse: a claimed
+consumer may still read the slot. A stalled or abandoned owner is a release
+hole; later completion may be recorded without allowing the producer to cross
+that slot at wrap. Per-slot generation state and a shared release frontier are
+different representations, and helping the frontier is a separate choice from
+marking completion.
 
 The implemented completion-count route publishes only a whole completed claim
 group: a newer unfinished claim can keep an earlier ready prefix invisible after

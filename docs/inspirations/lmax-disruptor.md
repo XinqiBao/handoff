@@ -26,6 +26,15 @@ consumers release the old generation. The upstream claim cursor advances before 
 wait, so a bounded C++ adaptation may use a capacity-checked claim instead. This is conceptually
 distinct from one cooperative producer tail that already names the contiguous frontier.
 
+The historical 3.4.4 `WorkerPool` uses one shared `workSequence` CAS so a work
+item has one worker, and gates producer wrap with the workers' individual
+sequences. `WorkProcessor` records its prior sequence before claiming another;
+its worker callback completes before it proceeds. This is a useful work-sharing
+ownership model, but its handler, exception, release-aware callback, worker
+lifecycle, and Java memory semantics are not the proposed C++ direct-slot
+contract. The current revision pinned below no longer contains `WorkerPool` or
+`WorkProcessor`; cite the historical revision when discussing them.
+
 ## Intentionally excluded
 
 - the complete Java API, DSL, event-factory model, and handler lifecycle;
@@ -35,9 +44,10 @@ distinct from one cooperative producer tail that already names the contiguous fr
 
 ## Use in handoff
 
-The repository already studies single-producer sequence claims, publication, reliable fan-out, and
-a fixed dependency chain. Per-slot multi-producer availability is a possible follow-up to an
-ordered-tail baseline; it needs its own C++ memory-model argument, wrap proof, and adversarial tests.
+The repository already studies single-producer sequence claims, publication, reliable fan-out, a
+fixed dependency chain, and per-slot multi-producer availability. The work-sharing program may
+adapt historical shared worker claiming, with its own C++ memory-model argument, bounded reuse
+proof, and adversarial completion-hole tests.
 
 ## Primary sources
 
@@ -46,3 +56,5 @@ ordered-tail baseline; it needs its own C++ memory-model argument, wrap proof, a
 - [MultiProducerSequencer at the same revision](https://github.com/LMAX-Exchange/disruptor/blob/c871ca49826a6be7ada6957f6fbafcfecf7b1f87/src/main/java/com/lmax/disruptor/MultiProducerSequencer.java)
 - [ProcessingSequenceBarrier at the same revision](https://github.com/LMAX-Exchange/disruptor/blob/c871ca49826a6be7ada6957f6fbafcfecf7b1f87/src/main/java/com/lmax/disruptor/ProcessingSequenceBarrier.java)
 - [Original technical paper](https://lmax-exchange.github.io/disruptor/files/Disruptor-1.0.pdf)
+- [Historical 3.4.4 WorkerPool at a fixed revision](https://github.com/LMAX-Exchange/disruptor/blob/a87bf422e42451b9e2d2d1f0f8de5b61ab561da2/src/main/java/com/lmax/disruptor/WorkerPool.java)
+- [Historical 3.4.4 WorkProcessor at the same revision](https://github.com/LMAX-Exchange/disruptor/blob/a87bf422e42451b9e2d2d1f0f8de5b61ab561da2/src/main/java/com/lmax/disruptor/WorkProcessor.java)

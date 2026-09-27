@@ -44,6 +44,10 @@ Add tests beside the mechanism for obligations introduced by its design:
 - concurrent producer claims: unique reservation; reverse-order completion of adjacent claims;
   ordered visibility across a hole; closing the hole; full capacity with claims in flight; safe
   reuse across physical wrap; finite sequence behavior; and the declared fate of unfinished claims;
+- competing consumer claims: unique ownership; reverse-order completion across an acquired-item
+  hole; distinction between release-call return and reusable progress; full capacity with an owner
+  stalled; prefix discovery after the hole closes while a newer owner remains unfinished; safe
+  reuse across physical wrap; finite sequence behavior; and the declared fate of abandoned owners;
 - variable records: size bounds, alignment, padding markers, exact-tail cases, and almost-full wrap;
 - broadcast: independent progress, slowest-reader gating, and the declared reader lifecycle;
 - dependency pipelines: role ordering, unavailable downstream observations, dependency release and
