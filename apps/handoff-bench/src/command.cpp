@@ -23,28 +23,31 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 void print_usage(std::ostream& stream) {
-  stream << "Usage:\n"
-            "  handoff-bench help\n"
-            "  handoff-bench list\n"
-            "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
-            "[--output FILE]\n"
-            "  handoff-bench run offered-load [--implementation sequence-payload] "
-            "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
-            "      [--producer-interval-ns 0..1000000] "
-            "[--consumer-stall-every 0..1000000] "
-            "[--consumer-stall-ns 0..1000000000]\n"
-            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-            "[--consumer-cpu N] [--output FILE]\n"
-            "  handoff-bench run publication-hole [--payload-bytes 8|64|256] "
-            "[--capacity 64|1024] [--output FILE]\n"
-            "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation "
-            "basic|batch|bulk|burst|byte-record|cache-line|cached-index|descriptor-record|fan-out|"
-            "fixed-record|mpsc-ordered|mpsc-serialized|pipeline|sequence|staged] "
-            "[--payload-bytes 8|64|256] [--capacity 64|1024] "
-            "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
-            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-            "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n";
+  stream
+      << "Usage:\n"
+         "  handoff-bench help\n"
+         "  handoff-bench list\n"
+         "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
+         "[--output FILE]\n"
+         "  handoff-bench run offered-load [--implementation sequence-payload] "
+         "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
+         "      [--producer-interval-ns 0..1000000] "
+         "[--consumer-stall-every 0..1000000] "
+         "[--consumer-stall-ns 0..1000000000]\n"
+         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+         "[--consumer-cpu N] [--output FILE]\n"
+         "  handoff-bench run publication-hole [--implementation "
+         "mpsc-ordered|mpsc-count|mpsc-slot] "
+         "[--payload-bytes 8|64|256] "
+         "[--capacity 64|1024] [--output FILE]\n"
+         "  handoff-bench run <throughput|ping-pong> "
+         "[--implementation "
+         "basic|batch|bulk|burst|byte-record|cache-line|cached-index|descriptor-record|fan-out|"
+         "fixed-record|mpsc-count|mpsc-ordered|mpsc-serialized|mpsc-slot|pipeline|sequence|staged] "
+         "[--payload-bytes 8|64|256] [--capacity 64|1024] "
+         "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
+         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+         "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n";
 }
 
 template <typename Integer> std::optional<Integer> parse_integer(std::string_view text) {
@@ -104,8 +107,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       errors << "option " << argument << " does not apply to smoke\n";
       return std::nullopt;
     }
-    if (benchmark == Benchmark::publication_hole && argument != "--payload-bytes" &&
-        argument != "--capacity" && argument != "--output") {
+    if (benchmark == Benchmark::publication_hole && argument != "--implementation" &&
+        argument != "--payload-bytes" && argument != "--capacity" && argument != "--output") {
       errors << "option " << argument << " does not apply to publication-hole\n";
       return std::nullopt;
     }
@@ -177,10 +180,14 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::fan_out;
       } else if (value == "fixed-record") {
         options.implementation = Implementation::fixed_record;
+      } else if (value == "mpsc-count") {
+        options.implementation = Implementation::mpsc_count;
       } else if (value == "mpsc-ordered") {
         options.implementation = Implementation::mpsc_ordered;
       } else if (value == "mpsc-serialized") {
         options.implementation = Implementation::mpsc_serialized;
+      } else if (value == "mpsc-slot") {
+        options.implementation = Implementation::mpsc_slot;
       } else if (value == "pipeline") {
         options.implementation = Implementation::pipeline;
       } else if (value == "sequence") {
@@ -192,7 +199,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, byte-record, "
                   "cache-line, cached-index, descriptor-record, fan-out, fixed-record, "
-                  "mpsc-ordered, mpsc-serialized, pipeline, sequence, sequence-payload, staged\n";
+                  "mpsc-count, mpsc-ordered, mpsc-serialized, mpsc-slot, pipeline, sequence, "
+                  "sequence-payload, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -321,8 +329,10 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     return std::nullopt;
   }
 
-  const bool multi_producer = options.implementation == Implementation::mpsc_ordered ||
-                              options.implementation == Implementation::mpsc_serialized;
+  const bool multi_producer = options.implementation == Implementation::mpsc_count ||
+                              options.implementation == Implementation::mpsc_ordered ||
+                              options.implementation == Implementation::mpsc_serialized ||
+                              options.implementation == Implementation::mpsc_slot;
   const bool multi_consumer = options.implementation == Implementation::fan_out ||
                               options.implementation == Implementation::pipeline;
   if (multi_producer) {
@@ -384,6 +394,13 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       errors << "producer and consumer CPUs must be different\n";
       return std::nullopt;
     }
+  }
+  if (benchmark == Benchmark::publication_hole &&
+      options.implementation != Implementation::mpsc_ordered &&
+      options.implementation != Implementation::mpsc_count &&
+      options.implementation != Implementation::mpsc_slot) {
+    errors << "publication-hole requires mpsc-ordered, mpsc-count, or mpsc-slot\n";
+    return std::nullopt;
   }
   if (benchmark == Benchmark::throughput && options.batch_size > 1 &&
       options.implementation != Implementation::basic &&
@@ -503,7 +520,7 @@ int run(int argc, char* argv[]) {
                  "throughput\tSteady-state completed handoffs\n"
                  "ping-pong\tSPSC round-trip latency (RTT; RTT/2 is a proxy)\n"
                  "offered-load\tLossy offered and observed sequence-payload publications\n"
-                 "publication-hole\tBounded ordered-publication progress diagnostic\n";
+                 "publication-hole\tBounded MPSC publication progress diagnostic\n";
     return 0;
   }
 

@@ -1,7 +1,9 @@
 #include "workload_support.hpp"
 #include "workloads.hpp"
 
+#include "handoff/mpsc/completion_count_ring.hpp"
 #include "handoff/mpsc/ordered_publication_ring.hpp"
+#include "handoff/mpsc/slot_availability_ring.hpp"
 
 #include <atomic>
 #include <cstddef>
@@ -9,14 +11,15 @@
 #include <latch>
 #include <stdexcept>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace handoff::bench {
 namespace {
 
-template <std::size_t Bytes, std::size_t Capacity> RunResults run_probe() {
-  mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity> ring;
+template <typename Ring, std::size_t Bytes, std::size_t Capacity> RunResults run_probe() {
+  Ring ring;
   std::latch first_claimed{1};
   std::latch later_ready{1};
   std::latch close_hole{1};
@@ -45,7 +48,6 @@ template <std::size_t Bytes, std::size_t Capacity> RunResults run_probe() {
   }
 
   std::thread later([&] {
-    using Ring = mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity>;
     std::vector<typename Ring::ProducerClaim> claims;
     std::vector<bool> published_early;
     claims.reserve(Capacity - 1);
@@ -61,17 +63,24 @@ template <std::size_t Bytes, std::size_t Capacity> RunResults run_probe() {
     }
     later_claims = claims.size();
     for (auto& claim : claims) {
-      const bool published = claim.try_publish();
-      published_early.push_back(published);
-      if (!published) {
-        ++rejected_publications;
+      if constexpr (std::is_same_v<Ring, mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity>>) {
+        const bool published = claim.try_publish();
+        published_early.push_back(published);
+        if (!published) {
+          ++rejected_publications;
+        }
+      } else {
+        claim.publish();
+        later_publication_returns.fetch_add(1, std::memory_order_release);
       }
     }
     later_ready.count_down();
-    for (std::size_t index = 0; index < claims.size(); ++index) {
-      if (!published_early[index]) {
-        claims[index].publish();
-        later_publication_returns.fetch_add(1, std::memory_order_release);
+    if constexpr (std::is_same_v<Ring, mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity>>) {
+      for (std::size_t index = 0; index < claims.size(); ++index) {
+        if (!published_early[index]) {
+          claims[index].publish();
+          later_publication_returns.fetch_add(1, std::memory_order_release);
+        }
       }
     }
   });
@@ -108,10 +117,13 @@ template <std::size_t Bytes, std::size_t Capacity> RunResults run_probe() {
     observation->release();
     ++completions;
   }
-  if (!valid || later_claims != Capacity - 1 || rejected_publications != Capacity - 1 ||
-      !further_claim_rejected || visible_before_release != 0 ||
-      publication_returns_before_release != 0 || completions != Capacity ||
-      checksum != expected_checksum<Bytes>(Capacity)) {
+  constexpr bool ordered =
+      std::is_same_v<Ring, mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity>>;
+  if (!valid || later_claims != Capacity - 1 ||
+      rejected_publications != (ordered ? Capacity - 1 : 0) || !further_claim_rejected ||
+      visible_before_release != 0 ||
+      publication_returns_before_release != (ordered ? 0 : Capacity - 1) ||
+      completions != Capacity || checksum != expected_checksum<Bytes>(Capacity)) {
     throw std::runtime_error("publication-hole progress validation failed");
   }
 
@@ -128,29 +140,44 @@ template <std::size_t Bytes, std::size_t Capacity> RunResults run_probe() {
   return results;
 }
 
-template <std::size_t Bytes> RunResults dispatch_capacity(const Options& options) {
+template <template <typename, std::size_t> typename Ring, std::size_t Bytes>
+RunResults dispatch_capacity(const Options& options) {
   switch (options.capacity_slots) {
   case 64:
-    return run_probe<Bytes, 64>();
+    return run_probe<Ring<Payload<Bytes>, 64>, Bytes, 64>();
   case 1'024:
-    return run_probe<Bytes, 1'024>();
+    return run_probe<Ring<Payload<Bytes>, 1'024>, Bytes, 1'024>();
   default:
     throw std::logic_error("validated publication-hole capacity was not dispatched");
+  }
+}
+
+template <template <typename, std::size_t> typename Ring>
+RunResults dispatch_payload(const Options& options) {
+  switch (options.payload_bytes) {
+  case 8:
+    return dispatch_capacity<Ring, 8>(options);
+  case 64:
+    return dispatch_capacity<Ring, 64>(options);
+  case 256:
+    return dispatch_capacity<Ring, 256>(options);
+  default:
+    throw std::logic_error("validated publication-hole payload size was not dispatched");
   }
 }
 
 } // namespace
 
 RunResults run_publication_hole(const Options& options) {
-  switch (options.payload_bytes) {
-  case 8:
-    return dispatch_capacity<8>(options);
-  case 64:
-    return dispatch_capacity<64>(options);
-  case 256:
-    return dispatch_capacity<256>(options);
+  switch (options.implementation) {
+  case Implementation::mpsc_ordered:
+    return dispatch_payload<mpsc::OrderedPublicationRing>(options);
+  case Implementation::mpsc_count:
+    return dispatch_payload<mpsc::CompletionCountRing>(options);
+  case Implementation::mpsc_slot:
+    return dispatch_payload<mpsc::SlotAvailabilityRing>(options);
   default:
-    throw std::logic_error("validated publication-hole payload size was not dispatched");
+    throw std::logic_error("validated publication-hole implementation was not dispatched");
   }
 }
 

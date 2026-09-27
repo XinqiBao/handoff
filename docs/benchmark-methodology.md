@@ -77,9 +77,16 @@ and metadata records both producer roles. Mutex admission, reservation retries, 
 access, publication waiting, and cache traffic all differ. This is an implementation comparison,
 not an isolated frontier cost.
 
+`mpsc-count` and `mpsc-slot` use the same two-producer payload work, scalar claims,
+FIFO validation, completed-handoff numerator, placement, and yield retries. The
+count route adds one shared completion RMW per publication and occasional group-tail
+CAS; the slot route release-marks one generation tag and makes the consumer check
+that tag. These are complete-route comparisons with different progress semantics,
+not isolated instruction costs.
+
 ## Publication-hole diagnostic
 
-`publication-hole` is a bounded progress workload for `mpsc-ordered`, not a rate or latency
+`publication-hole` is a bounded progress workload for MPSC publication, not a rate or latency
 benchmark. It has no warmup, timed phase, or CPU placement. P0 claims position zero and waits
 before writing. P1 claims each of the remaining `Capacity - 1` positions, completes their
 payloads, and calls nonblocking `try_publish()` once for each claim before reporting readiness.
@@ -90,8 +97,16 @@ have returned, zero positions are visible, and zero consumer completions have oc
 probe establishes that the hole rejects later publication; it does not time scheduler entry into
 the following wait loop. No shared diagnostic counter is added to the mechanism hot path.
 
-The coordinator then allows P0 to write and publish. P1 publishes its held
-positions in order, and the consumer validates and releases all `Capacity`
+The same command accepts `--implementation mpsc-count|mpsc-slot`. In those routes,
+the later owner publishes every remaining claim and all `Capacity - 1` calls return
+before the first owner is released. Rejected attempts are zero; no position is
+visible and another claim fails. The count and slot routes differ after an early
+hole closes while a newer claim remains unfinished; deterministic mechanism tests
+cover that group-tail lag and consumer prefix discovery separately.
+
+The coordinator then allows P0 to write and publish. In the ordered route, P1
+publishes its held positions in order; in the independent-completion routes P1
+already returned. The consumer validates and releases all `Capacity`
 messages. The final count and checksum establish recovery after the deliberate
 delay. This workload demonstrates bounded admission and ordered progress, but
 does not measure stall duration, fairness, CPU use, or throughput. Its CSV has

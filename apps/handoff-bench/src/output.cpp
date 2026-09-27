@@ -64,10 +64,14 @@ std::string_view implementation_name(Implementation implementation) {
     return "fan-out";
   case Implementation::fixed_record:
     return "fixed-record";
+  case Implementation::mpsc_count:
+    return "mpsc-count";
   case Implementation::mpsc_ordered:
     return "mpsc-ordered";
   case Implementation::mpsc_serialized:
     return "mpsc-serialized";
+  case Implementation::mpsc_slot:
+    return "mpsc-slot";
   case Implementation::pipeline:
     return "pipeline";
   case Implementation::sequence:
@@ -179,10 +183,10 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
               "publication_returns_before_release,"
               "visible_before_release,consumer_completions_before_release,"
               "further_claim_rejected,final_consumer_completions,checksum\n"
-           << "publication-hole,mpsc-ordered," << options.payload_bytes << ','
-           << options.capacity_slots << ',' << progress.claimed_before_release << ','
-           << progress.payloads_completed_before_release << ','
-           << progress.publication_attempts_rejected_before_release << ','
+           << "publication-hole," << implementation_name(options.implementation) << ','
+           << options.payload_bytes << ',' << options.capacity_slots << ','
+           << progress.claimed_before_release << ',' << progress.payloads_completed_before_release
+           << ',' << progress.publication_attempts_rejected_before_release << ','
            << progress.publication_returns_before_release << ',' << progress.visible_before_release
            << ',' << progress.consumer_completions_before_release << ','
            << (progress.further_claim_rejected ? "true" : "false") << ','
@@ -208,8 +212,10 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
          << "# warmup=" << options.warmup << '\n'
          << "# trials=" << options.trials << '\n';
   if (benchmark != Benchmark::smoke) {
-    if (options.implementation == Implementation::mpsc_ordered ||
-        options.implementation == Implementation::mpsc_serialized) {
+    if (options.implementation == Implementation::mpsc_count ||
+        options.implementation == Implementation::mpsc_ordered ||
+        options.implementation == Implementation::mpsc_serialized ||
+        options.implementation == Implementation::mpsc_slot) {
       output << "# producer_count=" << mpsc_producer_count << '\n';
       for (std::size_t index = 0; index < mpsc_producer_count; ++index) {
         write_placement_metadata(output, "producer_" + std::to_string(index),
@@ -320,8 +326,8 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
       throw std::logic_error("publication-hole result is missing");
     }
     const auto& progress = *results.progress;
-    std::cout << "publication-hole / mpsc-ordered / " << options.payload_bytes << " B / "
-              << options.capacity_slots << " slots\n"
+    std::cout << "publication-hole / " << implementation_name(options.implementation) << " / "
+              << options.payload_bytes << " B / " << options.capacity_slots << " slots\n"
               << "before first publication: " << progress.claimed_before_release << " claims, "
               << progress.payloads_completed_before_release << " payloads completed, "
               << progress.publication_attempts_rejected_before_release

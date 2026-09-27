@@ -12,6 +12,7 @@ add_executable(
   benchmark_support_test.cpp
   bounded_spsc_test.cpp
   bulk_burst_spsc_test.cpp
+  completion_mpsc_test.cpp
   core_test.cpp
   descriptor_payload_ring_test.cpp
   fixed_record_ring_test.cpp
@@ -75,6 +76,22 @@ add_test(
   NAME benchmark.publication-hole
   COMMAND handoff-bench run publication-hole --payload-bytes 8 --capacity 64)
 set_tests_properties(benchmark.publication-hole PROPERTIES TIMEOUT 30)
+add_test(
+  NAME benchmark.count-publication-hole
+  COMMAND handoff-bench run publication-hole --implementation mpsc-count --payload-bytes 8
+          --capacity 64)
+add_test(
+  NAME benchmark.slot-publication-hole
+  COMMAND handoff-bench run publication-hole --implementation mpsc-slot --payload-bytes 8
+          --capacity 64)
+add_test(
+  NAME benchmark.count-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation mpsc-count --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
+add_test(
+  NAME benchmark.slot-throughput-smoke
+  COMMAND handoff-bench run throughput --implementation mpsc-slot --payload-bytes 8 --capacity 64
+          --iterations 1000 --warmup 100 --trials 2)
 add_test(
   NAME benchmark.cache-line-throughput-smoke
   COMMAND handoff-bench run throughput --implementation cache-line --payload-bytes 8 --capacity 64

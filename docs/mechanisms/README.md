@@ -15,6 +15,8 @@ This directory documents mechanisms implemented by `handoff`.
 ## Producer coordination
 
 - [Ordered-publication MPSC ring](ordered-publication-mpsc.md)
+- [Completion-count MPSC ring](completion-count-mpsc.md)
+- [Slot-availability MPSC ring](slot-availability-mpsc.md)
 
 ## Broadcast and dependencies
 

@@ -467,8 +467,10 @@ RunResults run_throughput(const Options& options) {
     return run_fan_out_throughput(options);
   case Implementation::fixed_record:
     return dispatch_record_payload(options);
+  case Implementation::mpsc_count:
   case Implementation::mpsc_ordered:
   case Implementation::mpsc_serialized:
+  case Implementation::mpsc_slot:
     return run_mpsc_throughput(options);
   case Implementation::pipeline:
     return run_pipeline_throughput(options);

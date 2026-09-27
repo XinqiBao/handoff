@@ -106,7 +106,8 @@ function(validate_sequence_mode benchmark implementation expected_batch_size)
       endif()
     endforeach()
   endif()
-  if(implementation STREQUAL "mpsc-ordered" OR implementation STREQUAL "mpsc-serialized")
+  if(implementation STREQUAL "mpsc-count" OR implementation STREQUAL "mpsc-ordered" OR
+     implementation STREQUAL "mpsc-serialized" OR implementation STREQUAL "mpsc-slot")
     file(READ "${output_path}" contents)
     foreach(metadata_pattern IN ITEMS
         "# producer_count=2"
@@ -130,6 +131,8 @@ validate_sequence_mode(throughput fan-out 1)
 validate_sequence_mode(throughput pipeline 1)
 validate_sequence_mode(throughput mpsc-ordered 1)
 validate_sequence_mode(throughput mpsc-serialized 1)
+validate_sequence_mode(throughput mpsc-count 1)
+validate_sequence_mode(throughput mpsc-slot 1)
 validate_sequence_mode(throughput fixed-record 1)
 validate_sequence_mode(ping-pong fixed-record "")
 

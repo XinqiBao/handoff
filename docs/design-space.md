@@ -63,6 +63,14 @@ With producer-owned paths, define whether FIFO means per-producer order or a glo
 These choices also determine what a stalled claimant can block and which participant must poll or
 help progress.
 
+The implemented completion-count route publishes only a whole completed claim
+group: a newer unfinished claim can keep an earlier ready prefix invisible after
+its hole closes. The implemented generation-tagged slot route lets the consumer
+acquire-discover that prefix at its next position. Both charge claims until
+consumer release and stop at a finite position limit; neither recovers an
+abandoned owner. Their distinct publication state changes where contention occurs
+and who discovers progress, while preserving shared-ring claim-order FIFO.
+
 ## Ownership and publication
 
 Relevant operation shapes include:

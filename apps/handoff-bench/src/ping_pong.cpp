@@ -390,8 +390,10 @@ RunResults run_ping_pong(const Options& options) {
     throw std::logic_error("fan-out implementation is not a ping-pong mode");
   case Implementation::fixed_record:
     return dispatch_record_payload(options);
+  case Implementation::mpsc_count:
   case Implementation::mpsc_ordered:
   case Implementation::mpsc_serialized:
+  case Implementation::mpsc_slot:
     throw std::logic_error("MPSC implementations do not support ping-pong");
   case Implementation::pipeline:
     throw std::logic_error("pipeline implementation is not a ping-pong mode");

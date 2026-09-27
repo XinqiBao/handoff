@@ -89,6 +89,19 @@ The two-producer throughput comparison can be exercised with:
   --producer-cpus 1,2 --consumer-cpu 3
 ./build/release/apps/handoff-bench/handoff-bench run publication-hole \
   --payload-bytes 64 --capacity 1024
+# Independent producer completion and consumer slot discovery use the same shapes:
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation mpsc-count --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5 \
+  --producer-cpus 1,2 --consumer-cpu 3
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation mpsc-slot --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5 \
+  --producer-cpus 1,2 --consumer-cpu 3
+./build/release/apps/handoff-bench/handoff-bench run publication-hole \
+  --implementation mpsc-count --payload-bytes 64 --capacity 64
+./build/release/apps/handoff-bench/handoff-bench run publication-hole \
+  --implementation mpsc-slot --payload-bytes 64 --capacity 64
 ```
 
 For a controlled run on the historical four-core host, restrict the coordinator to CPU 0 and

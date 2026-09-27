@@ -2,7 +2,9 @@
 #include "workload_support.hpp"
 #include "workloads.hpp"
 
+#include "handoff/mpsc/completion_count_ring.hpp"
 #include "handoff/mpsc/ordered_publication_ring.hpp"
+#include "handoff/mpsc/slot_availability_ring.hpp"
 #include "handoff/spsc/basic_bounded_ring.hpp"
 
 #include <array>
@@ -21,15 +23,20 @@
 namespace handoff::bench {
 namespace {
 
-template <bool Ordered, std::size_t Bytes, std::size_t Capacity>
-using Ring = std::conditional_t<Ordered, mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity>,
-                                spsc::BasicBoundedRing<Payload<Bytes>, Capacity>>;
+template <Implementation Route, std::size_t Bytes, std::size_t Capacity>
+using Ring = std::conditional_t<
+    Route == Implementation::mpsc_ordered, mpsc::OrderedPublicationRing<Payload<Bytes>, Capacity>,
+    std::conditional_t<Route == Implementation::mpsc_count,
+                       mpsc::CompletionCountRing<Payload<Bytes>, Capacity>,
+                       std::conditional_t<Route == Implementation::mpsc_slot,
+                                          mpsc::SlotAvailabilityRing<Payload<Bytes>, Capacity>,
+                                          spsc::BasicBoundedRing<Payload<Bytes>, Capacity>>>>;
 
-template <bool Ordered, typename Queue, std::size_t Bytes>
+template <Implementation Route, typename Queue, std::size_t Bytes>
 void publish_messages(Queue& ring, std::mutex& producer_mutex, std::uint64_t& next_serial_position,
                       std::uint64_t count, std::uint64_t phase_base) {
   for (std::uint64_t message = 0; message < count; ++message) {
-    if constexpr (Ordered) {
+    if constexpr (Route != Implementation::mpsc_serialized) {
       auto claim = ring.try_claim();
       while (!claim) {
         std::this_thread::yield();
@@ -49,11 +56,11 @@ void publish_messages(Queue& ring, std::mutex& producer_mutex, std::uint64_t& ne
   }
 }
 
-template <bool Ordered, typename Queue, std::size_t Bytes>
+template <Implementation Route, typename Queue, std::size_t Bytes>
 void observe_messages(Queue& ring, std::uint64_t count, std::uint64_t phase_base,
                       std::uint64_t& checksum, std::atomic<bool>& valid) {
   for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
-    if constexpr (Ordered) {
+    if constexpr (Route != Implementation::mpsc_serialized) {
       auto observation = ring.try_observe();
       while (!observation) {
         std::this_thread::yield();
@@ -107,11 +114,11 @@ void validate_placement_or_cancel(
   throw std::runtime_error(role + " affinity failed: " + failed->outcome.message);
 }
 
-template <bool Ordered, std::size_t Bytes, std::size_t Capacity>
+template <Implementation Route, std::size_t Bytes, std::size_t Capacity>
 TrialResult run_trial(const Options& options, unsigned int trial,
                       std::array<PlacementResult, mpsc_producer_count>& producer_placements,
                       PlacementResult& consumer_placement) {
-  Ring<Ordered, Bytes, Capacity> ring;
+  Ring<Route, Bytes, Capacity> ring;
   std::mutex producer_mutex;
   std::uint64_t next_serial_position = 0;
   TrialControl control;
@@ -134,7 +141,7 @@ TrialResult run_trial(const Options& options, unsigned int trial,
       const auto warmup_count =
           options.warmup / mpsc_producer_count +
           static_cast<std::uint64_t>(index < options.warmup % mpsc_producer_count);
-      publish_messages<Ordered, Ring<Ordered, Bytes, Capacity>, Bytes>(
+      publish_messages<Route, Ring<Route, Bytes, Capacity>, Bytes>(
           ring, producer_mutex, next_serial_position, warmup_count, 0);
       signal_count(control.warmed);
       if (!wait_for_phase(control.begin_timed, control.cancel)) {
@@ -144,7 +151,7 @@ TrialResult run_trial(const Options& options, unsigned int trial,
       const auto timed_count =
           options.iterations / mpsc_producer_count +
           static_cast<std::uint64_t>(index < options.iterations % mpsc_producer_count);
-      publish_messages<Ordered, Ring<Ordered, Bytes, Capacity>, Bytes>(
+      publish_messages<Route, Ring<Route, Bytes, Capacity>, Bytes>(
           ring, producer_mutex, next_serial_position, timed_count, options.warmup);
     });
   }
@@ -156,14 +163,14 @@ TrialResult run_trial(const Options& options, unsigned int trial,
       return;
     }
 
-    observe_messages<Ordered, Ring<Ordered, Bytes, Capacity>, Bytes>(
-        ring, options.warmup, 0, warmup_checksum, control.valid);
+    observe_messages<Route, Ring<Route, Bytes, Capacity>, Bytes>(ring, options.warmup, 0,
+                                                                 warmup_checksum, control.valid);
     signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
       return;
     }
 
-    observe_messages<Ordered, Ring<Ordered, Bytes, Capacity>, Bytes>(
+    observe_messages<Route, Ring<Route, Bytes, Capacity>, Bytes>(
         ring, options.iterations, options.warmup, checksum, control.valid);
     stop = Clock::now();
     signal_done(control.done);
@@ -197,15 +204,15 @@ TrialResult run_trial(const Options& options, unsigned int trial,
           .checksum = checksum};
 }
 
-template <bool Ordered, std::size_t Bytes, std::size_t Capacity>
+template <Implementation Route, std::size_t Bytes, std::size_t Capacity>
 RunResults run_trials(const Options& options) {
   RunResults results;
   results.trials.reserve(options.trials);
   for (unsigned int trial = 1; trial <= options.trials; ++trial) {
     std::array<PlacementResult, mpsc_producer_count> producer_placements;
     PlacementResult consumer_placement;
-    auto result = run_trial<Ordered, Bytes, Capacity>(options, trial, producer_placements,
-                                                      consumer_placement);
+    auto result =
+        run_trial<Route, Bytes, Capacity>(options, trial, producer_placements, consumer_placement);
     if (trial == 1) {
       results.producer_placements = std::move(producer_placements);
       results.consumer_placement = std::move(consumer_placement);
@@ -215,25 +222,26 @@ RunResults run_trials(const Options& options) {
   return results;
 }
 
-template <bool Ordered, std::size_t Bytes> RunResults dispatch_capacity(const Options& options) {
+template <Implementation Route, std::size_t Bytes>
+RunResults dispatch_capacity(const Options& options) {
   switch (options.capacity_slots) {
   case 64:
-    return run_trials<Ordered, Bytes, 64>(options);
+    return run_trials<Route, Bytes, 64>(options);
   case 1'024:
-    return run_trials<Ordered, Bytes, 1'024>(options);
+    return run_trials<Route, Bytes, 1'024>(options);
   default:
     throw std::logic_error("validated MPSC capacity was not dispatched");
   }
 }
 
-template <bool Ordered> RunResults dispatch_payload(const Options& options) {
+template <Implementation Route> RunResults dispatch_payload(const Options& options) {
   switch (options.payload_bytes) {
   case 8:
-    return dispatch_capacity<Ordered, 8>(options);
+    return dispatch_capacity<Route, 8>(options);
   case 64:
-    return dispatch_capacity<Ordered, 64>(options);
+    return dispatch_capacity<Route, 64>(options);
   case 256:
-    return dispatch_capacity<Ordered, 256>(options);
+    return dispatch_capacity<Route, 256>(options);
   default:
     throw std::logic_error("validated MPSC payload size was not dispatched");
   }
@@ -243,10 +251,16 @@ template <bool Ordered> RunResults dispatch_payload(const Options& options) {
 
 RunResults run_mpsc_throughput(const Options& options) {
   if (options.implementation == Implementation::mpsc_ordered) {
-    return dispatch_payload<true>(options);
+    return dispatch_payload<Implementation::mpsc_ordered>(options);
+  }
+  if (options.implementation == Implementation::mpsc_count) {
+    return dispatch_payload<Implementation::mpsc_count>(options);
+  }
+  if (options.implementation == Implementation::mpsc_slot) {
+    return dispatch_payload<Implementation::mpsc_slot>(options);
   }
   if (options.implementation == Implementation::mpsc_serialized) {
-    return dispatch_payload<false>(options);
+    return dispatch_payload<Implementation::mpsc_serialized>(options);
   }
   throw std::logic_error("unknown MPSC implementation");
 }
