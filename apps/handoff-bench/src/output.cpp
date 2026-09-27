@@ -359,8 +359,10 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
         std::cout << " / " << fan_out_consumer_count << " consumers";
       } else if (options.implementation == Implementation::pipeline) {
         std::cout << " / " << pipeline_consumer_count << " stages";
-      } else if (options.implementation == Implementation::mpsc_ordered ||
-                 options.implementation == Implementation::mpsc_serialized) {
+      } else if (options.implementation == Implementation::mpsc_count ||
+                 options.implementation == Implementation::mpsc_ordered ||
+                 options.implementation == Implementation::mpsc_serialized ||
+                 options.implementation == Implementation::mpsc_slot) {
         std::cout << " / " << mpsc_producer_count << " producers";
       }
     } else if (benchmark == Benchmark::offered_load) {
@@ -376,8 +378,10 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
   std::cout << "\nsystem: " << metadata.system.operating_system << ", "
             << metadata.system.architecture << ", " << metadata.system.compiler << ' '
             << metadata.system.compiler_version << '\n';
-  if (options.implementation == Implementation::mpsc_ordered ||
-      options.implementation == Implementation::mpsc_serialized) {
+  if (options.implementation == Implementation::mpsc_count ||
+      options.implementation == Implementation::mpsc_ordered ||
+      options.implementation == Implementation::mpsc_serialized ||
+      options.implementation == Implementation::mpsc_slot) {
     for (std::size_t index = 0; index < mpsc_producer_count; ++index) {
       print_placement("producer " + std::to_string(index), results.producer_placements[index]);
     }

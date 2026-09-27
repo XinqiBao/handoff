@@ -92,6 +92,8 @@ add_test(
   NAME benchmark.slot-throughput-smoke
   COMMAND handoff-bench run throughput --implementation mpsc-slot --payload-bytes 8 --capacity 64
           --iterations 1000 --warmup 100 --trials 2)
+set_tests_properties(benchmark.count-throughput-smoke benchmark.slot-throughput-smoke
+                     PROPERTIES PASS_REGULAR_EXPRESSION "batch 1 / 2 producers")
 add_test(
   NAME benchmark.cache-line-throughput-smoke
   COMMAND handoff-bench run throughput --implementation cache-line --payload-bytes 8 --capacity 64
