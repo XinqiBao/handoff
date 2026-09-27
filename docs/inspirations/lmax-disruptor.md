@@ -19,10 +19,12 @@ is a separate choice; the system should not be described generically as lock-fre
 wait strategy uses a lock and condition.
 
 The current multi-producer sequencer atomically claims from a shared cursor and marks each slot's
-generation-tagged availability on publish. The cursor can include claimed but unpublished entries;
-consumers scan from their next required sequence to find the highest contiguous available entry.
-Gating prevents reuse across wrap before required consumers release the old generation. This is
-conceptually distinct from one cooperative producer tail that already names the contiguous frontier.
+generation-tagged availability in a separate flag array on publish. The cursor can include claimed
+but unpublished entries; the consumer sequence barrier scans from its next required sequence to
+find the highest contiguous available entry. Gating prevents reuse across wrap before required
+consumers release the old generation. The upstream claim cursor advances before its capacity-gating
+wait, so a bounded C++ adaptation may use a capacity-checked claim instead. This is conceptually
+distinct from one cooperative producer tail that already names the contiguous frontier.
 
 ## Intentionally excluded
 
@@ -42,4 +44,5 @@ ordered-tail baseline; it needs its own C++ memory-model argument, wrap proof, a
 - [Official Disruptor user guide](https://lmax-exchange.github.io/disruptor/user-guide/)
 - [Sequencer API at a fixed revision](https://github.com/LMAX-Exchange/disruptor/blob/c871ca49826a6be7ada6957f6fbafcfecf7b1f87/src/main/java/com/lmax/disruptor/Sequencer.java)
 - [MultiProducerSequencer at the same revision](https://github.com/LMAX-Exchange/disruptor/blob/c871ca49826a6be7ada6957f6fbafcfecf7b1f87/src/main/java/com/lmax/disruptor/MultiProducerSequencer.java)
+- [ProcessingSequenceBarrier at the same revision](https://github.com/LMAX-Exchange/disruptor/blob/c871ca49826a6be7ada6957f6fbafcfecf7b1f87/src/main/java/com/lmax/disruptor/ProcessingSequenceBarrier.java)
 - [Original technical paper](https://lmax-exchange.github.io/disruptor/files/Disruptor-1.0.pdf)

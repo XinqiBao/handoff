@@ -2,6 +2,8 @@
 
 This directory documents mechanisms implemented by `handoff`.
 
+## Point-to-point SPSC and publication variants
+
 - [Basic bounded SPSC ring](basic-bounded-spsc.md)
 - [Cache-line-separated bounded SPSC ring](cache-line-bounded-spsc.md)
 - [Cached-index bounded SPSC ring](cached-index-bounded-spsc.md)
@@ -9,14 +11,27 @@ This directory documents mechanisms implemented by `handoff`.
 - [Bulk/burst bounded SPSC ring](bulk-burst-bounded-spsc.md)
 - [Staged bounded SPSC ring](staged-bounded-spsc.md)
 - [Bounded sequence ring](bounded-sequence-ring.md)
+
+## Producer coordination
+
 - [Ordered-publication MPSC ring](ordered-publication-mpsc.md)
+
+## Broadcast and dependencies
+
 - [Bounded sequence fan-out](bounded-sequence-fan-out.md)
 - [Bounded sequence pipeline](bounded-sequence-pipeline.md)
+
+## Record and storage layouts
+
 - [Fixed-record SPSC ring](fixed-record-spsc.md)
 - [Variable-record SPSC byte ring](variable-record-spsc.md)
 - [Descriptor/payload SPSC ring](descriptor-payload-spsc.md)
 - [Sequence-addressed metadata ring](sequence-metadata-ring.md)
 - [Sequence-addressed metadata/payload ring](sequence-payload-ring.md)
+
+The serialized two-producer route is a benchmark control using the basic SPSC ring under a producer
+mutex; it is not a separate mechanism implementation. Its comparison is recorded in
+[Experiment 015](../experiments/015-mpsc-ordered-publication.md).
 
 Each future note should state:
 

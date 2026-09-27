@@ -48,9 +48,20 @@ sequences, consumer gating sequences, and separate reservation/commit state. The
 synonyms: documentation should name the state and the invariant it carries.
 
 For concurrent claims, distinguish exclusive ownership of a bounded slot, completed payload
-initialization, a consumer-visible contiguous publication frontier, and the consumer release that
-permits reuse. A claimed position is not necessarily ready or visible. A ready position after a hole
-is not necessarily consumable under ordered delivery.
+initialization, completion of the producer's publication call, a consumer-visible contiguous
+publication frontier, consumer release, and physical slot reuse. Reservation order defines FIFO
+position for shared ordered rings; payload and call completion may occur in a different order. A
+claimed position is not necessarily ready or visible. A ready position after a hole is not
+necessarily consumable under ordered delivery. A returned publication call need not imply that its
+position is visible, if the contract explicitly represents out-of-order completion.
+
+Out-of-order completion may be represented by a shared completion count, per-slot generation-tagged
+availability, or another explicit state. A shared frontier may be advanced by producers or found by
+the consumer. Completion representation and frontier owner are separate design dimensions. Charge
+unfinished claims against bounded capacity; state whether release is the sole permission for reuse.
+With producer-owned paths, define whether FIFO means per-producer order or a global merge order.
+These choices also determine what a stalled claimant can block and which participant must poll or
+help progress.
 
 ## Ownership and publication
 

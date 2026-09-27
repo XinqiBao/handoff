@@ -10,6 +10,9 @@ question, preserve individual trials where practical, and separate observations 
 Do not commit routine smoke timings as experimental evidence.
 Create a planned record only when a question has a defensible protocol and is promoted for
 execution. Earlier unmeasured plans remain in Git history, not in the active experiment index.
+One record may combine a deterministic diagnostic, canonical comparison, and targeted sensitivity
+checks when they answer one coherent question; a command or benchmark mode alone does not require
+its own record. Keep unrelated research questions separate.
 
 ## Completed experiments
 

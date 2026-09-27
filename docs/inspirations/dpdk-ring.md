@@ -18,9 +18,13 @@ be selected independently, including single-producer and single-consumer cases.
 RTS keeps concurrent reservations but adds head/tail update counts. Every finisher updates the tail
 count; only the finisher whose count catches the head count advances its position. This avoids the
 classic ordered tail wait in a finishing thread, while a missing earlier completion still prevents
-the visible tail from advancing. Its optional head/tail distance limit controls how far claims can
-run ahead. HTS allows a new claim only when head and tail match, serializing the whole operation;
-that is a different control point from classic concurrent claims.
+the visible tail from advancing. It publishes a completed claim group, not the first contiguous
+prefix of individually ready slots. If another claim is outstanding when a hole closes, the tail
+can remain behind that hole until the newer claim also finishes. Its configurable head/tail distance
+gate defaults to one eighth of capacity; the gate is distinct from physical capacity against the
+consumer tail and should be specified deliberately in a controlled adaptation. HTS allows a new
+claim only when head and tail match, serializing the whole operation; that is a different control
+point from classic concurrent claims.
 
 Bulk operations request a fixed count and fail if the complete request cannot be satisfied. Burst
 operations process as many entries as currently possible. Selected SP/SC and HTS modes also expose
@@ -48,8 +52,9 @@ extension of the existing single-owner `handoff` pipeline.
 
 The implemented SP/SC bulk, burst, and staged rings already isolate those operation shapes. The
 first multi-producer package studies claim order versus ordered tail publication,
-with a serialized producer control. RTS and SORING are candidate later questions only if observed
-progress behavior justifies their added state and coordination.
+with a serialized producer control. The active program examines RTS-like producer completion counts
+as a distinct completion/visibility point; it need not adopt RTS consumer coordination or its
+distance gate. SORING remains a candidate for later staged-worker questions.
 
 ## Primary sources
 
@@ -59,5 +64,6 @@ progress behavior justifies their added state and coordination.
 - [Current classic producer head and ordered tail implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_elem_pvt.h)
 - [Current shared-head claim implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_c11_pvt.h)
 - [Current RTS producer coordination](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_rts_elem_pvt.h)
+- [RTS mode contract and distance gate](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_rts.h)
 - [Current HTS coordination](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/rte_ring_hts.h)
 - [Current SORING ordered-stage implementation](https://github.com/DPDK/dpdk/blob/4f795ddd6a1fbdea97b7b254dea6d8f1f837a681/lib/ring/soring.c)
