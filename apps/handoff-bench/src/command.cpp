@@ -23,31 +23,31 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 void print_usage(std::ostream& stream) {
-  stream
-      << "Usage:\n"
-         "  handoff-bench help\n"
-         "  handoff-bench list\n"
-         "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
-         "[--output FILE]\n"
-         "  handoff-bench run offered-load [--implementation sequence-payload] "
-         "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
-         "      [--producer-interval-ns 0..1000000] "
-         "[--consumer-stall-every 0..1000000] "
-         "[--consumer-stall-ns 0..1000000000]\n"
-         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-         "[--consumer-cpu N] [--output FILE]\n"
-         "  handoff-bench run publication-hole [--implementation "
-         "mpsc-ordered|mpsc-count|mpsc-slot] "
-         "[--payload-bytes 8|64|256] "
-         "[--capacity 64|1024] [--output FILE]\n"
-         "  handoff-bench run <throughput|ping-pong> "
-         "[--implementation "
-         "basic|batch|bulk|burst|byte-record|cache-line|cached-index|descriptor-record|fan-out|"
-         "fixed-record|mpsc-count|mpsc-ordered|mpsc-serialized|mpsc-slot|pipeline|sequence|staged] "
-         "[--payload-bytes 8|64|256] [--capacity 64|1024] "
-         "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
-         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-         "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n";
+  stream << "Usage:\n"
+            "  handoff-bench help\n"
+            "  handoff-bench list\n"
+            "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
+            "[--output FILE]\n"
+            "  handoff-bench run offered-load [--implementation sequence-payload] "
+            "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
+            "      [--producer-interval-ns 0..1000000] "
+            "[--consumer-stall-every 0..1000000] "
+            "[--consumer-stall-ns 0..1000000000]\n"
+            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+            "[--consumer-cpu N] [--output FILE]\n"
+            "  handoff-bench run publication-hole [--implementation "
+            "mpsc-ordered|mpsc-count|mpsc-slot] "
+            "[--payload-bytes 8|64|256] "
+            "[--capacity 64|1024] [--output FILE]\n"
+            "  handoff-bench run <throughput|ping-pong> "
+            "[--implementation "
+            "basic|batch|bulk|burst|byte-record|cache-line|cached-index|descriptor-record|fan-out|"
+            "fixed-record|mpsc-count|mpsc-ordered|mpsc-serialized|mpsc-slot|pipeline|sequence|"
+            "spmc-ordered|spmc-serialized|spmc-slot|staged] "
+            "[--payload-bytes 8|64|256] [--capacity 64|1024] "
+            "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
+            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+            "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n";
 }
 
 template <typename Integer> std::optional<Integer> parse_integer(std::string_view text) {
@@ -194,13 +194,19 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         options.implementation = Implementation::sequence;
       } else if (value == "sequence-payload") {
         options.implementation = Implementation::sequence_payload;
+      } else if (value == "spmc-ordered") {
+        options.implementation = Implementation::spmc_ordered;
+      } else if (value == "spmc-serialized") {
+        options.implementation = Implementation::spmc_serialized;
+      } else if (value == "spmc-slot") {
+        options.implementation = Implementation::spmc_slot;
       } else if (value == "staged") {
         options.implementation = Implementation::staged;
       } else {
         errors << "--implementation must be one of: basic, batch, bulk, burst, byte-record, "
                   "cache-line, cached-index, descriptor-record, fan-out, fixed-record, "
                   "mpsc-count, mpsc-ordered, mpsc-serialized, mpsc-slot, pipeline, sequence, "
-                  "sequence-payload, staged\n";
+                  "sequence-payload, spmc-ordered, spmc-serialized, spmc-slot, staged\n";
         return std::nullopt;
       }
     } else if (argument == "--payload-bytes") {
@@ -333,8 +339,15 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
                               options.implementation == Implementation::mpsc_ordered ||
                               options.implementation == Implementation::mpsc_serialized ||
                               options.implementation == Implementation::mpsc_slot;
+  const bool spmc = options.implementation == Implementation::spmc_ordered ||
+                    options.implementation == Implementation::spmc_serialized ||
+                    options.implementation == Implementation::spmc_slot;
   const bool multi_consumer = options.implementation == Implementation::fan_out ||
-                              options.implementation == Implementation::pipeline;
+                              options.implementation == Implementation::pipeline || spmc;
+  if (spmc && benchmark != Benchmark::throughput) {
+    errors << "SPMC implementations apply only to throughput\n";
+    return std::nullopt;
+  }
   if (multi_producer) {
     if (benchmark != Benchmark::throughput && benchmark != Benchmark::publication_hole) {
       errors << "MPSC implementations apply only to throughput\n";
@@ -428,7 +441,7 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
   }
   if ((options.implementation == Implementation::sequence ||
        options.implementation == Implementation::fan_out ||
-       options.implementation == Implementation::pipeline || multi_producer) &&
+       options.implementation == Implementation::pipeline || multi_producer || spmc) &&
       options.warmup > std::numeric_limits<std::uint64_t>::max() - options.iterations) {
     errors << "--iterations plus --warmup exceeds the sequence range\n";
     return std::nullopt;

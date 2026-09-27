@@ -84,6 +84,17 @@ CAS; the slot route release-marks one generation tag and makes the consumer chec
 that tag. These are complete-route comparisons with different progress semantics,
 not isolated instruction costs.
 
+The `spmc-serialized`, `spmc-ordered`, and `spmc-slot` throughput routes use
+one producer and two competing workers. Each publication has one owner. All
+three use identical position-derived bytes, scalar direct-slot access, yield
+retries, a per-position seen count, and per-worker acquisition counts. The
+producer stops timing only after every release and its verification of the
+final reusable prefix. This includes reclamation work in the complete-route
+rate. The serialized mutex, ordered release cursor, and generation-tagged
+completion differ in progress semantics and coherence costs; rates do not
+isolate one instruction. Fan-out rates count two deliveries per publication
+and are not an equivalent work-sharing control.
+
 ## Publication-hole diagnostic
 
 `publication-hole` is a bounded progress workload for MPSC publication, not a rate or latency

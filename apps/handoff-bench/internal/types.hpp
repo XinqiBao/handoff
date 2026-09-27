@@ -30,12 +30,16 @@ enum class Implementation {
   pipeline,
   sequence,
   sequence_payload,
+  spmc_ordered,
+  spmc_serialized,
+  spmc_slot,
   staged
 };
 
 inline constexpr std::size_t fan_out_consumer_count = 2;
 inline constexpr std::size_t mpsc_producer_count = 2;
 inline constexpr std::size_t pipeline_consumer_count = 2;
+inline constexpr std::size_t spmc_consumer_count = 2;
 
 struct Options {
   std::uint64_t iterations{1'000'000};
@@ -71,6 +75,7 @@ struct TrialResult {
   std::optional<std::uint64_t> observed_payload_bytes{};
   std::optional<double> offered_messages_per_second{};
   std::optional<double> observed_messages_per_second{};
+  std::optional<std::array<std::uint64_t, spmc_consumer_count>> consumer_counts{};
 };
 
 struct PlacementResult {

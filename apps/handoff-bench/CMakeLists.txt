@@ -10,6 +10,7 @@ add_executable(
   src/ping_pong.cpp
   src/publication_hole.cpp
   src/run_metadata.cpp
+  src/spmc.cpp
   src/throughput.cpp)
 target_include_directories(handoff-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/internal")
 target_compile_definitions(

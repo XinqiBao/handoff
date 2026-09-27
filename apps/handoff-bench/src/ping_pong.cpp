@@ -401,6 +401,10 @@ RunResults run_ping_pong(const Options& options) {
     return dispatch_payload<QueueOperation::sequence, BenchmarkSequenceRing>(options);
   case Implementation::sequence_payload:
     throw std::logic_error("sequence-payload implementation is not a ping-pong mode");
+  case Implementation::spmc_ordered:
+  case Implementation::spmc_serialized:
+  case Implementation::spmc_slot:
+    throw std::logic_error("SPMC implementations do not support ping-pong");
   case Implementation::staged:
     throw std::logic_error("staged implementation is not a ping-pong mode");
   }

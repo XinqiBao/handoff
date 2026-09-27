@@ -78,6 +78,12 @@ std::string_view implementation_name(Implementation implementation) {
     return "sequence";
   case Implementation::sequence_payload:
     return "sequence-payload";
+  case Implementation::spmc_ordered:
+    return "spmc-ordered";
+  case Implementation::spmc_serialized:
+    return "spmc-serialized";
+  case Implementation::spmc_slot:
+    return "spmc-slot";
   case Implementation::staged:
     return "staged";
   }
@@ -225,10 +231,14 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
       write_placement_metadata(output, "producer", results.producer_placement);
     }
     if (options.implementation == Implementation::fan_out ||
-        options.implementation == Implementation::pipeline) {
-      const auto consumer_count = options.implementation == Implementation::fan_out
-                                      ? fan_out_consumer_count
-                                      : pipeline_consumer_count;
+        options.implementation == Implementation::pipeline ||
+        options.implementation == Implementation::spmc_ordered ||
+        options.implementation == Implementation::spmc_serialized ||
+        options.implementation == Implementation::spmc_slot) {
+      const auto consumer_count =
+          options.implementation == Implementation::fan_out    ? fan_out_consumer_count
+          : options.implementation == Implementation::pipeline ? pipeline_consumer_count
+                                                               : spmc_consumer_count;
       output << "# consumer_count=" << consumer_count << '\n';
       for (std::size_t index = 0; index < consumer_count; ++index) {
         write_placement_metadata(output, "consumer_" + std::to_string(index),
@@ -247,12 +257,13 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
             "iterations,trial,elapsed_ns,messages_per_second,latency_ns,latency_p95_ns,"
             "latency_p99_ns,checksum,producer_interval_ns,consumer_stall_every,consumer_stall_ns,"
             "offered_messages,observed_messages,overwritten_messages,retry_attempts,"
-            "observed_payload_bytes,offered_messages_per_second,observed_messages_per_second\n";
+            "observed_payload_bytes,offered_messages_per_second,observed_messages_per_second,"
+            "consumer_0_count,consumer_1_count\n";
   for (const auto& result : results.trials) {
     if (benchmark == Benchmark::smoke) {
       output << "smoke,harness,,,,," << options.iterations << ',' << result.trial << ','
              << result.elapsed_ns << ",,,,," << result.checksum;
-      write_empty_fields(output, 10);
+      write_empty_fields(output, 12);
       output << '\n';
     } else {
       output << benchmark_name(benchmark) << ',' << implementation_name(options.implementation)
@@ -308,6 +319,14 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
       } else {
         write_empty_fields(output, 10);
       }
+      output << ',';
+      if (result.consumer_counts) {
+        output << (*result.consumer_counts)[0];
+      }
+      output << ',';
+      if (result.consumer_counts) {
+        output << (*result.consumer_counts)[1];
+      }
       output << '\n';
     }
   }
@@ -357,6 +376,10 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
       std::cout << " / batch " << options.batch_size;
       if (options.implementation == Implementation::fan_out) {
         std::cout << " / " << fan_out_consumer_count << " consumers";
+      } else if (options.implementation == Implementation::spmc_ordered ||
+                 options.implementation == Implementation::spmc_serialized ||
+                 options.implementation == Implementation::spmc_slot) {
+        std::cout << " / " << spmc_consumer_count << " workers";
       } else if (options.implementation == Implementation::pipeline) {
         std::cout << " / " << pipeline_consumer_count << " stages";
       } else if (options.implementation == Implementation::mpsc_count ||
@@ -389,7 +412,10 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
     print_placement("producer", results.producer_placement);
   }
   if (options.implementation == Implementation::fan_out ||
-      options.implementation == Implementation::pipeline) {
+      options.implementation == Implementation::pipeline ||
+      options.implementation == Implementation::spmc_ordered ||
+      options.implementation == Implementation::spmc_serialized ||
+      options.implementation == Implementation::spmc_slot) {
     for (std::size_t index = 0; index < results.consumer_placements.size(); ++index) {
       print_placement("consumer " + std::to_string(index), results.consumer_placements[index]);
     }
@@ -442,7 +468,12 @@ void print_results(Benchmark benchmark, const Options& options, const RunResults
         std::cout << "rate unavailable (zero elapsed duration)";
       }
     }
-    std::cout << ", checksum " << result.checksum << '\n';
+    std::cout << ", checksum " << result.checksum;
+    if (result.consumer_counts) {
+      std::cout << ", worker counts " << (*result.consumer_counts)[0] << ','
+                << (*result.consumer_counts)[1];
+    }
+    std::cout << '\n';
   }
 
   if (benchmark == Benchmark::offered_load) {

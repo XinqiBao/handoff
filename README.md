@@ -26,6 +26,12 @@ two concurrent-claim MPSC designs: a cooperative completion count and per-slot g
 availability. Its publication-hole diagnostic separates returned calls from consumer-visible
 progress. The [research direction](docs/roadmap.md) records the current questions and limits.
 
+The consumer-coordination study adds a one-producer work-sharing family:
+serialized consumer ownership, shared claims with ordered release, and shared
+claims with per-slot completion and producer-discovered reuse. Each published
+position has one owner. Its complete-handoff throughput mode uses two workers;
+three-owner release holes remain untimed tests.
+
 ## Requirements
 
 - Clang with C++23 support
@@ -70,6 +76,9 @@ presets are documented in [Reproducibility](docs/reproducibility.md).
   --iterations 1000000 --warmup 10000 --trials 5
 ./build/release/apps/handoff-bench/handoff-bench run publication-hole \
   --implementation mpsc-slot --payload-bytes 64 --capacity 64
+./build/release/apps/handoff-bench/handoff-bench run throughput \
+  --implementation spmc-slot --payload-bytes 64 --capacity 1024 \
+  --iterations 1000000 --warmup 10000 --trials 5
 ```
 
 The `smoke` command checks timing, CLI, and result-output plumbing. Its timing is not a handoff
@@ -88,12 +97,14 @@ rejected. `publication-hole` is an untimed progress diagnostic for `mpsc-ordered
 and `mpsc-slot`; it accepts implementation, payload size, slot capacity, and optional output path.
 Select `basic`, `batch`, `bulk`, `burst`, `byte-record`, `cache-line`, `cached-index`,
 `descriptor-record`, `fan-out`, `fixed-record`, `mpsc-count`, `mpsc-ordered`, `mpsc-serialized`,
-`mpsc-slot`, `pipeline`, `sequence`, or `staged` with
+`mpsc-slot`, `pipeline`, `sequence`, `spmc-ordered`, `spmc-serialized`, `spmc-slot`, or `staged` with
 `--implementation`. Throughput also supports `--batch-size 1|4|16` for the `basic`, `batch`,
 `bulk`, `burst`, and
-`staged` implementations. `bulk`, `burst`, `fan-out`, `pipeline`, and `staged` apply only to
-throughput; `fixed-record` and `sequence` are scalar in both workloads. `fan-out` and `pipeline`
-each use two consumer threads. Run `handoff-bench help` for the complete option contract.
+`staged` implementations. `bulk`, `burst`, `fan-out`, `pipeline`, `spmc-ordered`,
+`spmc-serialized`, `spmc-slot`, and `staged` apply only to throughput;
+`fixed-record` and `sequence` are scalar in both workloads. The SPMC routes
+also use `--producer-cpu CPU --consumer-cpus CPU0,CPU1` placement and report
+per-worker counts. Run `handoff-bench help` for the complete option contract.
 
 Fixed-slot implementations use `--capacity 64|1024`. `byte-record` instead uses
 `--capacity-bytes 4096|65536`; the two options are mutually exclusive.

@@ -478,6 +478,10 @@ RunResults run_throughput(const Options& options) {
     return dispatch_payload<GroupOperation::sequence, BenchmarkSequenceRing>(options);
   case Implementation::sequence_payload:
     throw std::logic_error("sequence-payload does not support throughput");
+  case Implementation::spmc_ordered:
+  case Implementation::spmc_serialized:
+  case Implementation::spmc_slot:
+    return run_spmc_throughput(options);
   case Implementation::staged:
     return dispatch_payload<GroupOperation::staged, spsc::StagedBoundedRing>(options);
   }

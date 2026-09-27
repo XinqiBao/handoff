@@ -17,11 +17,15 @@ add_executable(
   descriptor_payload_ring_test.cpp
   fixed_record_ring_test.cpp
   ordered_mpsc_test.cpp
+  ordered_spmc_test.cpp
   sequence_fan_out_test.cpp
   sequence_metadata_ring_test.cpp
   sequence_payload_ring_test.cpp
   sequence_pipeline_test.cpp
   sequence_ring_test.cpp
+  serialized_spmc_test.cpp
+  slot_spmc_test.cpp
+  spmc_shared_test.cpp
   staged_spsc_test.cpp
   variable_record_ring_test.cpp)
 target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
@@ -94,6 +98,14 @@ add_test(
           --iterations 1000 --warmup 100 --trials 2)
 set_tests_properties(benchmark.count-throughput-smoke benchmark.slot-throughput-smoke
                      PROPERTIES PASS_REGULAR_EXPRESSION "batch 1 / 2 producers")
+foreach(route IN ITEMS spmc-serialized spmc-ordered spmc-slot)
+  add_test(
+    NAME benchmark.${route}-throughput-smoke
+    COMMAND handoff-bench run throughput --implementation ${route} --payload-bytes 8 --capacity 64
+            --iterations 1000 --warmup 100 --trials 2)
+  set_tests_properties(benchmark.${route}-throughput-smoke
+                       PROPERTIES PASS_REGULAR_EXPRESSION "batch 1 / 2 workers")
+endforeach()
 add_test(
   NAME benchmark.cache-line-throughput-smoke
   COMMAND handoff-bench run throughput --implementation cache-line --payload-bytes 8 --capacity 64

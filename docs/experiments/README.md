@@ -27,3 +27,7 @@ its own record. Keep unrelated research questions separate.
 - [Serialized ownership versus ordered MPSC publication](015-mpsc-ordered-publication.md)
 - [Independent MPSC completion and FIFO visibility](016-mpsc-producer-completion.md)
 - [Linux measurement host baseline](linux-host-baseline.md)
+
+## Active experiment
+
+- [Consumer coordination and work sharing](017-spmc-consumer-coordination.md)

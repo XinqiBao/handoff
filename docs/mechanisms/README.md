@@ -18,6 +18,12 @@ This directory documents mechanisms implemented by `handoff`.
 - [Completion-count MPSC ring](completion-count-mpsc.md)
 - [Slot-availability MPSC ring](slot-availability-mpsc.md)
 
+## Consumer coordination
+
+- [Serialized-consumer SPMC control](serialized-consumer-spmc.md)
+- [Ordered-release SPMC ring](ordered-release-spmc.md)
+- [Per-slot completion SPMC ring](slot-completion-spmc.md)
+
 ## Broadcast and dependencies
 
 - [Bounded sequence fan-out](bounded-sequence-fan-out.md)
