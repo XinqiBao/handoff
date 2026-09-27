@@ -25,4 +25,5 @@ its own record. Keep unrelated research questions separate.
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
 - [Lossy sequence-payload behavior under offered load](014-sequence-payload-offered-load.md)
 - [Serialized ownership versus ordered MPSC publication](015-mpsc-ordered-publication.md)
+- [Independent MPSC completion and FIFO visibility](016-mpsc-producer-completion.md)
 - [Linux measurement host baseline](linux-host-baseline.md)

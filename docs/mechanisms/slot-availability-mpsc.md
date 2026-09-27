@@ -46,3 +46,6 @@ Deterministic tests cover the hole, consumer prefix discovery with a newer claim
 unfinished, full capacity, wrap and release, finite exhaustion, and concurrent
 integrity. The common publication-hole diagnostic and scalar MPSC throughput
 workload exercise the route. Sanitizers cover executions, not all interleavings.
+
+The controlled [producer-completion comparison](../experiments/016-mpsc-producer-completion.md)
+records the complete-route N150 observation and its host limits.
