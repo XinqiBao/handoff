@@ -9,6 +9,22 @@ The supported toolchain is Clang with C++23, CMake 3.28 or newer, and Ninja. The
 configuration needs network access and Git to fetch the pinned Catch2 revision. clang-format and
 clang-tidy are needed only for their corresponding checks.
 
+## Current Linux host capability
+
+The recorded Intel N150 measurement host has four physical cores and no SMT. With three workers and
+a coordinator, all cores are occupied even when the coordinator is restricted to CPU 0. The stock
+OS still runs other processes and handles interrupts and softirqs; the repository does not establish
+dedicated IRQ or housekeeping isolation. Recent producer- and consumer-coordination experiments
+recorded run-to-run variability, and perf-event access is restricted on this host. Verified worker
+affinity and endpoint temperature/frequency checks establish placement and useful context, not
+uninterrupted per-trial execution or a fine cache/coherence cost breakdown.
+
+This host remains useful for correctness, benchmark plumbing, progress diagnostics, and conditional
+complete-route observations under recorded procedures. Serious fine-grained attribution requires a
+separately prepared measurement environment and an explicit question. Existing exact-SHA
+observations remain valid within their recorded conditions; their semantic tests do not depend on
+throughput precision. See [benchmark methodology](benchmark-methodology.md) for evidence terms.
+
 ## Two-machine revision workflow
 
 When development and controlled measurement use different machines, keep one authoritative

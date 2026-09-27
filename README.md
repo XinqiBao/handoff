@@ -1,8 +1,8 @@
 # handoff
 
-`handoff` is a C++ laboratory for studying and benchmarking bounded in-memory message handoff
-mechanisms. It favors small, readable implementations that isolate ownership, publication,
-sequencing, memory layout, batching, backpressure, fan-out, and contention.
+`handoff` is a C++ research laboratory for bounded in-memory message handoff. It favors small,
+readable implementations that isolate ownership, publication, sequencing, memory layout, batching,
+backpressure, fan-out, and contention.
 
 This project is for controlled experiments and systems-programming study. It is not a production
 IPC framework, a universal queue library, or an attempt to name one queue as universally fastest.
@@ -20,7 +20,7 @@ observed or overwritten under producer pacing and temporary observer stalls. The
 provides equivalent correctness tests, steady-state throughput and ping-pong round-trip latency
 workloads, a C++23 build, and a small platform capability layer.
 
-The initial single-producer research phase and selected controlled Linux comparisons are complete.
+The initial single-producer research phase and selected Linux comparisons are complete.
 The producer-completion study compares the serialized control and ordered-publication ring with
 two concurrent-claim MPSC designs: a cooperative completion count and per-slot generation-tagged
 availability. Its publication-hole diagnostic separates returned calls from consumer-visible
@@ -84,38 +84,12 @@ presets are documented in [Reproducibility](docs/reproducibility.md).
 The `smoke` command checks timing, CLI, and result-output plumbing. Its timing is not a handoff
 performance result.
 
-Single-producer, single-consumer commands support optional `--producer-cpu`, `--consumer-cpu`, and
-`--output` arguments. The fixed two-consumer `fan-out` and `pipeline` throughput modes accept
-complete placement through `--producer-cpu CPU --consumer-cpus CPU0,CPU1`; partial, duplicate, and
-overlapping placement is rejected. List order maps to fan-out consumer 0/1 and pipeline
-upstream/downstream. Linux verifies the effective affinity mask after applying each request; macOS
-reports affinity as unsupported.
-The two-producer `mpsc-serialized`, `mpsc-ordered`, `mpsc-count`, and `mpsc-slot` throughput modes
-accept complete placement through `--producer-cpus CPU0,CPU1 --consumer-cpu CPU`; partial or
-overlapping placement is
-rejected. `publication-hole` is an untimed progress diagnostic for `mpsc-ordered`, `mpsc-count`,
-and `mpsc-slot`; it accepts implementation, payload size, slot capacity, and optional output path.
-Select `basic`, `batch`, `bulk`, `burst`, `byte-record`, `cache-line`, `cached-index`,
-`descriptor-record`, `fan-out`, `fixed-record`, `mpsc-count`, `mpsc-ordered`, `mpsc-serialized`,
-`mpsc-slot`, `pipeline`, `sequence`, `spmc-ordered`, `spmc-serialized`, `spmc-slot`, or `staged` with
-`--implementation`. Throughput also supports `--batch-size 1|4|16` for the `basic`, `batch`,
-`bulk`, `burst`, and
-`staged` implementations. `bulk`, `burst`, `fan-out`, `pipeline`, `spmc-ordered`,
-`spmc-serialized`, `spmc-slot`, and `staged` apply only to throughput;
-`fixed-record` and `sequence` are scalar in both workloads. The SPMC routes
-also use `--producer-cpu CPU --consumer-cpus CPU0,CPU1` placement and report
-per-worker counts. Run `handoff-bench help` for the complete option contract.
-
-Fixed-slot implementations use `--capacity 64|1024`. `byte-record` instead uses
-`--capacity-bytes 4096|65536`; the two options are mutually exclusive.
-`descriptor-record` reports both native dimensions and supports the paired capacities
-`--capacity 64 --capacity-bytes 4096` and `--capacity 1024 --capacity-bytes 65536`.
-
-`offered-load` supports only `sequence-payload`. Producer intervals are bounded to 0 through
-1,000,000 ns. Consumer stall interval and duration must both be zero, which disables stalls, or
-both be positive; their maxima are 1,000,000 successful observations and 1,000,000,000 ns.
-Development-host and CI runs of this workload validate synchronization and output plumbing, not
-performance.
+Run `handoff-bench help` for the current option and workload contract. The
+[mechanism index](docs/mechanisms/README.md) maps implementations to their exact semantics;
+[benchmark methodology](docs/benchmark-methodology.md) defines what each result means, and
+[reproducibility](docs/reproducibility.md) covers placement and measurement procedure. Linux verifies
+each requested worker affinity mask; macOS reports affinity as unsupported. Development-host and CI
+timings validate plumbing, not comparative performance.
 
 ## Documentation
 

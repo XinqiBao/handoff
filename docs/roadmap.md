@@ -32,9 +32,12 @@ across these areas.
 | Producer coordination and completion | Established shared-ring comparison | Separate reservation, payload completion, publication-call return, ordered visibility, and reuse. |
 | Consumer coordination and work sharing | Established three-route comparison | Unique acquisition, release-call return, and producer reuse have distinct progress contracts. |
 | Broadcast and dependencies | Fixed examples established; richer topology candidate | Explore small static fork/join or ordered stages when their invariants are isolatable. |
-| Helping and contiguous stage progress | Exploratory | Relate worker completion to stage visibility without a runtime graph framework. |
+| Ordered worker-stage progress | Selected next program | Form a contiguous downstream-visible frontier from independently completed worker claims. |
 | Selected MPMC composition | Exploratory, dependent on ownership work | Study only a bounded composition with a distinct semantic question. |
 | Centralized versus partitioned coordination | Candidate architectural comparison | Producer-owned paths move ordering and polling costs to the consumer. |
+| Multi-participant storage and lossy delivery | Conditional candidates | Range ownership, payload lifetime, and detectable gaps need a specific question before combining dimensions. |
+| Abandoned ownership and recovery | Deferred protocol frontier | Failure detection, helping, cancellation, or time semantics exceed the current cooperative contracts. |
+| Performance attribution | Deferred measurement frontier | Source-level or counter evidence needs a stable effect and a suitable measurement environment. |
 
 This is a curated implementation catalog. A mechanism earns retention by exposing a meaningful
 semantic, progress, or structural distinction, including an instructive intermediate result. Faster
@@ -123,15 +126,72 @@ cannot skip the earliest still-owned physical slot. Producer-owned SPSC
 partitioning changes FIFO merge authority. MPMC composition, owner failure,
 leases, timeouts, and cancellation after acquisition remain separate scope.
 
-## Next frontier
+## Next program: ordered worker-stage progress
 
-The immediate evidence gap is the cost behind the N150 complete-route
-differences. A targeted study should first establish whether shared claim
-traffic, ordered release waiting, per-slot tag traffic, or producer scanning
-dominates under the canonical workload, with a concrete counter or
-source-level ablation and repeatability controls. Perf-event access on the
-current host is restricted, so no cache/coherence cause is claimed. A
-separate semantic frontier is a small fixed dependency or fork/join stage
-that specifies completion and reuse under multiple owners without a runtime
-graph framework. Select it only when its invariant and equivalent workload
-are clear; do not infer that general MPMC is the automatic next step.
+**Question:** With one producer, several workers sharing one fixed processing
+stage, and one ordered downstream observer, how does out-of-order worker
+completion form a safe contiguous frontier for downstream visibility while
+final downstream release alone permits producer reuse? The existing fixed
+pipeline has one owner per stage and therefore no completion holes. The SPMC
+work-sharing rings discover a reuse prefix but have no downstream stage that
+must see completed positions in order. Their composition creates a new
+ownership and lifetime boundary worth studying.
+
+Start from those existing semantic controls. Define one fixed, bounded,
+inline-slot mechanism with a producer, two competing stage workers, and one
+ordered downstream observer. A worker claims one unique published position,
+reads or processes its stable slot, then records completion independently.
+The downstream observer discovers only the contiguous completed prefix;
+it reads each position once in order and releases it before the producer may
+reuse that physical slot. State separately the producer publication cursor,
+stage claim cursor, worker completion tags, downstream-visible frontier,
+downstream release cursor, and physical reuse. A stalled early worker must
+block downstream visibility across its hole while later workers can finish
+and return. Closing the hole must expose the already-completed prefix even if
+a newer worker is still unfinished. Full capacity must still reject producer
+claims until downstream release. An abandoned stage owner remains unrecovered.
+
+The first package should settle the exact operations, finite-position limit,
+and C++ happens-before and storage-lifetime proof in a mechanism note, then
+demonstrate holes, prefix discovery, final-release gating, wrap reuse, and
+unique ownership in deterministic tests. Concurrent integrity, sanitizers,
+and portability gates follow before benchmark integration. If an untimed
+progress diagnostic makes a semantic distinction easier to inspect, add a
+small one; the deterministic tests may suffice. A complete-route benchmark
+is optional after correctness gates and needs equivalent per-position work
+for any compared route. On the current N150, treat its timing as exploratory
+unless a specific repeatable comparative claim earns stronger controls. A
+second stage, helped frontier, or alternative completion representation must
+answer a newly demonstrated question; none is a quota for this program.
+
+The program ends when the contracts, ordering argument, adversarial tests,
+and a bounded evidence record establish the visibility and reuse distinction,
+including limitations, and the roadmap states the resulting conclusion.
+DPDK's [SORING documentation and pinned source](inspirations/dpdk-ring.md)
+inform stage acquisition and contiguous finalization; the existing
+[Disruptor dependency note](inspirations/lmax-disruptor.md) informs ordered
+downstream gating. Neither is a compatibility target.
+
+## Why this program now
+
+It constructs a progress frontier from competing owners and then composes it
+with a downstream lifetime boundary. That adds a distinct invariant with
+deterministic evidence on the available host, while reusing the established
+SPMC and pipeline reasoning. A fixed fork/join would compose independent
+upstream frontiers, but the current fan-out minimum gate and single-owner
+pipeline already cover much of its basic machinery; revisit it when a
+specific branch/join ownership question emerges. Producer-owned SPSC paths
+move FIFO merge authority and fairness to the consumer, a valuable separate
+topology study whose comparison needs a chosen global-order contract.
+
+Selected MPMC could combine existing producer and consumer protocols, but
+topology completion alone does not justify another ring; require a new joint
+state or progress invariant. Multi-participant variable storage, lossy
+observation, and abandoned-owner recovery each change lifetime or delivery
+semantics enough to deserve their own bounded questions later. The N150
+complete-route rates are factual observations at recorded revisions, not a
+stable atomic/cache/coherence cost attribution. Its four cores, ordinary OS
+activity, observed variability, and restricted perf access make fine cost
+explanation a weaker immediate investment than the stage question. See
+[reproducibility](reproducibility.md) and
+[benchmark methodology](benchmark-methodology.md) for this evidence boundary.

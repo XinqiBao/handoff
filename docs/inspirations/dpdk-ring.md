@@ -64,10 +64,10 @@ access, which can be substantially later than a dequeue copy.
 The implemented SP/SC bulk, burst, and staged rings already isolate those operation shapes. The
 first multi-producer package studied claim order versus ordered tail publication,
 with a serialized producer control. The completed producer program also studied an RTS-like
-completion count. The active consumer program uses classic consumer head/tail,
-RTS, HTS, and SORING to distinguish unique ownership, independent completion,
-and contiguous reuse; it does not copy DPDK's dequeue/copy lifetime or distance
-gate. SORING's multi-stage composition remains outside this focused program.
+completion count. The completed consumer program used classic consumer head/tail, RTS, and HTS as
+references for unique ownership, independent completion, and contiguous reuse; it did not copy
+DPDK's dequeue/copy lifetime or distance gate. SORING is a primary reference for a future fixed
+worker stage, not an implemented handoff mechanism or a reason to add a general stage runtime.
 
 ## Primary sources
 

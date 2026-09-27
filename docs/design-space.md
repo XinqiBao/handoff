@@ -54,6 +54,11 @@ contiguous. All three require cooperation after consumer acquisition.
 
 A consumer dependency chain constrains a downstream consumer to advance only after its upstream
 dependency. A fixed chain and an arbitrary runtime dependency graph are distinct mechanism scopes.
+When several workers share an ordered stage, each may finish an acquired position independently,
+but the next ordered stage can observe only the contiguous completed prefix. This **stage frontier**
+is distinct from a worker's release-call return and from final consumer release that permits
+producer reuse. By contrast, a fixed fork/join combines progress from separate upstream
+dependencies; it need not construct a frontier from out-of-order completions within one stage.
 
 ## Overflow and delivery semantics
 

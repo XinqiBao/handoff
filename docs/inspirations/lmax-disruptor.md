@@ -45,9 +45,9 @@ contract. The current revision pinned below no longer contains `WorkerPool` or
 ## Use in handoff
 
 The repository already studies single-producer sequence claims, publication, reliable fan-out, a
-fixed dependency chain, and per-slot multi-producer availability. The work-sharing program may
-adapt historical shared worker claiming, with its own C++ memory-model argument, bounded reuse
-proof, and adversarial completion-hole tests.
+fixed dependency chain, and per-slot multi-producer availability. The completed work-sharing
+program adapted the shared-claim idea with its own C++ memory-model argument, bounded reuse proof,
+and adversarial completion-hole tests. It does not implement the historical WorkerPool lifecycle.
 
 ## Primary sources
 

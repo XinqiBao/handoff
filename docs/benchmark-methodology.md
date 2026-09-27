@@ -10,6 +10,22 @@ separately and does not imply a mechanism ranking.
 Correctness is a prerequisite for performance comparison. Smoke commands verify plumbing only and
 must not be presented as performance evidence.
 
+## Evidence and claim strength
+
+- **Semantic evidence** is a deterministic observation of an ownership, visibility, completion,
+  dependency, or reuse contract under a controlled interleaving. It does not measure rate.
+- **Correctness and stress evidence** covers tested histories and tool executions. It supports a
+  C++ memory-order argument but does not prove all executions correct.
+- **Exploratory performance observation** is a recorded rate or latency with its revision, host,
+  workload, placement, and procedure. It can motivate a question, but does not establish an
+  isolated cost or stable effect size.
+- **Controlled performance evidence** adds repeatability and relevant confounder controls adequate
+  for the specific comparative claim. It remains conditional on the tested host and workload.
+
+An experiment may contain several of these evidence types. State which observation supports each
+conclusion; do not promote a complete-route rate difference into a claim about an individual atomic,
+cache line, or coherence event without an experiment that isolates it.
+
 ## Workload categories
 
 - **Steady-state throughput** measures sustained handoff over a sufficiently long timed run.
