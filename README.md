@@ -35,7 +35,7 @@ three-owner release holes remain untimed tests.
 The ordered worker-stage ring adds two competing mutable workers and one ordered downstream
 consumer. Workers complete independently; downstream discovers their contiguous completed prefix,
 and its final release alone gates physical reuse. The [mechanism note](docs/mechanisms/ordered-worker-stage.md)
-records the lifecycle and ordering argument.
+and [Experiment 018](docs/experiments/018-ordered-worker-stage.md) record the lifecycle and evidence.
 
 ## Requirements
 

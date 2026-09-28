@@ -75,6 +75,7 @@ Deterministic tests hold an early worker while a later completion returns, close
 newer position unfinished, inspect final-release gating at exact capacity, and check stale tags
 after physical wrap and finite `uint8_t` exhaustion. A two-worker concurrent test checks unique
 ownership, ordered downstream position and transformed payload integrity over repeated wrap.
+[Experiment 018](../experiments/018-ordered-worker-stage.md) records the validation evidence.
 
 The fixed [pipeline](bounded-sequence-pipeline.md) supplies the final-stage reuse control; the
 [SPMC slot-completion ring](slot-completion-spmc.md) supplies the opposite-side prefix discovery
