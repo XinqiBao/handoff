@@ -28,6 +28,7 @@ This directory documents mechanisms implemented by `handoff`.
 
 - [Bounded sequence fan-out](bounded-sequence-fan-out.md)
 - [Bounded sequence pipeline](bounded-sequence-pipeline.md)
+- [Ordered worker-stage ring](ordered-worker-stage.md)
 
 ## Record and storage layouts
 

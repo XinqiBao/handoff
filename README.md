@@ -32,6 +32,11 @@ claims with per-slot completion and producer-discovered reuse. Each published
 position has one owner. Its complete-handoff throughput mode uses two workers;
 three-owner release holes remain untimed tests.
 
+The ordered worker-stage ring adds two competing mutable workers and one ordered downstream
+consumer. Workers complete independently; downstream discovers their contiguous completed prefix,
+and its final release alone gates physical reuse. The [mechanism note](docs/mechanisms/ordered-worker-stage.md)
+records the lifecycle and ordering argument.
+
 ## Requirements
 
 - Clang with C++23 support

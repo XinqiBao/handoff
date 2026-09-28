@@ -66,8 +66,10 @@ first multi-producer package studied claim order versus ordered tail publication
 with a serialized producer control. The completed producer program also studied an RTS-like
 completion count. The completed consumer program used classic consumer head/tail, RTS, and HTS as
 references for unique ownership, independent completion, and contiguous reuse; it did not copy
-DPDK's dequeue/copy lifetime or distance gate. SORING is a primary reference for a future fixed
-worker stage, not an implemented handoff mechanism or a reason to add a general stage runtime.
+DPDK's dequeue/copy lifetime or distance gate. SORING informed the fixed
+[ordered worker-stage ring](../mechanisms/ordered-worker-stage.md), which uses downstream-only
+prefix discovery instead of shared finalization and helping. It is not a reason to add a general
+stage runtime.
 
 ## Primary sources
 

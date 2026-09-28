@@ -18,6 +18,7 @@ add_executable(
   fixed_record_ring_test.cpp
   ordered_mpsc_test.cpp
   ordered_spmc_test.cpp
+  ordered_worker_stage_test.cpp
   sequence_fan_out_test.cpp
   sequence_metadata_ring_test.cpp
   sequence_payload_ring_test.cpp
