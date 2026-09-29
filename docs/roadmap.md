@@ -43,7 +43,7 @@ across these areas.
 | Failure and recovery semantics | Deferred region: abandoned producer, consumer, or stage ownership; cancellation, helping, identity, leases, or timeouts. | Requires a stated failure detector and recovery policy; cooperative progress tests do not answer it. |
 | Bounded verification | Conditional method campaign: tiny-state exhaustive models or CBMC on a specific small invariant. | Add only when a model can distinguish real histories or expose an untested C++ assumption; relate model assumptions to implementation tests. |
 | Controlled performance attribution | Conditional measurement campaign: PMU, coherence, workload, and placement hypotheses. | Needs a stable effect and a prepared host; the current N150 is suitable for semantics, stress, plumbing, and cautious complete-route observations. |
-| Repository consolidation | Conditional future engineering campaign after accumulated maintenance evidence. | Review history, structure, CLI/output schemas, tests/build, and documentation ownership without hiding mechanism semantics in generic abstractions. |
+| Repository consolidation | The approved information and benchmark-discovery migration is complete; continue to watch integration drift. | The catalog covers all 24 assets. Benchmark-private route descriptors centralize names, workload support, role shape, and capacity presentation without changing mechanism code or research semantics. |
 
 These regions interact but are not a matrix to implement. Fixed-slot topology work may reveal a
 later storage or recovery question; crossing that boundary requires a new campaign decision. The
@@ -343,7 +343,7 @@ distinguish, and controlled fine cost attribution still lacks a suitable host. T
 remain as described above. There is no sufficiently justified next program now; the research loop
 stops at this checkpoint without an owner-level decision.
 
-## Repository health and later consolidation
+## Repository health and information consolidation
 
 The first post-topology reassessment found no case for a dedicated consolidation campaign.
 Benchmark-backed MPSC and SPMC additions each crossed command validation, workload dispatch,
@@ -360,11 +360,22 @@ The variable-record program again added only a mechanism-local header, tests, no
 entries. It did not touch benchmark classification or output. This does not erase the earlier
 reporting omission, but it adds no new recurring pressure for consolidation.
 
+The later public-discovery review found a narrower information problem than source layout:
+24 independently useful assets were listed without direct source/test/evidence routes, while
+benchmark names and role/capacity classifications recurred in parsing and reporting. The
+[mechanism catalog](mechanisms/README.md) now owns the complete asset map and conceptual reading
+paths. The benchmark-private descriptor table owns executable route names, workload support, role
+shape, and capacity presentation. The same CLI keeps historical workload-first commands and adds
+mechanism-first exploratory runs. Exact contracts, memory-order arguments, experiment procedures,
+negative results, and SHA evidence remain in their original tracked notes and records. No
+mechanism source relocation, generic queue abstraction, extra teaching binary, or timed route for
+semantic-only assets was justified. This migration makes discovery easier but does not answer a
+new performance question or change the stopped research campaign.
+
 At later checkpoints, preserve only recurring or consequential structural observations here with
 the affected change history and practical impact. Fix correctness, stale facts, or a clear local
-obstacle immediately; otherwise continue research. A dedicated consolidation campaign becomes
-eligible when several programs show the same maintenance pressure, add/remove cost is dominated by
-unrelated edits, or navigation and documentation ownership materially degrade. It should inspect
-these observations and Git history, then review source layout, mechanism catalog, CLI/workload/output
-boundaries, test and CMake structure, documentation, and CI. Any changes must preserve local
-mechanism readability and explicit semantics; more abstraction is not an objective by itself.
+obstacle immediately; otherwise continue research. Revisit broader consolidation only if several
+programs expose new recurring pressure or the present ownership model proves costly. Inspect Git
+history and concrete changes to source layout, CLI/workload/output boundaries, tests/build, and
+documentation before changing the structure. Local mechanism readability and explicit semantics
+remain constraints; more abstraction is not an objective by itself.

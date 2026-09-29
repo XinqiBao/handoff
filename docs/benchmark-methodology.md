@@ -10,6 +10,14 @@ separately and does not imply a mechanism ranking.
 Correctness is a prerequisite for performance comparison. Smoke commands verify plumbing only and
 must not be presented as performance evidence.
 
+`handoff-bench run <route>` is a discovery convenience. Its defaults (8 B payload, 64 slots,
+4096 bytes, or both capacities as appropriate, 100 warmup, 10000 iterations, one trial) are small
+exploratory settings, not a canonical comparison protocol. The selected route's supported workloads
+and native capacity kind are shown by `handoff-bench describe <route>`. `publication-hole` remains
+an untimed semantic diagnostic. Record explicit workload-first options, placement, exact revision,
+and the procedure below for any comparative claim. Mechanism-first and workload-first runs use the
+same workload implementations and CSV field meanings.
+
 ## Evidence and claim strength
 
 - **Semantic evidence** is a deterministic observation of an ownership, visibility, completion,

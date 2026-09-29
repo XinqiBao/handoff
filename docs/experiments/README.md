@@ -19,7 +19,7 @@ One record may combine a deterministic diagnostic, canonical comparison, and tar
 checks when they answer one coherent question; a command or benchmark mode alone does not require
 its own record. Keep unrelated research questions separate.
 
-## SPSC, publication, and storage
+## Single-producer baselines and dependencies
 
 - [Basic versus cache-line-separated SPSC](003-cache-line-spsc-comparison.md)
 - [Basic versus cached-index SPSC](004-cached-index-spsc-comparison.md)

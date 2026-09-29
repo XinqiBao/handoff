@@ -28,7 +28,9 @@ process infrastructure is planned.
   the benchmark harness.
 - **Benchmark code** owns workloads, phases, validation, timing, summaries, and result output. It
   adapts directly to the small set of mechanisms under study through explicit compile-time
-  dispatch.
+  dispatch. A benchmark-private catalog names all assets and executable routes, including their
+  supported workloads, role shape, and native capacity kind. This descriptive table does not
+  define mechanism behavior.
 - **Platform code** exposes only narrow optional capabilities such as system and CPU identification
   and current-thread CPU affinity.
 - **Tests** establish common bounded-FIFO invariants and mechanism-specific semantics according to
@@ -82,6 +84,13 @@ exclusions and result fields are defined in
 The harness should remain switch- or table-driven while the implementation set is small. A plugin
 system, benchmark DSL, reflection layer, polymorphic configuration hierarchy, or general factory is
 not justified.
+
+`handoff-bench list` and `describe` expose the complete mechanism asset set and the smaller
+executable route set. Mechanism-first `run <route-or-single-route-asset>` selects a default workload
+and small configuration; workload-first `run <workload> --implementation <route>` preserves recorded
+research commands and their defaults. Specialized validation, payload/capacity template dispatch,
+and publication-hole behavior remain explicit in the workload code. Mechanism headers have no
+dependency on the benchmark catalog.
 
 ## Platform boundary
 

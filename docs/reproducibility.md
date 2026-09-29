@@ -209,6 +209,12 @@ low-level design to obtain a clean run.
 
 ## Benchmark smoke check
 
+For initial exploration, `handoff-bench list` distinguishes all mechanism assets from executable
+routes; `handoff-bench describe mpsc-slot` shows its workloads and defaults. A small
+`handoff-bench run mpsc-slot` uses exploratory settings. Existing experiment commands use the
+workload-first `run <workload> --implementation <route>` form, which remains valid; `--impl` is an
+interactive alias. Use explicit settings and the recorded exact-SHA procedure for controlled work.
+
 ```sh
 ./build/release/apps/handoff-bench/handoff-bench list
 ./build/release/apps/handoff-bench/handoff-bench run smoke \
