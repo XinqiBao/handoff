@@ -2,7 +2,7 @@
 
 - Type: semantic topology study
 - Status: complete
-- Mechanism revision: recorded by the `feat(topology)` commit containing this study
+- Mechanism revision: `285589efc0db07aa5e519d38fcb2e0ced7cfcb55`
 - Date: 2026-09-29 UTC
 
 ## Question and contract
@@ -34,8 +34,9 @@ fairness or recoverability after an owner stops.
 
 ## Validation and limits
 
-Local Clang/C++23 Debug, Release, ASan/UBSan, TSan, and static-analysis gates and CI are recorded in
-the final campaign checkpoint. No timed comparison is made. The existing shared MPSC routes use a
+Local Clang/C++23 Debug, Release, ASan/UBSan, TSan, and static-analysis gates passed. The exact
+mechanism revision passed CI run `36509038687`, including Linux and macOS Release, sanitizers,
+formatting, and clang-tidy. No timed comparison is made. The existing shared MPSC routes use a
 single global FIFO and shared capacity; assigning equal total slots would still leave different
 backpressure and ordering contracts. The N150 is useful for these semantic tests and plumbing, not
 for an unsupported cache/coherence attribution.

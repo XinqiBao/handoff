@@ -28,6 +28,7 @@ add_executable(
   slot_spmc_test.cpp
   spmc_shared_test.cpp
   staged_spsc_test.cpp
+  two_branch_join_test.cpp
   two_path_merge_test.cpp
   variable_record_ring_test.cpp)
 target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")

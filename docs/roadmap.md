@@ -37,7 +37,7 @@ across these areas.
 | Region | State and future question | Boundary |
 | --- | --- | --- |
 | Established controls | SPSC ownership, batching, sequence publication, reliable fan-out, fixed dependency, storage layouts, lossy observation, and shared-ring MPSC/SPMC/stage progress have distinct recorded contracts. | Revisit only for a new invariant or controlled question; do not add another frontier variant by default. |
-| Coordination topology and progress composition | Active campaign: compare where ordering authority, progress discovery, backpressure, and reuse responsibility live. | Fixed, cooperative, bounded topologies; partitioned producer paths, a justified branch/join, or selected joint MPMC state. No runtime graph or generic queue framework. |
+| Coordination topology and progress composition | Completed bounded campaign: producer-owned merge and fixed two-branch write/join establish distinct ordering, progress, and reuse authorities. | Further MPMC or topology work needs a new joint invariant; see the conclusion below. No runtime graph or generic queue framework. |
 | Storage and lifetime under concurrency | Future region: variable-size reservations, byte-range ownership, wrap padding, descriptor/payload coupling, holes, and reclamation with multiple participants. | Preserve exact byte and object lifetimes; avoid treating fixed-slot coordination as proof for variable records. |
 | Lossy multi-participant delivery | Future region: independent reader progress, overwrite, generation gaps, and freshness versus completeness. | Keep detectable loss separate from reliable fan-out and backpressure. |
 | Failure and recovery semantics | Deferred region: abandoned producer, consumer, or stage ownership; cancellation, helping, identity, leases, or timeouts. | Requires a stated failure detector and recovery policy; cooperative progress tests do not answer it. |
@@ -177,7 +177,7 @@ explanation a weaker immediate investment than the stage question. See
 [reproducibility](reproducibility.md) and
 [benchmark methodology](benchmark-methodology.md) for this evidence boundary.
 
-## Active campaign: coordination topology and progress composition
+## Coordination topology campaign: framing
 
 **Umbrella question:** How does the location of coordination change ordering authority, progress
 composition, backpressure, ownership, and storage lifetime in small bounded cooperative topologies?
@@ -233,7 +233,7 @@ campaign premise fails. At completion, leave a synthesis here identifying attemp
 programs, changed selection, established facts, limits, structural observations, open questions,
 and the reason for stopping. One program is not the default conversation boundary.
 
-## Topology campaign checkpoint: producer-owned merge
+## Topology campaign: conclusion
 
 The [two-path merge](mechanisms/two-path-merge.md) and [Experiment 019](experiments/019-two-path-merge.md)
 answer the initial program. A consumer-owned rotating poll chooses between two independent staged
@@ -247,17 +247,48 @@ The deterministic and concurrent tests establish these cooperative semantics. No
 claimed: shared MPSC has one `C`-slot capacity and claim-order FIFO, while this topology has two
 `C`-slot capacities and no cross-producer FIFO. A fair timing comparison would need an explicitly
 different question and workload contract. Local Debug, Release, ASan/UBSan, TSan, tidy, and format
-gates pass. The mechanism uses the existing staged SPSC API, so it adds no benchmark dispatch or
-schema changes. No local repository-health defect was exposed.
+gates pass, as does CI run `36509038687` at `285589efc0db07aa5e519d38fcb2e0ced7cfcb55`.
+The mechanism uses the existing staged SPSC API, so it adds no benchmark dispatch or schema
+changes. No local repository-health defect was exposed.
 
-The next selected question is a fixed two-branch write/join. It has distinct value only with
-independent writes to disjoint fields, two acquire paths into one join observation, and final join
-release gating physical reuse. Read-only fan-out already answers a minimum-of-reader-progress
-question; the single-owner pipeline has one linear handoff. A fixed branch/join can test the
-new visibility obligation without a generic graph or dynamic policy. The selected design will
-keep one ordered owner per branch and one ordered join consumer; a branch's held position will
-create a join hole while the other branch may finish later positions. This program remains
-untimed unless its semantic tests expose a concrete rate question.
+The next selected question was a fixed two-branch write/join. The
+[two-branch join](mechanisms/two-branch-join.md) and [Experiment 020](experiments/020-two-branch-join.md)
+establish one ordered owner per branch, disjoint branch result writes, two independent completion
+acquires before join observation, and one final join release before physical reuse. The right
+branch can complete later positions while the left branch holds an earlier one; the join remains at
+that hole. Even after both finish, a held or cancelled join observation retains exact capacity.
+Read-only fan-out already accounts for the slowest reader, but does not compose two writes. The
+single-owner pipeline has one linear happens-before path. This fixed join establishes the dual
+visibility and lifetime obligation without a dynamic graph. Debug, Release, ASan/UBSan, TSan,
+tidy, and format gates passed locally. There is no timed result: the semantic tests answer the
+question, and the N150 has no spare core for four active roles plus a clean coordinator.
+
+The selected MPMC per-slot state candidate was skipped. Shared MPSC slot availability already
+defines unique producer claims, exact-generation publication, and consumer discovery; SPMC slot
+completion already defines unique consumer claims, independent completion, and producer-discovered
+reuse. The ordered worker-stage ring also demonstrates an intermediate completion frontier and
+final release. Simply putting those transitions into one ring creates no new ordering authority
+or joint lifecycle invariant supported by a sharper question. A future MPMC program needs a
+specific simultaneous competition race, progress contract, or reuse obligation that these
+existing proofs cannot compose. Adding it to fill a topology category would not improve this
+campaign's answer.
+
+The campaign question is answered for the selected cooperative, fixed-slot topologies. Shared
+MPSC places global FIFO authority at a common claim cursor; producer-owned paths place merge
+authority at the consumer and localize backpressure. The write/join places independent completion
+authority at two branches and requires both publication paths before reading combined results;
+only join release permits reuse. None of these contracts includes owner failure recovery, fair
+thread scheduling, variable-size concurrent storage, or lossy observation. A stalled owner can
+retain capacity indefinitely. Per-path and shared-ring capacities and ordering promises differ,
+so the semantic study makes no general rate ranking. The N150 cannot support fine cache/coherence
+attribution here. Those unresolved questions belong to the future regions above. The next useful
+work would cross this campaign's boundary or require a distinct new invariant, so the campaign
+stops here.
+
+Both topology programs added mechanism-local headers, tests, and notes without touching benchmark
+classification or output code. The join did not expose a local correctness or clarity defect in
+existing mechanisms. The earlier benchmark integration observation remains a possible later
+consolidation question, not a reason for infrastructure work in this campaign.
 
 ## Repository health and later consolidation
 

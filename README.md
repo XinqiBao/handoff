@@ -37,6 +37,12 @@ consumer. Workers complete independently; downstream discovers their contiguous 
 and its final release alone gates physical reuse. The [mechanism note](docs/mechanisms/ordered-worker-stage.md)
 and [Experiment 018](docs/experiments/018-ordered-worker-stage.md) record the lifecycle and evidence.
 
+The topology study adds two producer-owned SPSC paths with consumer-controlled merge selection and
+a fixed two-branch write/join. The first localizes backpressure and permits only per-producer FIFO;
+the second requires both branch results before join observation and gates reuse on final join
+release. [Experiments 019 and 020](docs/experiments/README.md) record the semantic evidence and
+limits; neither makes a performance claim.
+
 ## Requirements
 
 - Clang with C++23 support
