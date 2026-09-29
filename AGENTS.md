@@ -42,11 +42,25 @@ CI state, routed documents, and the current research direction. State the questi
 semantics, and validation criteria. Split a large package into understandable boundaries when its
 semantics are clear. Do not leave several mechanisms half-implemented to extend a session.
 
+For a bounded multi-program campaign, use the active question and boundary in `docs/roadmap.md` as
+the authority for selecting programs. Candidates are hypotheses, not a required sequence. At each
+program checkpoint, record what was learned, what remains unknown, why the next question has distinct
+value, and why any candidate was skipped or changed. Re-read that durable state before continuing.
+Normal program completion does not require owner review; stop when the campaign question is answered,
+the next useful question crosses its boundary, or a consequential project-level choice cannot be
+resolved from evidence.
+
 After each package, run checks appropriate to its scope: builds, tests, sanitizers, formatting,
 static analysis, and benchmark smoke commands where relevant. Review the complete diff and Git
 status for scope, readability, and documentation accuracy. Keep mechanism notes and completed
 experiment records current; update the research direction when findings change it. Make coherent
 Conventional Commits, push, and wait for required CI checks. Update bounded local `.context/`
 status only when present and useful. Continue with another eligible package when its question and
-validation are clear; stop for a material semantic choice, external measurement hardware, red CI
-after reasonable repair, or exhausted requested scope.
+validation are clear; stop for a project-level semantic choice, unavailable measurement hardware,
+red CI after reasonable repair, or exhausted requested scope. Resolve ordinary semantic uncertainty
+inside the campaign through a smaller experiment or explicit contract.
+
+At campaign checkpoints, inspect repository health exposed by the work. Fix a local correctness or
+clarity problem when justified. Record only durable structural observations likely to inform a later
+consolidation decision in the roadmap; use Git history to assess recurring change surfaces. Do not
+turn research checkpoints into speculative infrastructure work.

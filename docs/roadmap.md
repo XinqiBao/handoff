@@ -19,25 +19,35 @@ The [producer-completion program](experiments/016-mpsc-producer-completion.md) t
 cooperative completion count and per-slot generation-tagged availability to separate call return
 from FIFO visibility. Exact contracts and memory-order arguments live in their mechanism notes.
 
+The [consumer-coordination program](experiments/017-spmc-consumer-coordination.md) separated unique
+consumer acquisition, release-call return, producer-discovered reclamation, and physical reuse. The
+[ordered worker-stage program](experiments/018-ordered-worker-stage.md) separated worker completion,
+downstream discovery of a contiguous stage prefix, and final downstream release. These are
+cooperative fixed-slot contracts. An abandoned owner remains a hole; neither tests nor N150 rates
+establish failure recovery, fairness, or a general performance ranking. Producer, consumer, and stage
+programs have now substantially covered the pattern of out-of-order completion followed by a
+contiguous safe progress frontier. Another frontier representation needs a new invariant.
+
 ## Research landscape
 
 Status describes current knowledge and interest, not an execution phase or promise to build every
 candidate. Waiting, fairness, counter lifetime, payload lifetime, and cache/coherence effects cut
 across these areas.
 
-| Area | Status | Research boundary |
+| Region | State and future question | Boundary |
 | --- | --- | --- |
-| Single-producer handoff and publication | Established baselines | Retain distinct ownership, batching, and sequence controls; revisit only for a new question. |
-| Record storage and lossy observation | Established baselines; selective follow-up | Mixed lengths, independent limits, and lifetime may justify new work. |
-| Producer coordination and completion | Established shared-ring comparison | Separate reservation, payload completion, publication-call return, ordered visibility, and reuse. |
-| Consumer coordination and work sharing | Established three-route comparison | Unique acquisition, release-call return, and producer reuse have distinct progress contracts. |
-| Broadcast and dependencies | Fixed examples established; richer topology candidate | Explore small static fork/join or ordered stages when their invariants are isolatable. |
-| Ordered worker-stage progress | Established fixed mechanism | Downstream discovers a contiguous completed prefix; only downstream release gates reuse. |
-| Selected MPMC composition | Exploratory, dependent on ownership work | Study only a bounded composition with a distinct semantic question. |
-| Centralized versus partitioned coordination | Candidate architectural comparison | Producer-owned paths move ordering and polling costs to the consumer. |
-| Multi-participant storage and lossy delivery | Conditional candidates | Range ownership, payload lifetime, and detectable gaps need a specific question before combining dimensions. |
-| Abandoned ownership and recovery | Deferred protocol frontier | Failure detection, helping, cancellation, or time semantics exceed the current cooperative contracts. |
-| Performance attribution | Deferred measurement frontier | Source-level or counter evidence needs a stable effect and a suitable measurement environment. |
+| Established controls | SPSC ownership, batching, sequence publication, reliable fan-out, fixed dependency, storage layouts, lossy observation, and shared-ring MPSC/SPMC/stage progress have distinct recorded contracts. | Revisit only for a new invariant or controlled question; do not add another frontier variant by default. |
+| Coordination topology and progress composition | Active campaign: compare where ordering authority, progress discovery, backpressure, and reuse responsibility live. | Fixed, cooperative, bounded topologies; partitioned producer paths, a justified branch/join, or selected joint MPMC state. No runtime graph or generic queue framework. |
+| Storage and lifetime under concurrency | Future region: variable-size reservations, byte-range ownership, wrap padding, descriptor/payload coupling, holes, and reclamation with multiple participants. | Preserve exact byte and object lifetimes; avoid treating fixed-slot coordination as proof for variable records. |
+| Lossy multi-participant delivery | Future region: independent reader progress, overwrite, generation gaps, and freshness versus completeness. | Keep detectable loss separate from reliable fan-out and backpressure. |
+| Failure and recovery semantics | Deferred region: abandoned producer, consumer, or stage ownership; cancellation, helping, identity, leases, or timeouts. | Requires a stated failure detector and recovery policy; cooperative progress tests do not answer it. |
+| Bounded verification | Conditional method campaign: tiny-state exhaustive models or CBMC on a specific small invariant. | Add only when a model can distinguish real histories or expose an untested C++ assumption; relate model assumptions to implementation tests. |
+| Controlled performance attribution | Conditional measurement campaign: PMU, coherence, workload, and placement hypotheses. | Needs a stable effect and a prepared host; the current N150 is suitable for semantics, stress, plumbing, and cautious complete-route observations. |
+| Repository consolidation | Conditional future engineering campaign after accumulated maintenance evidence. | Review history, structure, CLI/output schemas, tests/build, and documentation ownership without hiding mechanism semantics in generic abstractions. |
+
+These regions interact but are not a matrix to implement. Fixed-slot topology work may reveal a
+later storage or recovery question; crossing that boundary requires a new campaign decision. The
+verification and performance regions provide methods only when they answer a concrete question.
 
 This is a curated implementation catalog. A mechanism earns retention by exposing a meaningful
 semantic, progress, or structural distinction, including an instructive intermediate result. Faster
@@ -151,10 +161,9 @@ the four-core N150 would have no spare core for a clean fifth-role timing arrang
 performance claim follows. DPDK SORING and the Disruptor dependency material remain inspirations,
 not compatibility targets.
 
-No next program is selected by this result. A fixed fork/join would need a specific branch/join
-ownership question; producer-owned SPSC partitioning would need an explicit global FIFO merge
-contract. Owner recovery and fine cache/coherence attribution still require separate protocols or
-measurement environments. Those are durable frontiers, not implicit follow-on work.
+Experiment 018 selected no next program. The campaign below is a subsequent planning decision, not
+an inference that the worker-stage result requires another mechanism. Owner recovery and fine
+cache/coherence attribution still require separate protocols or measurement environments.
 
 Selected MPMC could combine existing producer and consumer protocols, but
 topology completion alone does not justify another ring; require a new joint
@@ -167,3 +176,77 @@ activity, observed variability, and restricted perf access make fine cost
 explanation a weaker immediate investment than the stage question. See
 [reproducibility](reproducibility.md) and
 [benchmark methodology](benchmark-methodology.md) for this evidence boundary.
+
+## Active campaign: coordination topology and progress composition
+
+**Umbrella question:** How does the location of coordination change ordering authority, progress
+composition, backpressure, ownership, and storage lifetime in small bounded cooperative topologies?
+The shared vocabulary is claim ownership, completion, call return, visibility, release,
+reclamation, and actual reuse. The purpose is to compare where each obligation lives, not to fill
+every SPSC/MPSC/SPMC/MPMC cell or repeat the contiguous-frontier pattern.
+Concurrent variable-size storage, lossy delivery, failure recovery, dynamic dependency graphs,
+production IPC, and general performance tuning belong outside this campaign. Bounded verification
+or timing may support an in-scope question, but is not a program quota.
+
+The initial hypothesis is **two producer-owned SPSC paths feeding one merge consumer**. Recent
+shared MPSC routes establish claim-order global FIFO and its publication holes; partitioning gives
+each producer its own FIFO and moves selection, polling, fairness policy, and backpressure effects to
+the merge. Define per-producer FIFO and a deterministic merge rule before implementation. Do not
+claim global FIFO without an explicit ordering authority. Compare semantics with the shared routes;
+any rate comparison must account for different capacity and ordering contracts. A sharper variant
+may use an explicit downstream handoff if it exposes a distinct merge authority.
+
+Two further candidates are conditional, not queued work:
+
+- A **fixed two-branch join** is useful only if independent branch ownership and completion create a
+  visibility and lifetime obligation beyond the existing read-only fan-out minimum and single-owner
+  pipeline. Define who may write each part of a slot, when join may acquire both results, how each
+  branch's last access precedes join visibility, and why final release alone permits producer reuse.
+  If the protocol reduces to `min(branch A, branch B)` over existing ordered readers, skip it.
+- A **selected MPMC per-slot state protocol** is useful only if simultaneous producer and consumer
+  competition creates a joint generation lifecycle that cannot be explained by mechanically
+  composing the existing MPSC and SPMC rings. Require an explicit transition argument from reusable
+  through producer ownership, publication, consumer ownership, completion, and next-generation
+  reuse. Skip it if no new invariant appears.
+
+At each checkpoint, ask what the completed program established, what remains unknown in this region,
+which candidate offers a new ownership or progress rule, whether existing mechanisms already answer
+it, and whether deterministic tests can resolve it. A new in-scope candidate may replace, reorder,
+or displace the listed candidates. Record attempted and skipped programs and the reason for each
+decision here; link exact mechanism notes and experiments rather than copying their evidence. A
+program may finish with semantic tests, concurrent integrity, memory-model reasoning, and relevant
+quality gates alone. Timed data is optional and must serve a precise supported claim.
+
+Each program has a question, non-goals, explicit contract, adversarial deterministic interleavings,
+concurrent integrity and finite/wrap coverage as applicable, and a reviewed C++ happens-before and
+lifetime argument. After appropriate local gates, review the complete diff, update the mechanism
+note, experiment record where useful, and this campaign state; make coherent commits, push, and wait
+for required CI. Re-read these records before choosing another program. Normal checkpoints,
+candidate skips, small local repairs, and ordinary CI repair do not require owner review. Use the
+owner only for a consequential change to scope, dependencies, portability, measurement environment,
+or strategy that repository evidence cannot resolve.
+
+Stop when the umbrella question is sufficiently answered, remaining candidates add no distinct
+knowledge, the next useful question belongs to another region, evidence needs unavailable hardware,
+complexity outweighs information gain, repository health requires a project-level decision, or the
+campaign premise fails. At completion, leave a synthesis here identifying attempted and skipped
+programs, changed selection, established facts, limits, structural observations, open questions,
+and the reason for stopping. One program is not the default conversation boundary.
+
+## Repository health and later consolidation
+
+Recent history shows real benchmark integration cost: the SPMC package touched command validation,
+implementation metadata, workload dispatch, output, CLI/CSV tests, and CMake in addition to the
+mechanisms; the MPSC package needed a later reporting fix for producer roles. The current
+`command.cpp` and `output.cpp` still repeat implementation classifications. This is a bounded
+observation about change surface and drift risk, not evidence that a registry or broad rewrite would
+improve the code. Experiment 018 needed no benchmark integration, so it did not incur that cost.
+
+At later checkpoints, preserve only recurring or consequential structural observations here with
+the affected change history and practical impact. Fix correctness, stale facts, or a clear local
+obstacle immediately; otherwise continue research. A dedicated consolidation campaign becomes
+eligible when several programs show the same maintenance pressure, add/remove cost is dominated by
+unrelated edits, or navigation and documentation ownership materially degrade. It should inspect
+these observations and Git history, then review source layout, mechanism catalog, CLI/workload/output
+boundaries, test and CMake structure, documentation, and CI. Any changes must preserve local
+mechanism readability and explicit semantics; more abstraction is not an objective by itself.
