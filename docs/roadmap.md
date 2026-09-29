@@ -260,8 +260,9 @@ that hole. Even after both finish, a held or cancelled join observation retains 
 Read-only fan-out already accounts for the slowest reader, but does not compose two writes. The
 single-owner pipeline has one linear happens-before path. This fixed join establishes the dual
 visibility and lifetime obligation without a dynamic graph. Debug, Release, ASan/UBSan, TSan,
-tidy, and format gates passed locally. There is no timed result: the semantic tests answer the
-question, and the N150 has no spare core for four active roles plus a clean coordinator.
+tidy, and format gates passed locally. CI run `36511943487` passed at
+`f79bf6b11c3c49b2112950a570c2cf6163d8a535`. There is no timed result: the semantic tests
+answer the question, and the N150 has no spare core for four active roles plus a clean coordinator.
 
 The selected MPMC per-slot state candidate was skipped. Shared MPSC slot availability already
 defines unique producer claims, exact-generation publication, and consumer discovery; SPMC slot

@@ -2,7 +2,7 @@
 
 - Type: semantic topology study
 - Status: complete
-- Mechanism revision: recorded by the `feat(topology)` commit containing this study
+- Mechanism revision: `f79bf6b11c3c49b2112950a570c2cf6163d8a535`
 - Date: 2026-09-29 UTC
 
 ## Question and contract
@@ -38,4 +38,6 @@ path. This study makes both branch results visible through separate acquire load
 until the join's last access. Branches themselves are ordered, so the test does not establish
 out-of-order completion within a branch. No benchmark was added: semantic tests resolve the stated
 question, and the N150's four cores provide no spare core for a clean four-role run plus coordinator.
-Local quality gates and CI are recorded in the final campaign checkpoint.
+Local Clang/C++23 Debug, Release, ASan/UBSan, TSan, and tidy builds passed; all 162 tests passed
+in each preset, and the format check passed. The exact mechanism revision passed CI run
+`36511943487`, including Linux and macOS Release, sanitizers, formatting, and clang-tidy.
