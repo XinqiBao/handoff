@@ -1,5 +1,10 @@
 # Experiment Records
 
+Numbers preserve research identity and chronology; they are not prerequisites or a recommended
+reading sequence. Use the [mechanism catalog](../mechanisms/README.md) for conceptual paths and
+source/test navigation. The records below preserve exact revisions, procedures, negative results,
+and limits.
+
 Experiments begin with a question or hypothesis, not an unbounded collection of numbers. Each
 mechanism result identifies itself as a mechanism-isolation experiment or an implementation
 comparison. Host calibration may instead be recorded as measurement-method characterization. All
@@ -14,7 +19,7 @@ One record may combine a deterministic diagnostic, canonical comparison, and tar
 checks when they answer one coherent question; a command or benchmark mode alone does not require
 its own record. Keep unrelated research questions separate.
 
-## Completed experiments
+## SPSC, publication, and storage
 
 - [Basic versus cache-line-separated SPSC](003-cache-line-spsc-comparison.md)
 - [Basic versus cached-index SPSC](004-cached-index-spsc-comparison.md)
@@ -23,7 +28,13 @@ its own record. Keep unrelated research questions separate.
 - [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
+
+## Lossy observation
+
 - [Lossy sequence-payload behavior under offered load](014-sequence-payload-offered-load.md)
+
+## Shared claims and topology
+
 - [Serialized ownership versus ordered MPSC publication](015-mpsc-ordered-publication.md)
 - [Independent MPSC completion and FIFO visibility](016-mpsc-producer-completion.md)
 - [Consumer coordination and work sharing](017-spmc-consumer-coordination.md)
@@ -31,4 +42,7 @@ its own record. Keep unrelated research questions separate.
 - [Producer-owned paths and merge authority](019-two-path-merge.md)
 - [Independent branch writes at a fixed join](020-two-branch-join.md)
 - [Paired MPSC descriptor and byte credit](021-mpsc-variable-record.md)
+
+## Measurement method
+
 - [Linux measurement host baseline](linux-host-baseline.md)

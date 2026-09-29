@@ -52,6 +52,26 @@ overlapping work but waits at the release cursor. Shared claim plus independent
 slot completion lets later release calls return while producer reuse remains
 contiguous. All three require cooperation after consumer acquisition.
 
+The following is one cooperative work-sharing path, not a universal state machine. In particular,
+MPSC producer completion can return before visibility, while an ordered SPMC release can wait for
+an earlier owner. A downstream stage adds its own visibility frontier before final release.
+
+```mermaid
+flowchart LR
+  A[Producer acquires credit] --> B[Producer completes payload]
+  B --> C[Downstream visibility]
+  C --> D[Consumer acquires position]
+  D --> E[Consumer completes last slot access]
+  E --> F[Release call returns]
+  F --> G[Producer discovers reclaimable prefix]
+  G --> H[Producer physically reuses slot]
+```
+
+The arrow from completion to visibility may cross an earlier completion hole. The arrow from
+consumer completion to release-call return may wait for an ordered predecessor. Reclamation names
+the producer's observed permission, not a write already performed. The exact frontier and memory
+ordering belong in each mechanism note.
+
 A consumer dependency chain constrains a downstream consumer to advance only after its upstream
 dependency. A fixed chain and an arbitrary runtime dependency graph are distinct mechanism scopes.
 When several workers share an ordered stage, each may finish an acquired position independently,
