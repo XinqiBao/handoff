@@ -38,7 +38,7 @@ across these areas.
 | --- | --- | --- |
 | Established controls | SPSC ownership, batching, sequence publication, reliable fan-out, fixed dependency, storage layouts, lossy observation, and shared-ring MPSC/SPMC/stage progress have distinct recorded contracts. | Revisit only for a new invariant or controlled question; do not add another frontier variant by default. |
 | Coordination topology and progress composition | Completed bounded campaign: producer-owned merge and fixed two-branch write/join establish distinct ordering, progress, and reuse authorities. | Further MPMC or topology work needs a new joint invariant; see the conclusion below. No runtime graph or generic queue framework. |
-| Storage and lifetime under concurrency | Active bounded MPSC variable-record study: paired descriptor and byte admission, independent writes, completion holes, and paired reuse. | Preserve exact byte and object lifetimes; avoid treating fixed-slot coordination as proof for variable records. |
+| Storage and lifetime under concurrency | The bounded MPSC variable-record program established paired descriptor/byte admission and reuse across producer completion holes. | Further variable-storage work needs a distinct byte-lifetime or progress invariant; fixed-slot composition alone is insufficient. |
 | Lossy multi-participant delivery | Independent lossy readers, overwrite detection, and range-based resynchronization are already implemented by the sequence payload ring. | A further program needs a distinct delivery or freshness invariant; another reader count alone is insufficient. |
 | Failure and recovery semantics | Deferred region: abandoned producer, consumer, or stage ownership; cancellation, helping, identity, leases, or timeouts. | Requires a stated failure detector and recovery policy; cooperative progress tests do not answer it. |
 | Bounded verification | Conditional method campaign: tiny-state exhaustive models or CBMC on a specific small invariant. | Add only when a model can distinguish real histories or expose an untested C++ assumption; relate model assumptions to implementation tests. |
@@ -317,6 +317,32 @@ recovery infrastructure. Another MPMC frontier, topology variant, or fine N150 c
 also lacks a sharper current question. These skips can be reconsidered only when new evidence
 changes their information value.
 
+## Storage and lifetime program: conclusion
+
+The [MPSC variable-record ring](mechanisms/mpsc-variable-record.md) and
+[Experiment 021](experiments/021-mpsc-variable-record.md) answer the selected cooperative question.
+One reservation step pairs each FIFO descriptor ordinal with an aligned byte extent, including any
+physical wrap gap. Producers write disjoint spans and publish independently; a later call can
+return across an earlier hole, but the consumer stops at that hole. Its final release returns both
+credits in descriptor order. Held observations retain both resources, and a released wrapped record
+can fund an exact next claim while a newer record remains unfinished. The mechanism note gives the
+C++ publication and reuse edges and the token lifetime contract.
+
+Deterministic tests cover independent capacity limits, the wrapped hole, exact reuse, and finite
+ordinal exhaustion; a two-producer mixed-length run checks 40,000 records. Local Debug, Release,
+ASan/UBSan, TSan, format, and tidy gates passed. CI run `36577046502` passed at
+`3a49ef9977a5f7b0220c58dc496e7535ee31c864`. These are semantic and integrity results, not
+fairness, owner-failure recovery, or performance evidence. No timed comparison was added because
+the mutex, direct payload spans, and two native capacities would change the workload contract.
+
+One program answered the bounded question. A CAS-based paired reservation would vary admission
+cost and progress properties without a current contention hypothesis; a variable-byte SPMC or MPMC
+successor would presently combine this byte-credit result with established fixed-slot completion
+frontiers without an identified new joint race. A small model lacks an untested history to
+distinguish, and controlled fine cost attribution still lacks a suitable host. The other regions
+remain as described above. There is no sufficiently justified next program now; the research loop
+stops at this checkpoint without an owner-level decision.
+
 ## Repository health and later consolidation
 
 The first post-topology reassessment found no case for a dedicated consolidation campaign.
@@ -329,6 +355,10 @@ cover the tracked records. No recurring defect or navigation failure justifies a
 shared mechanism implementation, or broad source reorganization. The architecture document's
 outdated directory list was corrected locally. Revisit the narrow benchmark classification
 surface when another benchmark route actually needs integration or exposes a mismatch.
+
+The variable-record program again added only a mechanism-local header, tests, notes, and index
+entries. It did not touch benchmark classification or output. This does not erase the earlier
+reporting omission, but it adds no new recurring pressure for consolidation.
 
 At later checkpoints, preserve only recurring or consequential structural observations here with
 the affected change history and practical impact. Fix correctness, stale facts, or a clear local

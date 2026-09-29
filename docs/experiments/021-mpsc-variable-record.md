@@ -1,8 +1,8 @@
 # Experiment 021: Paired MPSC descriptor and byte credit
 
 - Type: semantic storage/lifetime study
-- Status: local validation complete; CI pending
-- Mechanism revision: pending implementation commit and CI provenance
+- Status: complete
+- Mechanism revision: `3a49ef9977a5f7b0220c58dc496e7535ee31c864`
 - Date: 2026-09-29 UTC
 
 ## Question
@@ -38,4 +38,5 @@ operation shape differ from earlier mechanisms. The result does not establish fa
 failure recovery, lock-free progress, or an ordering rule for payload work outside descriptor FIFO.
 
 Local Clang/C++23 Debug, Release, ASan/UBSan, and TSan builds passed, with all 168 tests passing
-in each preset. The format check and clang-tidy build passed. CI provenance remains pending.
+in each preset. The format check and clang-tidy build passed. The exact mechanism revision passed
+CI run `36577046502`, including Linux and macOS Release, sanitizers, formatting, and clang-tidy.
