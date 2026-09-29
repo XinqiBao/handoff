@@ -14,6 +14,7 @@ This directory documents mechanisms implemented by `handoff`.
 
 ## Producer coordination
 
+- [Two producer-owned paths and one merge consumer](two-path-merge.md)
 - [Ordered-publication MPSC ring](ordered-publication-mpsc.md)
 - [Completion-count MPSC ring](completion-count-mpsc.md)
 - [Slot-availability MPSC ring](slot-availability-mpsc.md)

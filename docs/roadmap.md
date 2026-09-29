@@ -233,6 +233,32 @@ campaign premise fails. At completion, leave a synthesis here identifying attemp
 programs, changed selection, established facts, limits, structural observations, open questions,
 and the reason for stopping. One program is not the default conversation boundary.
 
+## Topology campaign checkpoint: producer-owned merge
+
+The [two-path merge](mechanisms/two-path-merge.md) and [Experiment 019](experiments/019-two-path-merge.md)
+answer the initial program. A consumer-owned rotating poll chooses between two independent staged
+SPSC heads. Each path is FIFO and has exact capacity `C`; the merged order follows acquisition,
+not global producer claim or publication order. An unpublished or held first path cannot block the
+second path, but its idle capacity cannot be borrowed either. Final consumer release is local to
+the selected path; a held first-path slot can coexist with repeated second-path wrap. The
+underlying SPSC counters permit bounded unsigned wrap, unlike finite shared MPSC position tags.
+
+The deterministic and concurrent tests establish these cooperative semantics. No rate result is
+claimed: shared MPSC has one `C`-slot capacity and claim-order FIFO, while this topology has two
+`C`-slot capacities and no cross-producer FIFO. A fair timing comparison would need an explicitly
+different question and workload contract. Local Debug, Release, ASan/UBSan, TSan, tidy, and format
+gates pass. The mechanism uses the existing staged SPSC API, so it adds no benchmark dispatch or
+schema changes. No local repository-health defect was exposed.
+
+The next selected question is a fixed two-branch write/join. It has distinct value only with
+independent writes to disjoint fields, two acquire paths into one join observation, and final join
+release gating physical reuse. Read-only fan-out already answers a minimum-of-reader-progress
+question; the single-owner pipeline has one linear handoff. A fixed branch/join can test the
+new visibility obligation without a generic graph or dynamic policy. The selected design will
+keep one ordered owner per branch and one ordered join consumer; a branch's held position will
+create a join hole while the other branch may finish later positions. This program remains
+untimed unless its semantic tests expose a concrete rate question.
+
 ## Repository health and later consolidation
 
 Recent history shows real benchmark integration cost: the SPMC package touched command validation,
