@@ -293,12 +293,16 @@ consolidation question, not a reason for infrastructure work in this campaign.
 
 ## Repository health and later consolidation
 
-Recent history shows real benchmark integration cost: the SPMC package touched command validation,
-implementation metadata, workload dispatch, output, CLI/CSV tests, and CMake in addition to the
-mechanisms; the MPSC package needed a later reporting fix for producer roles. The current
-`command.cpp` and `output.cpp` still repeat implementation classifications. This is a bounded
-observation about change surface and drift risk, not evidence that a registry or broad rewrite would
-improve the code. Experiment 018 needed no benchmark integration, so it did not incur that cost.
+The first post-topology reassessment found no case for a dedicated consolidation campaign.
+Benchmark-backed MPSC and SPMC additions each crossed command validation, workload dispatch,
+role reporting, CSV tests, and build bookkeeping; commit `4b8aa01` corrected omitted MPSC
+producer-role reporting. Those changes show a real drift risk, but the later worker-stage,
+merge, and join programs required only mechanism-local code, tests, and notes. Shared SPMC
+invariants already use a small test helper, and the mechanism and experiment indexes still
+cover the tracked records. No recurring defect or navigation failure justifies a registry,
+shared mechanism implementation, or broad source reorganization. The architecture document's
+outdated directory list was corrected locally. Revisit the narrow benchmark classification
+surface when another benchmark route actually needs integration or exposes a mismatch.
 
 At later checkpoints, preserve only recurring or consequential structural observations here with
 the affected change history and practical impact. Fix correctness, stale facts, or a clear local

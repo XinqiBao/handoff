@@ -49,7 +49,8 @@ belong in [inspiration notes](inspirations/README.md).
 Current targets are deliberately small:
 
 - `handoff_core`: version and platform capabilities, with header-only mechanism implementations
-  grouped under `spsc`, `mpsc`, `spmc`, `sequence`, `record`, and `descriptor`;
+  grouped under `spsc`, `mpsc`, `spmc`, `sequence`, `record`, `descriptor`, `metadata`, `stage`,
+  and `topology`;
 - `handoff-bench`: explicit CLI, smoke plumbing, SPSC throughput and ping-pong workloads, a
   two-producer throughput comparison and publication-hole diagnostic, two-consumer work sharing
   and fan-out, a fixed two-stage pipeline, record layouts, and one lossy sequence-payload
