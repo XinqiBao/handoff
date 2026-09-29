@@ -1,5 +1,6 @@
 #include "command.hpp"
 
+#include "catalog.hpp"
 #include "output.hpp"
 #include "rate.hpp"
 #include "run_metadata.hpp"
@@ -16,6 +17,7 @@
 #include <span>
 #include <string_view>
 #include <system_error>
+#include <vector>
 
 namespace handoff::bench {
 namespace {
@@ -23,31 +25,31 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 void print_usage(std::ostream& stream) {
-  stream << "Usage:\n"
-            "  handoff-bench help\n"
-            "  handoff-bench list\n"
-            "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
-            "[--output FILE]\n"
-            "  handoff-bench run offered-load [--implementation sequence-payload] "
-            "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
-            "      [--producer-interval-ns 0..1000000] "
-            "[--consumer-stall-every 0..1000000] "
-            "[--consumer-stall-ns 0..1000000000]\n"
-            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-            "[--consumer-cpu N] [--output FILE]\n"
-            "  handoff-bench run publication-hole [--implementation "
-            "mpsc-ordered|mpsc-count|mpsc-slot] "
-            "[--payload-bytes 8|64|256] "
-            "[--capacity 64|1024] [--output FILE]\n"
-            "  handoff-bench run <throughput|ping-pong> "
-            "[--implementation "
-            "basic|batch|bulk|burst|byte-record|cache-line|cached-index|descriptor-record|fan-out|"
-            "fixed-record|mpsc-count|mpsc-ordered|mpsc-serialized|mpsc-slot|pipeline|sequence|"
-            "spmc-ordered|spmc-serialized|spmc-slot|staged] "
-            "[--payload-bytes 8|64|256] [--capacity 64|1024] "
-            "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
-            "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-            "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n";
+  stream
+      << "Usage:\n"
+         "  handoff-bench help\n"
+         "  handoff-bench list\n"
+         "  handoff-bench describe <asset-or-route>\n"
+         "  handoff-bench run <route-or-asset> [--workload NAME] [options]  (exploratory "
+         "defaults)\n"
+         "  handoff-bench run smoke [--iterations N] [--warmup N] [--trials N] "
+         "[--output FILE]\n"
+         "  handoff-bench run offered-load [--implementation sequence-payload] "
+         "[--payload-bytes 8|64|256] [--capacity 64|1024]\n"
+         "      [--producer-interval-ns 0..1000000] "
+         "[--consumer-stall-every 0..1000000] "
+         "[--consumer-stall-ns 0..1000000000]\n"
+         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+         "[--consumer-cpu N] [--output FILE]\n"
+         "  handoff-bench run publication-hole [--implementation ROUTE] "
+         "[--payload-bytes 8|64|256] "
+         "[--capacity 64|1024] [--output FILE]\n"
+         "  handoff-bench run <throughput|ping-pong> [--implementation ROUTE] "
+         "[--payload-bytes 8|64|256] [--capacity 64|1024] "
+         "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
+         "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
+         "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n"
+         "  --impl is an alias for --implementation. Use list/describe for routes and workloads.\n";
 }
 
 template <typename Integer> std::optional<Integer> parse_integer(std::string_view text) {
@@ -61,11 +63,12 @@ template <typename Integer> std::optional<Integer> parse_integer(std::string_vie
 
 bool is_known_option(std::string_view option) {
   return option == "--iterations" || option == "--warmup" || option == "--trials" ||
-         option == "--output" || option == "--implementation" || option == "--payload-bytes" ||
-         option == "--capacity" || option == "--capacity-bytes" || option == "--batch-size" ||
-         option == "--producer-cpu" || option == "--producer-cpus" || option == "--consumer-cpu" ||
-         option == "--consumer-cpus" || option == "--producer-interval-ns" ||
-         option == "--consumer-stall-every" || option == "--consumer-stall-ns";
+         option == "--output" || option == "--implementation" || option == "--impl" ||
+         option == "--payload-bytes" || option == "--capacity" || option == "--capacity-bytes" ||
+         option == "--batch-size" || option == "--producer-cpu" || option == "--producer-cpus" ||
+         option == "--consumer-cpu" || option == "--consumer-cpus" ||
+         option == "--producer-interval-ns" || option == "--consumer-stall-every" ||
+         option == "--consumer-stall-ns";
 }
 
 std::optional<std::array<unsigned int, 2>> parse_cpu_pair(std::string_view text) {
@@ -88,11 +91,23 @@ bool applies_to_smoke(std::string_view option) {
 }
 
 std::optional<Options> parse_options(std::span<char*> arguments, Benchmark benchmark,
-                                     std::ostream& errors) {
+                                     std::ostream& errors,
+                                     const RouteDescriptor* selected_route = nullptr) {
   Options options;
-  if (benchmark == Benchmark::offered_load) {
+  if (selected_route) {
+    options.implementation = selected_route->implementation;
+    options.iterations = 10'000;
+    options.warmup = 100;
+    options.trials = 1;
+    options.payload_bytes = 8;
+    options.capacity_slots = 64;
+    if (selected_route->capacity != CapacityKind::slots) {
+      options.capacity_bytes = 4'096;
+    }
+  }
+  if (!selected_route && benchmark == Benchmark::offered_load) {
     options.implementation = Implementation::sequence_payload;
-  } else if (benchmark == Benchmark::publication_hole) {
+  } else if (!selected_route && benchmark == Benchmark::publication_hole) {
     options.implementation = Implementation::mpsc_ordered;
   }
   bool slot_capacity_specified = false;
@@ -108,7 +123,8 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       return std::nullopt;
     }
     if (benchmark == Benchmark::publication_hole && argument != "--implementation" &&
-        argument != "--payload-bytes" && argument != "--capacity" && argument != "--output") {
+        argument != "--impl" && argument != "--payload-bytes" && argument != "--capacity" &&
+        argument != "--output") {
       errors << "option " << argument << " does not apply to publication-hole\n";
       return std::nullopt;
     }
@@ -159,56 +175,17 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.output = std::filesystem::path(value);
-    } else if (argument == "--implementation") {
-      if (value == "basic") {
-        options.implementation = Implementation::basic;
-      } else if (value == "batch") {
-        options.implementation = Implementation::batch;
-      } else if (value == "bulk") {
-        options.implementation = Implementation::bulk;
-      } else if (value == "burst") {
-        options.implementation = Implementation::burst;
-      } else if (value == "byte-record") {
-        options.implementation = Implementation::byte_record;
-      } else if (value == "cache-line") {
-        options.implementation = Implementation::cache_line;
-      } else if (value == "cached-index") {
-        options.implementation = Implementation::cached_index;
-      } else if (value == "descriptor-record") {
-        options.implementation = Implementation::descriptor_record;
-      } else if (value == "fan-out") {
-        options.implementation = Implementation::fan_out;
-      } else if (value == "fixed-record") {
-        options.implementation = Implementation::fixed_record;
-      } else if (value == "mpsc-count") {
-        options.implementation = Implementation::mpsc_count;
-      } else if (value == "mpsc-ordered") {
-        options.implementation = Implementation::mpsc_ordered;
-      } else if (value == "mpsc-serialized") {
-        options.implementation = Implementation::mpsc_serialized;
-      } else if (value == "mpsc-slot") {
-        options.implementation = Implementation::mpsc_slot;
-      } else if (value == "pipeline") {
-        options.implementation = Implementation::pipeline;
-      } else if (value == "sequence") {
-        options.implementation = Implementation::sequence;
-      } else if (value == "sequence-payload") {
-        options.implementation = Implementation::sequence_payload;
-      } else if (value == "spmc-ordered") {
-        options.implementation = Implementation::spmc_ordered;
-      } else if (value == "spmc-serialized") {
-        options.implementation = Implementation::spmc_serialized;
-      } else if (value == "spmc-slot") {
-        options.implementation = Implementation::spmc_slot;
-      } else if (value == "staged") {
-        options.implementation = Implementation::staged;
-      } else {
-        errors << "--implementation must be one of: basic, batch, bulk, burst, byte-record, "
-                  "cache-line, cached-index, descriptor-record, fan-out, fixed-record, "
-                  "mpsc-count, mpsc-ordered, mpsc-serialized, mpsc-slot, pipeline, sequence, "
-                  "sequence-payload, spmc-ordered, spmc-serialized, spmc-slot, staged\n";
+    } else if (argument == "--implementation" || argument == "--impl") {
+      const auto* route = find_route(value);
+      if (!route) {
+        errors << argument << " must name a route from handoff-bench list\n";
         return std::nullopt;
       }
+      if (selected_route && route != selected_route) {
+        errors << "route selection conflicts with " << argument << '\n';
+        return std::nullopt;
+      }
+      options.implementation = route->implementation;
     } else if (argument == "--payload-bytes") {
       const auto parsed = parse_integer<std::size_t>(value);
       if (!parsed || (*parsed != 8 && *parsed != 64 && *parsed != 256)) {
@@ -335,15 +312,10 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     return std::nullopt;
   }
 
-  const bool multi_producer = options.implementation == Implementation::mpsc_count ||
-                              options.implementation == Implementation::mpsc_ordered ||
-                              options.implementation == Implementation::mpsc_serialized ||
-                              options.implementation == Implementation::mpsc_slot;
-  const bool spmc = options.implementation == Implementation::spmc_ordered ||
-                    options.implementation == Implementation::spmc_serialized ||
-                    options.implementation == Implementation::spmc_slot;
-  const bool multi_consumer = options.implementation == Implementation::fan_out ||
-                              options.implementation == Implementation::pipeline || spmc;
+  const auto role = route_for(options.implementation).role;
+  const bool multi_producer = role == RouteRole::mpsc;
+  const bool spmc = role == RouteRole::shared_consumers;
+  const bool multi_consumer = role == RouteRole::fan_out || role == RouteRole::pipeline || spmc;
   if (spmc && benchmark != Benchmark::throughput) {
     errors << "SPMC implementations apply only to throughput\n";
     return std::nullopt;
@@ -453,6 +425,11 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     errors << "--iterations plus --warmup exceeds the sequence-payload range\n";
     return std::nullopt;
   }
+  if (benchmark != Benchmark::smoke && !supports(route_for(options.implementation), benchmark)) {
+    errors << "route " << route_for(options.implementation).name << " does not support "
+           << benchmark_name(benchmark) << '\n';
+    return std::nullopt;
+  }
   return options;
 }
 
@@ -486,10 +463,16 @@ RunResults run_smoke(const Options& options) {
   return results;
 }
 
-int run_benchmark_command(Benchmark benchmark, std::span<char*> arguments) {
-  const auto options = parse_options(arguments, benchmark, std::cerr);
+int run_benchmark_command(Benchmark benchmark, std::span<char*> arguments,
+                          const RouteDescriptor* selected_route = nullptr) {
+  const auto options = parse_options(arguments, benchmark, std::cerr, selected_route);
   if (!options) {
     return 2;
+  }
+
+  if (selected_route) {
+    std::cout
+        << "exploratory route configuration; use explicit recorded commands for comparisons\n";
   }
 
   const auto metadata = collect_run_metadata();
@@ -518,6 +501,97 @@ int run_benchmark_command(Benchmark benchmark, std::span<char*> arguments) {
   return 0;
 }
 
+void print_workloads(const RouteDescriptor& route) {
+  bool first = true;
+  for (const auto workload : {Benchmark::throughput, Benchmark::ping_pong, Benchmark::offered_load,
+                              Benchmark::publication_hole}) {
+    if (supports(route, workload)) {
+      std::cout << (first ? "" : ", ") << benchmark_name(workload);
+      first = false;
+    }
+  }
+}
+
+void describe_route(const RouteDescriptor& route) {
+  std::cout << route.name << " (benchmark route)\nasset: " << route.asset;
+  if (route.benchmark_control) {
+    std::cout << " (producer-mutex control, not a separate mechanism)";
+  }
+  std::cout << "\nnote: " << find_asset(route.asset)->note << "\nworkloads: ";
+  print_workloads(route);
+  std::cout << "\ndefault workload: " << benchmark_name(route.default_workload) << "\ncapacity: ";
+  switch (route.capacity) {
+  case CapacityKind::slots:
+    std::cout << "slots";
+    break;
+  case CapacityKind::bytes:
+    std::cout << "bytes";
+    break;
+  case CapacityKind::slots_and_bytes:
+    std::cout << "slots and bytes";
+    break;
+  }
+  std::cout << "\nroles: ";
+  switch (route.role) {
+  case RouteRole::single:
+    std::cout << "one producer, one consumer";
+    break;
+  case RouteRole::mpsc:
+    std::cout << "two producers, one consumer";
+    break;
+  case RouteRole::shared_consumers:
+    std::cout << "one producer, two competing workers";
+    break;
+  case RouteRole::fan_out:
+    std::cout << "one producer, two required readers";
+    break;
+  case RouteRole::pipeline:
+    std::cout << "one producer, two ordered stages";
+    break;
+  }
+  std::cout << "\nexploratory defaults: 8 B payload, "
+            << (route.capacity == CapacityKind::bytes             ? "4096 bytes"
+                : route.capacity == CapacityKind::slots_and_bytes ? "64 slots + 4096 bytes"
+                                                                  : "64 slots");
+  std::cout << ", 100 warmup, 10000 iterations, 1 trial";
+  std::cout << "\nexploratory run: handoff-bench run " << route.name << '\n';
+}
+
+int run_route(const RouteDescriptor& route, std::span<char*> arguments) {
+  Benchmark workload = route.default_workload;
+  bool specified = false;
+  std::vector<char*> remaining;
+  for (std::size_t index = 0; index < arguments.size(); ++index) {
+    if (std::string_view(arguments[index]) != "--workload") {
+      remaining.push_back(arguments[index]);
+      continue;
+    }
+    if (specified || index + 1 >= arguments.size()) {
+      std::cerr << "--workload requires one workload name\n";
+      return 2;
+    }
+    specified = true;
+    const std::string_view name = arguments[++index];
+    if (name == "throughput") {
+      workload = Benchmark::throughput;
+    } else if (name == "ping-pong") {
+      workload = Benchmark::ping_pong;
+    } else if (name == "offered-load") {
+      workload = Benchmark::offered_load;
+    } else if (name == "publication-hole") {
+      workload = Benchmark::publication_hole;
+    } else {
+      std::cerr << "unknown workload: " << name << '\n';
+      return 2;
+    }
+  }
+  if (!supports(route, workload)) {
+    std::cerr << "route " << route.name << " does not support " << benchmark_name(workload) << '\n';
+    return 2;
+  }
+  return run_benchmark_command(workload, remaining, &route);
+}
+
 } // namespace
 
 int run(int argc, char* argv[]) {
@@ -529,12 +603,65 @@ int run(int argc, char* argv[]) {
   }
 
   if (std::string_view(arguments.front()) == "list") {
-    std::cout << "smoke\tHarness timing and result-output plumbing check\n"
+    if (arguments.size() != 1) {
+      std::cerr << "list takes no arguments\n";
+      return 2;
+    }
+    std::cout << "Mechanism assets (" << assets.size() << "):\n";
+    for (const auto& asset : assets) {
+      std::cout << "  " << asset.name << "\t";
+      bool has_route = false;
+      for (const auto& route : routes) {
+        if (route.asset == asset.name && !route.benchmark_control) {
+          std::cout << (has_route ? ", " : "routes: ") << route.name;
+          has_route = true;
+        }
+      }
+      std::cout << (has_route ? "" : "tests only") << '\n';
+    }
+    std::cout << "Benchmark controls:";
+    for (const auto& route : routes) {
+      if (route.benchmark_control) {
+        std::cout << ' ' << route.name;
+      }
+    }
+    std::cout << " (not separate mechanism assets)\n"
+                 "Workloads:\n"
+                 "smoke\tHarness timing and result-output plumbing check\n"
                  "throughput\tSteady-state completed handoffs\n"
                  "ping-pong\tSPSC round-trip latency (RTT; RTT/2 is a proxy)\n"
                  "offered-load\tLossy offered and observed sequence-payload publications\n"
                  "publication-hole\tBounded MPSC publication progress diagnostic\n";
     return 0;
+  }
+
+  if (std::string_view(arguments.front()) == "describe") {
+    if (arguments.size() != 2) {
+      std::cerr << "describe requires one asset or route name\n";
+      return 2;
+    }
+    if (const auto* route = find_route(arguments[1])) {
+      describe_route(*route);
+      return 0;
+    }
+    if (const auto* asset = find_asset(arguments[1])) {
+      std::cout << asset->name << " (mechanism asset)\nnote: " << asset->note << '\n';
+      bool has_route = false;
+      for (const auto& route : routes) {
+        if (route.asset == asset->name && !route.benchmark_control) {
+          std::cout << "route: " << route.name << " (";
+          print_workloads(route);
+          std::cout << ")\n";
+          has_route = true;
+        }
+      }
+      if (!has_route) {
+        std::cout << "tests only; no benchmark route\n";
+      }
+      return 0;
+    }
+    std::cerr << "unknown asset or route: " << arguments[1] << '\n';
+    return 2;
   }
 
   if (std::string_view(arguments.front()) == "run") {
@@ -558,7 +685,28 @@ int run(int argc, char* argv[]) {
     if (name == "publication-hole") {
       return run_benchmark_command(Benchmark::publication_hole, arguments.subspan(2));
     }
-    std::cerr << "unknown benchmark: " << name << '\n';
+    if (const auto* route = find_route(name)) {
+      return run_route(*route, arguments.subspan(2));
+    }
+    if (find_asset(name)) {
+      const RouteDescriptor* only_route = nullptr;
+      for (const auto& route : routes) {
+        if (route.asset == name && !route.benchmark_control) {
+          if (only_route) {
+            std::cerr << "mechanism " << name << " has multiple routes: " << only_route->name
+                      << ", " << route.name << '\n';
+            return 2;
+          }
+          only_route = &route;
+        }
+      }
+      if (only_route) {
+        return run_route(*only_route, arguments.subspan(2));
+      }
+      std::cerr << "mechanism " << name << " is tests only; no benchmark route\n";
+      return 2;
+    }
+    std::cerr << "unknown workload or route: " << name << '\n';
     return 2;
   }
 

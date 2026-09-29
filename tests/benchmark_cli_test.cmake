@@ -17,6 +17,61 @@ function(expect_failure expected_exit expected_error)
   endif()
 endfunction()
 
+function(expect_success expected_output)
+  execute_process(
+    COMMAND "${BENCHMARK_EXECUTABLE}" ${ARGN}
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE output
+    ERROR_VARIABLE error)
+  if(NOT result EQUAL 0 OR NOT output MATCHES "${expected_output}")
+    message(FATAL_ERROR "command failed or missing '${expected_output}': ${result}\n${output}\n${error}")
+  endif()
+endfunction()
+
+execute_process(
+  COMMAND "${BENCHMARK_EXECUTABLE}" list
+  RESULT_VARIABLE list_result
+  OUTPUT_VARIABLE catalog_output)
+string(FIND "${catalog_output}" "Mechanism assets (24):" catalog_heading)
+if(NOT list_result EQUAL 0 OR catalog_heading EQUAL -1)
+  message(FATAL_ERROR "mechanism catalog is unavailable: ${catalog_output}")
+endif()
+string(FIND "${catalog_output}" "Benchmark controls: mpsc-serialized" control_heading)
+if(control_heading EQUAL -1)
+  message(FATAL_ERROR "benchmark control is missing from discovery")
+endif()
+file(GLOB mechanism_notes "${SOURCE_ROOT}/docs/mechanisms/*.md")
+list(REMOVE_ITEM mechanism_notes "${SOURCE_ROOT}/docs/mechanisms/README.md")
+list(LENGTH mechanism_notes note_count)
+if(NOT note_count EQUAL 24)
+  message(FATAL_ERROR "expected 24 mechanism notes, got ${note_count}")
+endif()
+foreach(note IN LISTS mechanism_notes)
+  get_filename_component(asset "${note}" NAME_WE)
+  if(NOT catalog_output MATCHES "  ${asset}[	]routes:|  ${asset}[	]tests only")
+    message(FATAL_ERROR "catalog does not classify ${asset}")
+  endif()
+  expect_success("note: docs/mechanisms/${asset}.md" describe "${asset}")
+endforeach()
+
+expect_success("workloads: throughput, publication-hole" describe mpsc-slot)
+expect_success("exploratory defaults: 8 B payload, 64 slots, 100 warmup, 10000 iterations, 1 trial" describe mpsc-slot)
+expect_success("--impl is an alias for --implementation" help)
+expect_success("tests only; no benchmark route" describe two-path-merge)
+expect_success("throughput / mpsc-slot / 8 B / 64 slots" run mpsc-slot)
+expect_success("throughput / mpsc-slot / 8 B / 64 slots" run slot-availability-mpsc)
+expect_success("publication-hole / mpsc-slot / 8 B / 64 slots" run mpsc-slot --workload publication-hole)
+expect_success("throughput / byte-record / 8 B / 4096 bytes" run byte-record)
+expect_success("throughput / descriptor-record / 8 B / 64 slots / 4096 bytes" run descriptor-record)
+expect_success("offered-load / sequence-payload / 8 B / 64 slots" run sequence-payload)
+expect_success("throughput / fan-out / 8 B / 64 slots" run bounded-sequence-fan-out)
+expect_success("throughput / mpsc-slot" run throughput --impl mpsc-slot --iterations 1000 --warmup 100 --trials 1)
+expect_failure(2 "mechanism two-path-merge is tests only" run two-path-merge)
+expect_failure(2 "mechanism bulk-burst-bounded-spsc has multiple routes: bulk, burst" run bulk-burst-bounded-spsc)
+expect_failure(2 "route mpsc-slot does not support ping-pong" run mpsc-slot --workload ping-pong)
+expect_failure(2 "route selection conflicts with --impl" run mpsc-slot --impl basic)
+expect_failure(2 "unknown asset or route" describe absent)
+
 expect_failure(2 "unknown option: --unknown" run throughput --unknown)
 expect_failure(
   2 "option --iterations does not apply to publication-hole"

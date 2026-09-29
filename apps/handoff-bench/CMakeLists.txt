@@ -1,6 +1,7 @@
 add_executable(
   handoff-bench
   main.cpp
+  src/catalog.cpp
   src/command.cpp
   src/fan_out.cpp
   src/mpsc.cpp

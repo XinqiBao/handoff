@@ -49,7 +49,8 @@ set_tests_properties(benchmark.list-offered-load PROPERTIES PASS_REGULAR_EXPRESS
 add_test(
   NAME benchmark.cli
   COMMAND
-    "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench> -P
+    "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench>
+    -DSOURCE_ROOT=${PROJECT_SOURCE_DIR} -P
     "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_cli_test.cmake")
 add_test(
   NAME benchmark.csv
