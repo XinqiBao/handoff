@@ -16,6 +16,7 @@ add_executable(
   core_test.cpp
   descriptor_payload_ring_test.cpp
   fixed_record_ring_test.cpp
+  mpsc_variable_record_test.cpp
   ordered_mpsc_test.cpp
   ordered_spmc_test.cpp
   ordered_worker_stage_test.cpp

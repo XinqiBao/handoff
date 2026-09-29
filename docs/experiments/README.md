@@ -30,4 +30,5 @@ its own record. Keep unrelated research questions separate.
 - [Ordered worker-stage progress](018-ordered-worker-stage.md)
 - [Producer-owned paths and merge authority](019-two-path-merge.md)
 - [Independent branch writes at a fixed join](020-two-branch-join.md)
+- [Paired MPSC descriptor and byte credit](021-mpsc-variable-record.md)
 - [Linux measurement host baseline](linux-host-baseline.md)

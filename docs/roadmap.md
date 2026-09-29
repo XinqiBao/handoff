@@ -38,8 +38,8 @@ across these areas.
 | --- | --- | --- |
 | Established controls | SPSC ownership, batching, sequence publication, reliable fan-out, fixed dependency, storage layouts, lossy observation, and shared-ring MPSC/SPMC/stage progress have distinct recorded contracts. | Revisit only for a new invariant or controlled question; do not add another frontier variant by default. |
 | Coordination topology and progress composition | Completed bounded campaign: producer-owned merge and fixed two-branch write/join establish distinct ordering, progress, and reuse authorities. | Further MPMC or topology work needs a new joint invariant; see the conclusion below. No runtime graph or generic queue framework. |
-| Storage and lifetime under concurrency | Future region: variable-size reservations, byte-range ownership, wrap padding, descriptor/payload coupling, holes, and reclamation with multiple participants. | Preserve exact byte and object lifetimes; avoid treating fixed-slot coordination as proof for variable records. |
-| Lossy multi-participant delivery | Future region: independent reader progress, overwrite, generation gaps, and freshness versus completeness. | Keep detectable loss separate from reliable fan-out and backpressure. |
+| Storage and lifetime under concurrency | Active bounded MPSC variable-record study: paired descriptor and byte admission, independent writes, completion holes, and paired reuse. | Preserve exact byte and object lifetimes; avoid treating fixed-slot coordination as proof for variable records. |
+| Lossy multi-participant delivery | Independent lossy readers, overwrite detection, and range-based resynchronization are already implemented by the sequence payload ring. | A further program needs a distinct delivery or freshness invariant; another reader count alone is insufficient. |
 | Failure and recovery semantics | Deferred region: abandoned producer, consumer, or stage ownership; cancellation, helping, identity, leases, or timeouts. | Requires a stated failure detector and recovery policy; cooperative progress tests do not answer it. |
 | Bounded verification | Conditional method campaign: tiny-state exhaustive models or CBMC on a specific small invariant. | Add only when a model can distinguish real histories or expose an untested C++ assumption; relate model assumptions to implementation tests. |
 | Controlled performance attribution | Conditional measurement campaign: PMU, coherence, workload, and placement hypotheses. | Needs a stable effect and a prepared host; the current N150 is suitable for semantics, stress, plumbing, and cautious complete-route observations. |
@@ -290,6 +290,32 @@ Both topology programs added mechanism-local headers, tests, and notes without t
 classification or output code. The join did not expose a local correctness or clarity defect in
 existing mechanisms. The earlier benchmark integration observation remains a possible later
 consolidation question, not a reason for infrastructure work in this campaign.
+
+## Storage and lifetime program: selection
+
+The next bounded question is whether two producers can pair a FIFO descriptor reservation with a
+variable-size byte reservation before independently writing and completing, while the consumer
+returns both credits only after its final read. The existing SPSC descriptor/payload ring already
+handles aligned byte footprints and wrap gaps, but has no competing reservation or completion
+hole. The fixed-slot MPSC slot-availability ring already handles out-of-order producer completion,
+but every claim consumes one equal-sized physical slot. Neither establishes nonoverlapping byte
+ranges or paired reclamation across a held variable-size claim.
+
+The first program therefore uses a short mutex for joint descriptor/byte admission and permits
+overlapping writes and independent completion outside that critical section. This isolates the
+new ownership/lifetime invariant without adding a CAS protocol for two cursor dimensions. It has
+one FIFO consumer, exact descriptor and byte capacities, direct ring-owned payload spans, and no
+abandoned-owner recovery, multiple consumers, dynamic storage, or timed comparison. Deterministic
+holes, exact byte credit, a wrapped gap, final-read gating, finite ordinal exhaustion, concurrent
+integrity, memory-model review, and Debug/Release/sanitizer/quality gates decide completion.
+
+Lossy multi-reader delivery was not selected: the sequence metadata/payload rings already accept
+independent observers, detect overwrite, and expose a resynchronization range; two concurrent
+observers are already tested. A reader-count timing run alone offers no new delivery invariant.
+Failure recovery still lacks a failure detector and policy, and the architecture excludes crash
+recovery infrastructure. Another MPMC frontier, topology variant, or fine N150 cost attribution
+also lacks a sharper current question. These skips can be reconsidered only when new evidence
+changes their information value.
 
 ## Repository health and later consolidation
 

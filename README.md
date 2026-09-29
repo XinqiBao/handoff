@@ -43,6 +43,12 @@ the second requires both branch results before join observation and gates reuse 
 release. [Experiments 019 and 020](docs/experiments/README.md) record the semantic evidence and
 limits; neither makes a performance claim.
 
+The variable-record MPSC study pairs descriptor order with variable byte-range reservations. Two
+producers may write and finish independently after admission; one FIFO consumer releases each
+record's descriptor and complete byte extent only after its final read. The
+[mechanism note](docs/mechanisms/mpsc-variable-record.md) and
+[Experiment 021](docs/experiments/021-mpsc-variable-record.md) record the semantic tests and limits.
+
 ## Requirements
 
 - Clang with C++23 support
