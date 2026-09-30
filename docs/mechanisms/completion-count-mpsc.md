@@ -57,4 +57,6 @@ exercise this route. Passing executions and sanitizers support the exercised
 paths; the argument above supplies the C++ synchronization basis.
 
 The controlled [producer-completion comparison](../experiments/016-mpsc-producer-completion.md)
-records the complete-route N150 observation and its host limits.
+records the original complete-route N150 observation. A later
+[fixed-frequency count/slot comparison](../experiments/022-fixed-frequency-mpsc-comparison.md)
+rechecks that pair under workload-qualified host controls.

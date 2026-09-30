@@ -42,6 +42,7 @@ its own record. Keep unrelated research questions separate.
 - [Producer-owned paths and merge authority](019-two-path-merge.md)
 - [Independent branch writes at a fixed join](020-two-branch-join.md)
 - [Paired MPSC descriptor and byte credit](021-mpsc-variable-record.md)
+- [Fixed-frequency MPSC completion comparison](022-fixed-frequency-mpsc-comparison.md)
 
 ## Measurement method
 

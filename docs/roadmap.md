@@ -49,6 +49,15 @@ These regions interact but are not a matrix to implement. Fixed-slot topology wo
 later storage or recovery question; crossing that boundary requires a new campaign decision. The
 verification and performance regions provide methods only when they answer a concrete question.
 
+The fixed-2400-MHz [MPSC count/slot comparison](experiments/022-fixed-frequency-mpsc-comparison.md)
+answers one bounded measurement question on the prepared N150: the earlier
+slot-over-count complete-route direction persisted in all eight interleaved
+pairs after workload-specific host qualification. The paired median difference
+was +30.80%, with a +23.40% to +46.24% range, so the magnitude is less stable
+than the direction. No PMU or source-level coherence attribution follows.
+A next performance program would need a causal question and a protocol that
+isolates its proposed cost; another catalog-wide ranking has no current value.
+
 This is a curated implementation catalog. A mechanism earns retention by exposing a meaningful
 semantic, progress, or structural distinction, including an instructive intermediate result. Faster
 throughput on one host is neither required nor sufficient. External designs are sources of ideas,
