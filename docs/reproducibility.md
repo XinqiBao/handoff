@@ -9,21 +9,20 @@ The supported toolchain is Clang with C++23, CMake 3.28 or newer, and Ninja. The
 configuration needs network access and Git to fetch the pinned Catch2 revision. clang-format and
 clang-tidy are needed only for their corresponding checks.
 
-## Current Linux host capability
+## Linux measurement capability
 
-The recorded Intel N150 measurement host has four physical cores and no SMT. With three workers and
-a coordinator, all cores are occupied even when the coordinator is restricted to CPU 0. The stock
-OS still runs other processes and handles interrupts and softirqs; the repository does not establish
-dedicated IRQ or housekeeping isolation. Recent producer- and consumer-coordination experiments
-recorded run-to-run variability, and perf-event access is restricted on this host. Verified worker
-affinity and endpoint temperature/frequency checks establish placement and useful context, not
-uninterrupted per-trial execution or a fine cache/coherence cost breakdown.
+The [measurement host guide](measurement-host.md) defines CPU isolation, frequency
+control, host qualification, and reboot handoff independently of any particular
+CPU. Verified worker affinity and endpoint temperature or frequency samples
+alone do not establish exclusive, uninterrupted execution. Match host controls
+to the precision of the intended claim and record the live outcome. See
+[benchmark methodology](benchmark-methodology.md) for evidence terms.
 
-This host remains useful for correctness, benchmark plumbing, progress diagnostics, and conditional
-complete-route observations under recorded procedures. Serious fine-grained attribution requires a
-separately prepared measurement environment and an explicit question. Existing exact-SHA
-observations remain valid within their recorded conditions; their semantic tests do not depend on
-throughput precision. See [benchmark methodology](benchmark-methodology.md) for evidence terms.
+The historical Intel N150 [host baseline](experiments/linux-host-baseline.md)
+and subsequent experiment records describe measurements made without dedicated
+housekeeping or IRQ isolation. Their exact-revision observations remain valid
+within their stated conditions, but do not establish fine cache or coherence
+cost attribution. Semantic tests do not depend on throughput precision.
 
 ## Two-machine revision workflow
 
@@ -239,16 +238,19 @@ For results intended to support a conclusion:
 
 1. Use a clean native Release build at a recorded, CI-green git revision.
 2. Run the correctness suite and relevant sanitizer checks first.
-3. Minimize unrelated system activity and power-management changes.
-4. On Linux, select CPUs explicitly and require the read-back effective masks to match exactly.
+3. Qualify the Linux host for the intended precision using the
+   [measurement host guide](measurement-host.md); record isolation and actual
+   frequency behavior, not only requested settings.
+4. Select CPUs explicitly and require the read-back effective masks to match exactly.
 5. Keep producer and consumer on one NUMA node unless cross-node placement is intentional.
 6. Run warmup and multiple trials using exact recorded commands.
 7. Preserve raw trials and explain exclusions or deviations.
 
-Begin with the stock host. First measure repeatability, then identify a concrete source of material
-variation, form a hypothesis, apply the smallest reversible control, and remeasure. Record and
-restore temporary controls. Persistent kernel, boot, CPU-isolation, IRQ, or power-policy changes are
-not default benchmark preparation.
+Exploratory work may begin on a stock host, but repeated trials or warmup cannot
+make an unqualified host suitable for a stronger claim. Prepare and validate
+isolation and frequency controls before controlled fine-grained comparisons.
+Record and restore temporary controls; preserve the exact boot configuration
+when a dedicated measurement profile is used.
 
 Linux `perf stat` or `perf record` may be run externally when useful. Do not make perf-event access a
 core executable dependency. macOS reports thread affinity as unsupported rather than attempting
@@ -279,8 +281,9 @@ the experiment document.
 Keep host facts outside the benchmark binary. Beside each controlled CSV group, retain a concise
 text sidecar captured immediately before the run. It should contain timestamp and hostname, exact
 SHA and tracked dirty state, compiler and Release flags, kernel and OS, `lscpu`, allowed CPUs and
-NUMA/cache topology, requested role placement, governor/EPP/minimum/maximum/boost state, perf policy,
-load average, relevant active processes, temperature/frequency observations, and thermal-throttle
+NUMA/cache topology, requested role placement, boot isolation and effective IRQ/workqueue masks,
+governor/EPP/minimum/maximum/boost state, actual busy frequency, power limits, perf policy, load
+average, relevant active processes, temperature and power observations, and thermal-throttle
 counter values before and after the group. Do not capture the environment or credentials.
 
 The Phase I [Linux measurement host baseline](experiments/linux-host-baseline.md) records the

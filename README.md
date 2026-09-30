@@ -57,5 +57,7 @@ requested worker affinity mask; macOS reports affinity as unsupported.
 - [Roadmap](docs/roadmap.md): current research direction and open regions.
 - [Testing strategy](docs/testing-strategy.md): correctness obligations.
 - [Benchmark methodology](docs/benchmark-methodology.md): workload meaning and fair comparisons.
+- [Linux measurement host](docs/measurement-host.md): CPU isolation, frequency control, and
+  qualification.
 - [Reproducibility](docs/reproducibility.md): builds, host controls, exact procedures.
 - [External inspirations](docs/inspirations/README.md): ideas and primary-source provenance.

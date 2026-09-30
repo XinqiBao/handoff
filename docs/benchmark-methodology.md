@@ -168,6 +168,9 @@ placement. If affinity is unsupported, report that fact and continue only when t
 measurement is meaningful.
 
 NUMA topology discovery is not part of the core harness.
+Linux host isolation and delivered-frequency qualification are described in the
+[measurement host guide](measurement-host.md); a verified affinity request alone
+does not establish exclusive CPU use.
 
 ## Result output
 
