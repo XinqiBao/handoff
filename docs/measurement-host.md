@@ -63,6 +63,13 @@ daemon must be configured consistently or it may rewrite masks. Restoring an
 IRQ's allowed mask need not restore its previous *effective* CPU, so verify both
 when undoing a temporary change. Keep unneeded devices quiet where practical.
 
+Boot-time domain isolation also leaves ordinary build and maintenance work on
+housekeeping CPUs. Giving a build process a broad affinity mask that includes
+isolated CPUs does not restore load balancing onto them. Keep builds outside
+measurement sessions; accept slower builds on housekeeping CPUs or use a
+separate non-isolated boot profile for frequent development. Recheck the live
+isolation and frequency state after switching profiles.
+
 ## Control frequency, power, and temperature
 
 Inventory the CPU frequency driver, governor, HWP or equivalent hardware
@@ -110,7 +117,8 @@ do not embed one host's values in benchmark code or a shared run command.
 
 Before relying on a host configuration, verify all of the following under a
 sustained representative workload long enough to reach its thermal operating
-range:
+range. Qualification applies to the tested placement and workload shape; a
+different role count, pacing, or power demand needs its own relevant check:
 
 1. Worker and housekeeping CPUs have the intended topology, isolation state,
    and exact effective thread affinities.

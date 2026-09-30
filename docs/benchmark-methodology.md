@@ -79,6 +79,22 @@ Do not silently discard outliers. If a run is invalidated by an observed externa
 raw record when practical and document the exclusion. Separate unexplained measurement noise from
 effects attributable to the mechanism.
 
+## Analysis and presentation
+
+Keep the ordered trial rows and experiment sidecar as the source of every summary or chart. For a
+comparison, show individual results in execution order, the block or pairing structure, the median
+and spread for each route, and paired differences when runs were interleaved. Label workload, units,
+role placement, payload, native capacity, revision, and host profile so a plotted rate is not
+mistaken for a universal property. Show drift and anomalous rows rather than hiding them behind a
+pooled median. Generate figures from retained raw results; a chart is an inspection aid, not an
+additional measurement or a substitute for a stated comparison question.
+
+Put routes on a common comparative axis only when their numerator, timed boundary, role work,
+delivery contract, and capacity interpretation make that axis meaningful. Throughput, ping-pong
+RTT, offered/observed rates, and overwrite shares need separate scales and interpretations.
+Different contracts may still be compared explicitly as complete systems, with the changed work
+and semantics stated; their rate difference must not be called an isolated mechanism cost.
+
 ## Throughput
 
 Report completed messages per second from a complete producer-to-consumer handoff, not producer
