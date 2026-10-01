@@ -27,10 +27,13 @@ payload `ByteCapacity / 2 - sizeof(RecordHeader)`. This bound ensures that a val
 progress when an empty ring's cursors are at any aligned physical offset: the required end padding
 plus record footprint always fits in the complete buffer.
 
-Monotonic unsigned head and tail positions count all occupied bytes, including alignment and
+Wrapping unsigned head and tail positions count all occupied bytes, including alignment and
 padding. Their difference is the occupied byte count; zero means empty and `ByteCapacity` means
 full, so no sentinel byte or empty slot is reserved. Power-of-two masking maps positions to physical
-offsets and remains continuous when the unsigned counters wrap.
+offsets and remains continuous when the unsigned counters roll over: the byte capacity divides
+the unsigned modulus. This is stronger than merely keeping occupied-byte distance bounded. The
+[boundary suite](../../tests/counter_rollover_test.cpp) exercises actual machine-counter rollover
+with a padding transition and unchanged state after an undersized output.
 
 ## Padding and physical wrap
 

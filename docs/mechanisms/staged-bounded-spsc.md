@@ -14,7 +14,7 @@ multi-consumer behavior, or an end-to-end no-copy claim.
 
 ## Representation and payload lifetime
 
-The ring owns `Capacity` default-constructed inline `T` slots and monotonic atomic head and tail
+The ring owns `Capacity` default-constructed inline `T` slots and wrapping unsigned atomic head and tail
 counters. All `Capacity` slots are usable. Logical positions map to physical slots modulo
 `Capacity`. Slots remain alive until the ring is destroyed and retain resources after consumer
 finish until a later producer write replaces them.
@@ -23,6 +23,11 @@ The ring itself requires only default initialization of `T`. The caller chooses 
 producer span and therefore supplies any assignment or mutation operation needed by that code. A
 consumer reservation exposes `std::span<const T>` so reading cannot silently become destructive
 movement from a published slot.
+
+Capacity must be a positive power of two and at most half the counter range. The
+[basic ring note](basic-bounded-spsc.md#representation-and-capacity) explains why bounded unsigned
+distance alone does not preserve modulo slot mapping at machine-counter rollover. The same contract
+and [production-counter boundary tests](../../tests/counter_rollover_test.cpp) apply here.
 
 ## Reservation contract
 

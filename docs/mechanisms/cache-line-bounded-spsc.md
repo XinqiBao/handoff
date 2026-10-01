@@ -14,7 +14,7 @@ architecture.
 ## Preserved behavior
 
 Capacity is compile-time and exactly usable. The ring contains `Capacity` default-constructed inline
-slots and uses the same monotonically increasing unsigned counters, modulo slot addressing,
+slots and uses the same wrapping unsigned counters, modulo slot addressing,
 non-blocking `try_push` and `try_pop` operations, and type/lifetime requirements as the
 [basic bounded SPSC ring](basic-bounded-spsc.md). The ring allocates no slot storage dynamically,
 but each slot remains a live `T` for the ring's lifetime, so `T` construction and assignment may
@@ -25,6 +25,11 @@ Producer and consumer ownership, full and empty conditions, FIFO behavior, and a
 publication are unchanged. Both operations still read the remote counter on every attempt. The
 variant does not cache remote indices, batch publication, weaken memory ordering, change payload
 placement, or add a waiting strategy.
+
+Capacity must be a positive power of two and at most half the counter range. The
+[basic ring note](basic-bounded-spsc.md#representation-and-capacity) explains why bounded unsigned
+distance alone does not preserve modulo slot mapping at machine-counter rollover. The same contract
+and [production-counter boundary tests](../../tests/counter_rollover_test.cpp) apply here.
 
 ## Expected effect and limits
 
@@ -37,11 +42,17 @@ The common bounded-FIFO and payload/lifetime suite runs unchanged against both i
 including move-only resource ownership, failed-operation preservation, slot reuse, and the
 million-message integrity test. Layout-specific compile-time checks verify the advertised alignment.
 
-## Measured observation
+## Evidence and limits
 
-On the controlled Intel N150 configuration recorded in
-[experiment 003](../experiments/003-cache-line-spsc-comparison.md), the complete separated variant
-improved median throughput by 10.931% and reduced median ping-pong RTT by 7.943% relative to the
-basic ring. All three paired blocks agreed in direction and the effect exceeded the measured host
-noise. This is conditional evidence for the complete layout variant, not proof of a coherence
-cause: object size, alignment, placement, code generation, and cache-set mapping remain confounders.
+[Experiment 003](../experiments/003-cache-line-spsc-comparison.md) recorded throughput and RTT
+improvements for the separated layout on its historical Intel N150 configuration and revision.
+Those are observations of the complete routes; object size, placement, code generation, and cache
+mapping prevent attribution to coherence alone.
+
+The later [throughput reassessment](../experiments/023-spsc-measurement-stability.md) found
+persistent process rate states at the 8 B / 64-slot scalar shape, so small current throughput gaps
+remain unresolved. The [RTT reassessment](../experiments/030-spsc-rtt-repeatability.md) supports a
+conditional tail direction while leaving the small median gap unresolved. Read those limits with
+the historical comparison; the earlier numbers are not a current ranking or an enduring effect
+size. The power-of-two capacity restriction leaves the representation at those measured shapes
+unchanged.

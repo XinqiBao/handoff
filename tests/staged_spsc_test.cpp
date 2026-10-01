@@ -172,8 +172,8 @@ TEST_CASE("staged SPSC slots retain resources until overwritten") {
 
 TEST_CASE("staged SPSC reservations preserve concurrent message integrity") {
   constexpr std::uint64_t message_count = 100'000;
-  constexpr std::size_t group_size = 4;
-  handoff::spsc::StagedBoundedRing<Message, 63> ring;
+  constexpr std::size_t group_size = 5;
+  handoff::spsc::StagedBoundedRing<Message, 64> ring;
   std::atomic<bool> valid{true};
 
   std::thread producer([&] {

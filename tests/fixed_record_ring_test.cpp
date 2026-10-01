@@ -82,7 +82,7 @@ TEST_CASE("fixed-record ring handles zero, full, and oversized logical payloads"
 }
 
 TEST_CASE("fixed-record ring preserves FIFO records through slot wrap") {
-  using Ring = handoff::record::FixedRecordRing<8, 3>;
+  using Ring = handoff::record::FixedRecordRing<8, 4>;
   Ring ring;
   Ring::value_type output;
 
@@ -107,7 +107,7 @@ TEST_CASE("fixed-record ring preserves FIFO records through slot wrap") {
 
 TEST_CASE("fixed-record ring preserves concurrent header and payload integrity") {
   constexpr std::uint64_t message_count = 500'000;
-  using Ring = handoff::record::FixedRecordRing<16, 63>;
+  using Ring = handoff::record::FixedRecordRing<16, 64>;
   Ring ring;
   std::atomic<bool> valid{true};
 

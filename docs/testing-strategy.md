@@ -24,6 +24,13 @@ Every bounded FIFO mechanism with matching semantics should cover:
 - failed operations leaving queue state valid;
 - reuse after empty and full states.
 
+Distinguish physical ring wrap from machine-counter rollover and finite sequence exhaustion.
+The [counter boundary suite](../tests/counter_rollover_test.cpp) seeds empty, quiescent production
+counters near `SIZE_MAX` through private test access, then checks admission, payload mapping, and
+reuse across rollover. It also verifies unsupported wrapping capacities at compile time. Finite
+sequence tests instead exhaust a small sequence type without rollover; arbitrary capacities remain
+valid in that family. Neither boundary follows from a long run that only cycles physical slots.
+
 Common test helpers are appropriate for these shared invariants when they do not erase meaningful
 semantic differences.
 

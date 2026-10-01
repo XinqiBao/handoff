@@ -33,7 +33,9 @@ default-constructed `T` objects throughout the topology's lifetime; construction
 may manage resources, and the topology must outlive all tokens and threads.
 
 The underlying SPSC counters use unsigned bounded-distance arithmetic and may wrap; capacity is at
-most half the counter range. There is no finite nonwrapping sequence limit of the kind used by the
+most half the counter range and must be a positive power of two to preserve physical slot mapping
+at machine-counter rollover. The [staged SPSC contract](staged-bounded-spsc.md) owns this
+restriction and its counter-boundary verification. There is no finite nonwrapping sequence limit of the kind used by the
 shared MPSC rings. Deterministic tests cover selection, an unpublished path, held and cancelled
 observations, exact per-path capacity, and independent physical wrap. A two-producer integrity test
 checks both FIFO streams through repeated wrap. The shared MPSC routes instead assign global FIFO

@@ -213,7 +213,7 @@ TEST_CASE("sequence pipeline retains resources until producer reuse") {
 }
 
 TEST_CASE("sequence pipeline rejects progress after the finite sequence limit") {
-  using Ring = handoff::sequence::BoundedSequencePipeline<std::uint64_t, 4, std::uint8_t>;
+  using Ring = handoff::sequence::BoundedSequencePipeline<std::uint64_t, 3, std::uint8_t>;
   Ring ring;
 
   for (unsigned int expected = 1; expected <= Ring::sequence_limit(); ++expected) {

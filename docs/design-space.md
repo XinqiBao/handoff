@@ -132,6 +132,13 @@ and who discovers progress, while preserving shared-ring claim-order FIFO.
 
 ## Ownership and publication
 
+Counter lifetime and physical mapping are separate contracts. Bounded unsigned subtraction can
+remain valid across machine-counter rollover while `counter % capacity` repeats a physical slot:
+on a 64-bit counter, both `UINT64_MAX % 3` and `0 % 3` are zero. Wrapping slot-counter mechanisms
+therefore require power-of-two capacities that divide the counter modulus. Masked byte storage
+already has that property. Finite-sequence mechanisms stop before logical rollover and may retain
+arbitrary capacities. Repeated physical ring wrap does not test either lifetime boundary.
+
 Relevant operation shapes include:
 
 - push/copy into queue-owned storage;

@@ -14,7 +14,9 @@
 
 namespace handoff::descriptor {
 
+// Descriptor modulo mapping must remain continuous at counter rollover too.
 template <std::size_t DescriptorCapacity, std::size_t PayloadByteCapacity>
+  requires(std::has_single_bit(DescriptorCapacity))
 class DescriptorPayloadRing {
   static_assert(DescriptorCapacity > 0, "a descriptor ring needs at least one slot");
   static_assert(DescriptorCapacity <= std::numeric_limits<std::size_t>::max() / 2,
@@ -126,6 +128,8 @@ public:
   }
 
 private:
+  friend struct CounterTestAccess;
+
   [[nodiscard]] static constexpr std::size_t
   footprint_for_valid_payload(std::size_t payload_length) noexcept {
     if (payload_length == 0) {

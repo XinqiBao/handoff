@@ -10,7 +10,7 @@ best-effort partial progress.
 
 ## Representation and payload lifetime
 
-The representation, exact usable capacity, monotonic atomic head and tail, modulo slot addressing,
+The representation, exact usable capacity, wrapping unsigned atomic head and tail, modulo slot addressing,
 and default-constructed inline slots match the [basic bounded SPSC ring](basic-bounded-spsc.md).
 Slots remain live for the ring's lifetime and are reused by assignment. The ring allocates no slot
 storage dynamically, while `T` construction or assignment may allocate, release, or retain
@@ -20,6 +20,11 @@ Scalar `try_push` and `try_pop` retain the basic ring's copy/move behavior, incl
 default-initializable move-only values. `try_push_batch(std::span<const T>)` requires copy
 assignment and does not consume its inputs. `try_pop_batch(std::span<T>)` requires move assignment
 and replaces its outputs only on success.
+
+Capacity must be a positive power of two and at most half the counter range. The
+[basic ring note](basic-bounded-spsc.md#representation-and-capacity) explains why bounded unsigned
+distance alone does not preserve modulo slot mapping at machine-counter rollover. The same contract
+and [production-counter boundary tests](../../tests/counter_rollover_test.cpp) apply here.
 
 ## Batch semantics and invariants
 

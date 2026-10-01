@@ -13,6 +13,7 @@ add_executable(
   bounded_spsc_test.cpp
   bulk_burst_spsc_test.cpp
   completion_mpsc_test.cpp
+  counter_rollover_test.cpp
   core_test.cpp
   descriptor_payload_ring_test.cpp
   fixed_record_ring_test.cpp

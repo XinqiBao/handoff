@@ -4,6 +4,7 @@
 
 #include <array>
 #include <atomic>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -25,7 +26,10 @@ template <std::size_t PayloadCapacity> struct FixedRecord {
   std::array<std::byte, PayloadCapacity> payload{};
 };
 
-template <std::size_t PayloadCapacity, std::size_t Capacity> class FixedRecordRing {
+// Power-of-two capacity keeps modulo slot mapping continuous at counter rollover.
+template <std::size_t PayloadCapacity, std::size_t Capacity>
+  requires(std::has_single_bit(Capacity))
+class FixedRecordRing {
   static_assert(Capacity > 0, "a fixed-record SPSC ring needs at least one slot");
   static_assert(Capacity <= std::numeric_limits<std::size_t>::max() / 2,
                 "capacity must fit unambiguously in the counter distance");
@@ -71,6 +75,8 @@ public:
   }
 
 private:
+  friend struct CounterTestAccess;
+
   std::array<value_type, Capacity> slots_{};
   std::atomic<std::size_t> head_{0};
   std::atomic<std::size_t> tail_{0};

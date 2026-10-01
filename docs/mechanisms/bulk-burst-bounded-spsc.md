@@ -13,7 +13,7 @@ modes, staged reservation, cached indices, or cache-line-separated counters.
 
 ## Representation and payload lifetime
 
-The ring owns `Capacity` default-constructed inline `T` slots and monotonic atomic head and tail
+The ring owns `Capacity` default-constructed inline `T` slots and wrapping unsigned atomic head and tail
 counters. Logical positions map to physical slots modulo `Capacity`; all `Capacity` slots are
 usable. The producer owns tail advancement and the consumer owns head advancement. Exactly one
 producer may call push operations and exactly one consumer may call pop operations.
@@ -23,6 +23,11 @@ the basic ring's copy/move behavior and support default-initializable move-only 
 operations take `std::span<const T>` and require copy assignment. Group pop operations take
 `std::span<T>`, require move assignment, and replace only the output prefix reported as completed.
 The ring does not allocate slot storage, but `T` construction or assignment may manage resources.
+
+Capacity must be a positive power of two and at most half the counter range. The
+[basic ring note](basic-bounded-spsc.md#representation-and-capacity) explains why bounded unsigned
+distance alone does not preserve modulo slot mapping at machine-counter rollover. The same contract
+and [production-counter boundary tests](../../tests/counter_rollover_test.cpp) apply here.
 
 ## Bulk and burst semantics
 

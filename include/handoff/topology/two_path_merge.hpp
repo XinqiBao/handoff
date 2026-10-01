@@ -2,6 +2,7 @@
 
 #include "handoff/spsc/staged_bounded_ring.hpp"
 
+#include <bit>
 #include <concepts>
 #include <cstddef>
 #include <optional>
@@ -12,7 +13,7 @@ namespace handoff::topology {
 enum class MergeSource { first, second };
 
 template <typename T, std::size_t PathCapacity>
-  requires std::default_initializable<T>
+  requires(std::has_single_bit(PathCapacity)) && std::default_initializable<T>
 class TwoPathMerge {
   using Path = spsc::StagedBoundedRing<T, PathCapacity>;
 

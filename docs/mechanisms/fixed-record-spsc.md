@@ -41,10 +41,12 @@ the slot for producer reuse. The ring performs no allocation and owns `Capacity`
 records for its lifetime.
 
 Only one producer calls `try_push` and only one consumer calls `try_pop`; both remain on their owner
-threads, and the ring outlives them. Monotonic unsigned `head` and `tail` counters address slots by
+threads, and the ring outlives them. Wrapping unsigned `head` and `tail` counters address slots by
 modulo. `tail == head` means empty and `tail - head == Capacity` means full, so every declared slot
-is usable. Capacity is restricted to at most half the counter range to keep bounded distance
-unambiguous across unsigned wrap.
+is usable. Capacity must be a positive power of two and at most half the counter range. Bounded
+unsigned distance remains unambiguous, and power-of-two capacity preserves physical modulo mapping
+when the machine counter rolls over. Arbitrary capacities fail the latter invariant even when
+distance arithmetic is valid; see the [basic SPSC argument](basic-bounded-spsc.md#representation-and-capacity).
 
 ## Publication and memory ordering
 
@@ -63,7 +65,8 @@ baseline; the byte-oriented value does not justify weaker ordering.
 Tests fix only contractual layout facts: header field offsets and size, payload offset, and the
 record's standard-layout and trivially-copyable properties. Runtime tests cover initial state,
 zero-length and full-length payloads, invalid-length rejection, unchanged output on empty, exact
-capacity, FIFO ordering, repeated wrap and reuse, and long concurrent header/payload integrity.
+capacity, FIFO ordering, repeated physical wrap and reuse, actual machine-counter rollover in the
+[boundary suite](../../tests/counter_rollover_test.cpp), and long concurrent header/payload integrity.
 
 The `fixed-record` throughput and ping-pong modes use the existing 8, 64, and 256 byte logical
 payloads and 64 or 1024 exact slot capacities. Each record duplicates the benchmark sequence in its

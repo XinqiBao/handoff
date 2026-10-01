@@ -160,7 +160,7 @@ TEST_CASE("ordered MPSC charges unfinished claims and reuses only released slots
 }
 
 TEST_CASE("ordered MPSC stops at its finite position limit", "[mpsc]") {
-  handoff::mpsc::OrderedPublicationRing<Message, 4, std::uint8_t> ring;
+  handoff::mpsc::OrderedPublicationRing<Message, 3, std::uint8_t> ring;
   for (unsigned int position = 0; position < 255; ++position) {
     auto claim = ring.try_claim();
     REQUIRE(claim);

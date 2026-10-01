@@ -130,7 +130,7 @@ TEST_CASE("bulk and burst SPSC operations preserve concurrent message integrity"
   }
 
   SECTION("burst") {
-    handoff::spsc::BulkBurstBoundedRing<Message, 3> ring;
+    handoff::spsc::BulkBurstBoundedRing<Message, 2> ring;
     std::atomic<bool> valid{true};
     std::thread producer([&] {
       std::array<Message, group_size> messages{};

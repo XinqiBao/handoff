@@ -186,7 +186,7 @@ TEST_CASE("sequence fan-out retains resources until producer reuse") {
 }
 
 TEST_CASE("sequence fan-out rejects progress after the finite sequence limit") {
-  using Ring = handoff::sequence::BoundedSequenceFanOut<std::uint64_t, 4, 2, std::uint8_t>;
+  using Ring = handoff::sequence::BoundedSequenceFanOut<std::uint64_t, 3, 2, std::uint8_t>;
   Ring ring;
 
   for (unsigned int expected = 1; expected <= Ring::sequence_limit(); ++expected) {

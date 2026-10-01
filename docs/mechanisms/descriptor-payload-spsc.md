@@ -13,8 +13,8 @@ lookup, broadcast, or overwrite unread data. It is not compatible with Firedance
 
 ## Independent capacities and layout
 
-The descriptor array has exact compile-time slot capacity. Monotonic descriptor head and tail
-positions distinguish empty from full without reserving a sentinel slot. Each private descriptor
+The descriptor array has exact positive power-of-two compile-time slot capacity. Wrapping
+descriptor head and tail positions distinguish empty from full without reserving a sentinel slot. Each private descriptor
 stores a `RecordHeader`, a 32-bit payload offset, and a 32-bit reservation length. Descriptor layout
 is private and no object-size or ABI promise is made.
 
@@ -67,7 +67,12 @@ Stale observations cannot authorize premature reuse of either resource.
 
 Unsigned descriptor and byte positions may wrap. Each capacity is no greater than half the counter
 range, so modular subtraction remains unambiguous while the ring obeys its bounded occupancy
-invariant. Physical payload offsets use power-of-two masking.
+invariant. Descriptor slot capacity must also be a power of two so modulo mapping remains
+continuous at machine-counter rollover; bounded distance alone is insufficient for arbitrary
+capacity. See the [basic SPSC mapping argument](basic-bounded-spsc.md#representation-and-capacity).
+Physical payload offsets already use power-of-two masking. The
+[boundary suite](../../tests/counter_rollover_test.cpp) exercises descriptor-counter rollover and
+byte-counter rollover with a physical payload gap and delayed release.
 
 ## Correctness and benchmark coverage
 

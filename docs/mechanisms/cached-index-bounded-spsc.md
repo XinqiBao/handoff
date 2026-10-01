@@ -15,7 +15,7 @@ reservations, blocking waits, or weaker memory ordering.
 
 ## Representation and ownership
 
-The ring contains `Capacity` default-constructed `T` slots, atomic monotonic `head` and `tail`
+The ring contains `Capacity` default-constructed `T` slots, wrapping unsigned atomic `head` and `tail`
 counters, a producer-owned cached head, and a consumer-owned cached tail. All four counters start at
 zero. Slots remain live for the ring's lifetime and are reused by assignment, with the same
 resource-allocation and moved-from behavior documented for the
@@ -25,6 +25,11 @@ Only the producer reads and writes its cached head and advances `tail`. Only the
 writes its cached tail and advances `head`. The cached members are therefore non-atomic. They are
 the mechanism's necessary additional state; the atomic counters remain unaligned as in the basic
 ring so this variant does not also study explicit cache-line separation.
+
+Capacity must be a positive power of two and at most half the counter range. The
+[basic ring note](basic-bounded-spsc.md#representation-and-capacity) explains why bounded unsigned
+distance alone does not preserve modulo slot mapping at machine-counter rollover. The same contract
+and [production-counter boundary tests](../../tests/counter_rollover_test.cpp) apply here.
 
 ## Operations and invariants
 
@@ -69,8 +74,12 @@ and ping-pong workload templates as the existing rings. Small runs validate plum
 controlled comparison is recorded in
 [experiment 004](../experiments/004-cached-index-spsc-comparison.md).
 
-On its final Intel N150 repetition, cached indices showed 3.164% higher median throughput and a
-positive delta in every paired block, but the cached variant's 2.663% sample CV and 8.669% full
-range made the effect size unstable. Ping-pong was inconclusive because cached-index RTTs were
-strongly bimodal and the paired deltas disagreed. These observations do not establish a universal
-ranking or a cache/coherence cause.
+Experiment 004 recorded a throughput direction with unstable magnitude and inconclusive RTT on
+its historical Intel N150 revision and conditions. Those observations do not establish a current
+ranking or a cache/coherence cause. The later
+[throughput reassessment](../experiments/023-spsc-measurement-stability.md) leaves small scalar
+gaps unresolved because process rate states persist, and the
+[RTT reassessment](../experiments/030-spsc-rtt-repeatability.md) leaves its small median gap
+unresolved despite a conditional tail direction. Exact historical samples and interpretation belong
+in their experiment records. The power-of-two capacity restriction leaves the representation at those measured shapes
+unchanged.

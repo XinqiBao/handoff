@@ -38,7 +38,7 @@ template <typename Merge> void publish(Merge& merge, MergeSource source, Message
 } // namespace
 
 TEST_CASE("two-path merge rotates between ready path heads", "[topology]") {
-  using Merge = handoff::topology::TwoPathMerge<Message, 3>;
+  using Merge = handoff::topology::TwoPathMerge<Message, 4>;
   STATIC_CHECK(std::same_as<decltype(std::declval<Merge::Observation&>().value()), const Message&>);
   Merge merge;
   CHECK_FALSE(merge.try_acquire());
@@ -151,7 +151,7 @@ TEST_CASE("one held path permits repeated physical wrap of the other", "[topolog
 
 TEST_CASE("two-path merge preserves both FIFOs under concurrent wrap", "[topology]") {
   constexpr std::uint64_t count = 50'000;
-  handoff::topology::TwoPathMerge<Message, 7> merge;
+  handoff::topology::TwoPathMerge<Message, 8> merge;
   std::atomic<bool> valid{true};
   std::thread first([&] {
     for (std::uint64_t n = 0; n < count; ++n) {

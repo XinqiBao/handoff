@@ -160,7 +160,7 @@ TEST_CASE("sequence ring retains slot resources until producer reuse") {
 }
 
 TEST_CASE("sequence ring rejects progress after its finite sequence limit") {
-  using Ring = handoff::sequence::BoundedSequenceRing<std::uint64_t, 4, std::uint8_t>;
+  using Ring = handoff::sequence::BoundedSequenceRing<std::uint64_t, 3, std::uint8_t>;
   Ring ring;
 
   for (unsigned int expected = 1; expected <= Ring::sequence_limit(); ++expected) {

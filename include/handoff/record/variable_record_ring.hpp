@@ -118,6 +118,8 @@ public:
   }
 
 private:
+  friend struct CounterTestAccess;
+
   [[nodiscard]] static constexpr std::size_t
   footprint_for_valid_payload(std::size_t payload_length) noexcept {
     return (header_size + payload_length + record_alignment - 1) & ~(record_alignment - 1);

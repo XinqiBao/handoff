@@ -12,10 +12,10 @@ or attempt to isolate shared indices on separate cache lines.
 
 ## Representation and capacity
 
-Capacity is a compile-time template argument. It is also the exact usable capacity: a ring declared
-with `Capacity == 4` accepts four values before reporting full. The representation contains exactly
-`Capacity` default-constructed inline slots plus monotonically increasing unsigned `head` and
-`tail` counters. A slot is addressed by `counter % Capacity`; no slot is reserved as a sentinel.
+Capacity is a positive power-of-two compile-time template argument. It is also the exact usable
+capacity: a ring declared with `Capacity == 4` accepts four values before reporting full. The representation contains exactly
+`Capacity` default-constructed inline slots plus wrapping unsigned `head` and `tail` counters. A slot
+is addressed by `counter % Capacity`; no slot is reserved as a sentinel.
 
 The ring's complete slot storage is established during construction and the ring itself performs no
 dynamic allocation. Every slot is nevertheless a live `T` object for the ring's entire lifetime:
@@ -25,13 +25,20 @@ moved-from state; it does not destroy and reconstruct the slot. `T` must be defa
 and assignable, and its assignment and destruction must not race with access outside the ring. The
 ring itself must outlive both participating threads and is neither copyable nor movable.
 
-Unsigned counter wrap is defined by C++. Capacity is restricted to at most half of the counter
-range so the bounded `tail - head` distance remains unambiguous, including across wrap.
+Unsigned counter rollover is defined by C++. Capacity is restricted to at most half of the counter
+range so the bounded `tail - head` distance remains unambiguous. That distance rule alone does not
+make physical slot mapping valid: `counter % Capacity` must also progress continuously across the
+machine-counter rollover. Power-of-two capacity divides the unsigned counter modulus and preserves
+that mapping. Arbitrary modulo capacity does not: for capacity 3 on a 64-bit counter, both
+`UINT64_MAX` and the next counter value 0 map to slot 0. Such capacities are rejected rather than
+adding separate physical cursors or a finite exhaustion contract. Normal physical ring wrap and
+machine-counter rollover are different boundaries; the ring supports both.
 
 ## Ownership and invariants
 
 Only the producer calls `try_push` and advances `tail`. Only the consumer calls `try_pop` and
-advances `head`. An element is occupied exactly when its logical position is in `[head, tail)`.
+advances `head`. Occupied positions form the cyclic logical interval `[head, tail)`, whose length
+is the bounded unsigned distance `tail - head`, including across machine-counter rollover.
 Therefore:
 
 - `tail == head` means empty;
@@ -59,6 +66,11 @@ Tests cover empty and full behavior, exact usable capacity, FIFO order, wraparou
 fill/drain cycles, move-only resource-owning payloads, unchanged inputs and outputs on failed
 operations, slot reuse, message integrity, and a million-message concurrent run that detects loss,
 duplication, reordering, and torn payload observations.
+
+Focused [counter rollover tests](../../tests/counter_rollover_test.cpp) seed quiescent empty rings
+near `SIZE_MAX` and exercise the actual production counters through rollover, full admission, FIFO
+reads, and reuse. They also check rejection of non-power-of-two capacities. Existing physical-wrap
+tests exercise repeated slot cycling; they cannot replace this boundary verification.
 
 ## Benchmark workloads
 

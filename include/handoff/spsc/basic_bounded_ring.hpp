@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <bit>
 #include <concepts>
 #include <cstddef>
 #include <limits>
@@ -9,8 +10,10 @@
 
 namespace handoff::spsc {
 
+// Power-of-two capacity keeps modulo slot mapping continuous at counter rollover.
 template <typename T, std::size_t Capacity>
-  requires std::default_initializable<T> && std::assignable_from<T&, T>
+  requires(std::has_single_bit(Capacity)) && std::default_initializable<T> &&
+          std::assignable_from<T&, T>
 class BasicBoundedRing {
   static_assert(Capacity > 0, "an SPSC ring needs at least one slot");
   static_assert(Capacity <= std::numeric_limits<std::size_t>::max() / 2,
@@ -50,6 +53,8 @@ public:
   }
 
 private:
+  friend struct CounterTestAccess;
+
   template <typename U> [[nodiscard]] bool try_push_impl(U&& value) {
     const auto tail = tail_.load(std::memory_order_relaxed);
     const auto head = head_.load(std::memory_order_acquire);

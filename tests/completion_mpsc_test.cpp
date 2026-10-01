@@ -170,8 +170,8 @@ TEST_CASE("slot availability discovers a ready prefix when the hole closes", "[m
 }
 
 TEST_CASE("completion MPSC variants stop at finite position exhaustion", "[mpsc]") {
-  check_finite_limit<handoff::mpsc::CompletionCountRing<Message, 4, std::uint8_t>>();
-  check_finite_limit<handoff::mpsc::SlotAvailabilityRing<Message, 4, std::uint8_t>>();
+  check_finite_limit<handoff::mpsc::CompletionCountRing<Message, 3, std::uint8_t>>();
+  check_finite_limit<handoff::mpsc::SlotAvailabilityRing<Message, 3, std::uint8_t>>();
 }
 
 TEST_CASE("completion MPSC variants preserve unique claims across repeated reuse", "[mpsc]") {
