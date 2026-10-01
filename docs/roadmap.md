@@ -54,6 +54,16 @@ pipeline, or a broad parameter matrix until this gate passes. Preserve raw rows,
 sidecars, and anomalous groups. A fine RTT campaign must retain ordered raw samples and check
 end-to-end timer perturbation before making nanosecond-scale tail claims.
 
+The [ordered RTT reassessment](experiments/030-spsc-rtt-repeatability.md) now retains individual
+spin ping-pong samples and tests the optional output path. The 8 B / 64-slot `basic` RTT medians
+spanned 403-416 ns across eight independent processes; `cached-index` spanned 415-469 ns and
+showed sustained within-process states. Its p95 and p99 exceeded `basic` in every one of eight
+adjacent pairs, while the paired median difference ranged 0-64 ns. Four output on/off pairs did
+not show a consistent signed effect, but do not establish a zero perturbation bound. This supports
+only a conditional two-ring RTT tail direction. Next diagnose a specific state mechanism and
+endpoint work limit before claiming a precise median RTT or completed-throughput gap. A later
+specified-offered-rate latency workload would need its own admission, timestamp, and host gate.
+
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)
 established publication-call blocking across a hole and recorded one controlled N150 comparison.

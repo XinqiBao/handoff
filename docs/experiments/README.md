@@ -54,3 +54,4 @@ its own record. Keep unrelated research questions separate.
 - [Physical pages and sampled addresses in SPSC rate states](027-spsc-address-state-diagnostic.md)
 - [Initial queue occupancy and SPSC process states](028-spsc-initial-occupancy-diagnostic.md)
 - [No-handoff, sampler, and layout controls for SPSC rate states](029-spsc-causality-controls.md)
+- [Ordered SPSC RTT samples and process repeatability](030-spsc-rtt-repeatability.md)
