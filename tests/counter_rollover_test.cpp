@@ -12,6 +12,9 @@
 #include <array>
 #include <cstddef>
 #include <limits>
+#include <optional>
+#include <stdexcept>
+#include <utility>
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -65,6 +68,14 @@ using CachedIndex = handoff::spsc::CachedIndexBoundedRing<int, 4>;
 using Batch = handoff::spsc::BatchBoundedRing<int, 4>;
 using BulkBurst = handoff::spsc::BulkBurstBoundedRing<int, 4>;
 
+template <typename Reservation>
+Reservation require_reservation(std::optional<Reservation> reservation) {
+  if (!reservation.has_value()) {
+    throw std::logic_error("expected staged reservation");
+  }
+  return std::move(*reservation);
+}
+
 template <template <typename, std::size_t> typename Ring, std::size_t Capacity>
 concept CapacitySupported = requires { typename Ring<int, Capacity>; };
 
@@ -77,24 +88,23 @@ concept DescriptorCapacitySupported =
     requires { typename handoff::descriptor::DescriptorPayloadRing<Capacity, 128>; };
 
 template <std::size_t Capacity> constexpr bool all_wrapping_slots_support(bool expected) {
-  const std::array supported{requires {typename handoff::spsc::BasicBoundedRing<int, Capacity>;
-}
-, requires { typename handoff::spsc::CacheLineBoundedRing<int, Capacity>; },
-    requires { typename handoff::spsc::CachedIndexBoundedRing<int, Capacity>; },
-    requires { typename handoff::spsc::BatchBoundedRing<int, Capacity>; },
-    requires { typename handoff::spsc::BulkBurstBoundedRing<int, Capacity>; },
-    requires { typename handoff::spsc::StagedBoundedRing<int, Capacity>; },
-    requires { typename handoff::record::FixedRecordRing<8, Capacity>; },
-    requires { typename handoff::descriptor::DescriptorPayloadRing<Capacity, 128>; },
-    requires { typename handoff::topology::TwoPathMerge<int, Capacity>; }
-}; // namespace
-for (const bool accepts : supported) {
-  if (accepts != expected) {
-    return false;
+  const std::array supported{CapacitySupported<handoff::spsc::BasicBoundedRing, Capacity>,
+                             CapacitySupported<handoff::spsc::CacheLineBoundedRing, Capacity>,
+                             CapacitySupported<handoff::spsc::CachedIndexBoundedRing, Capacity>,
+                             CapacitySupported<handoff::spsc::BatchBoundedRing, Capacity>,
+                             CapacitySupported<handoff::spsc::BulkBurstBoundedRing, Capacity>,
+                             CapacitySupported<handoff::spsc::StagedBoundedRing, Capacity>,
+                             CapacitySupported<handoff::topology::TwoPathMerge, Capacity>,
+                             FixedCapacitySupported<Capacity>,
+                             DescriptorCapacitySupported<Capacity>};
+  for (const bool accepts : supported) {
+    if (accepts != expected) {
+      return false;
+    }
   }
+  return true;
 }
-return true;
-}
+
 } // namespace
 
 TEST_CASE("wrapping slot capacities preserve physical mapping at machine rollover", "[rollover]") {
@@ -102,15 +112,6 @@ TEST_CASE("wrapping slot capacities preserve physical mapping at machine rollove
   STATIC_CHECK(all_wrapping_slots_support<4>(true));
   STATIC_CHECK(all_wrapping_slots_support<0>(false));
   STATIC_CHECK(all_wrapping_slots_support<3>(false));
-  STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::BasicBoundedRing, 3>);
-  STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::CacheLineBoundedRing, 3>);
-  STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::CachedIndexBoundedRing, 3>);
-  STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::BatchBoundedRing, 3>);
-  STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::BulkBurstBoundedRing, 3>);
-  STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::StagedBoundedRing, 3>);
-  STATIC_CHECK_FALSE(CapacitySupported<handoff::topology::TwoPathMerge, 3>);
-  STATIC_CHECK_FALSE(FixedCapacitySupported<3>);
-  STATIC_CHECK_FALSE(DescriptorCapacitySupported<3>);
   STATIC_CHECK(maximum % 3 == 0);
   STATIC_CHECK(std::size_t{0} % 3 == 0);
   STATIC_CHECK(maximum % 4 == 3);
@@ -168,31 +169,27 @@ TEST_CASE("grouped SPSC publication crosses machine rollover", "[rollover]") {
 TEST_CASE("staged spans and cancelled claims cross machine rollover", "[rollover]") {
   handoff::spsc::StagedBoundedRing<int, 4> ring;
   handoff::spsc::CounterTestAccess::seed_empty(ring, maximum - 1);
-  auto claim = ring.try_reserve_push(3);
-  REQUIRE(claim);
-  REQUIRE(claim->first().size() == 2);
-  REQUIRE(claim->second().size() == 1);
-  claim->first()[0] = 10;
-  claim->first()[1] = 11;
-  claim->second()[0] = 12;
+  auto claim = require_reservation(ring.try_reserve_push(3));
+  REQUIRE(claim.first().size() == 2);
+  REQUIRE(claim.second().size() == 1);
+  claim.first()[0] = 10;
+  claim.first()[1] = 11;
+  claim.second()[0] = 12;
   CHECK_FALSE(ring.try_reserve_pop(1));
-  claim->cancel();
+  claim.cancel();
   CHECK_FALSE(ring.try_reserve_pop(1));
-  claim = ring.try_reserve_push(3);
-  REQUIRE(claim);
-  claim->finish();
-  auto observation = ring.try_reserve_pop(3);
-  REQUIRE(observation);
-  REQUIRE(observation->first().size() == 2);
-  REQUIRE(observation->second().size() == 1);
-  CHECK(observation->first()[0] == 10);
-  CHECK(observation->first()[1] == 11);
-  CHECK(observation->second()[0] == 12);
+  claim = require_reservation(ring.try_reserve_push(3));
+  claim.finish();
+  auto observation = require_reservation(ring.try_reserve_pop(3));
+  REQUIRE(observation.first().size() == 2);
+  REQUIRE(observation.second().size() == 1);
+  CHECK(observation.first()[0] == 10);
+  CHECK(observation.first()[1] == 11);
+  CHECK(observation.second()[0] == 12);
   CHECK_FALSE(ring.try_reserve_push(2));
-  observation->cancel();
-  observation = ring.try_reserve_pop(3);
-  REQUIRE(observation);
-  observation->finish();
+  observation.cancel();
+  observation = require_reservation(ring.try_reserve_pop(3));
+  observation.finish();
   CHECK_FALSE(ring.try_reserve_pop(1));
   REQUIRE(ring.try_reserve_push(4));
 }
@@ -211,7 +208,7 @@ TEST_CASE("fixed-record slots cross machine rollover", "[rollover]") {
   for (unsigned int sequence = 0; sequence < 4; ++sequence) {
     REQUIRE(ring.try_pop(output));
     CHECK(output.header.sequence == sequence);
-    CHECK(output.payload[0] == static_cast<std::byte>(sequence));
+    CHECK(std::to_integer<unsigned int>(output.payload[0]) == sequence);
   }
   CHECK_FALSE(ring.try_pop(output));
   REQUIRE(ring.try_push({}));
@@ -229,7 +226,7 @@ TEST_CASE("masked byte storage and padding cross machine rollover", "[rollover]"
   std::array<std::byte, 17> output{};
   REQUIRE(ring.try_pop(output_header, output) == Ring::PopResult::success);
   CHECK(output_header.sequence == header.sequence);
-  CHECK(output == payload);
+  CHECK((output == payload));
   CHECK(ring.try_pop(output_header, output) == Ring::PopResult::empty);
   REQUIRE(ring.try_push(header, payload) == Ring::PushResult::success);
 }
@@ -255,7 +252,7 @@ TEST_CASE("descriptor slots and masked payload credits cross machine rollover", 
     REQUIRE(ring.try_pop(output_header, output) == Ring::PopResult::success);
     CHECK(output_header.sequence == sequence);
     if (sequence < 3) {
-      CHECK(output == payload);
+      CHECK((output == payload));
     }
   }
   CHECK(ring.try_pop(output_header, output) == Ring::PopResult::empty);
@@ -263,5 +260,5 @@ TEST_CASE("descriptor slots and masked payload credits cross machine rollover", 
           Ring::PushResult::success);
   REQUIRE(ring.try_pop(output_header, output) == Ring::PopResult::success);
   CHECK(output_header.sequence == 4);
-  CHECK(output == payload);
+  CHECK((output == payload));
 }
