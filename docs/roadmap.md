@@ -57,10 +57,15 @@ at most 1.21% in two independent runs, yet the cached-index/basic block effect c
 about -16% to about zero across those processes. This is evidence for an interaction involving
 process state and the busy-retry workload, not proof of a particular cache event or a host fault.
 The next distinct test should control relative addresses of the queue and worker-accessed data,
-or validate a specific cache hypothesis with role-specific PMU counts. Any proposed protocol
-must repeat across independent processes in the canonical, uninstrumented 8 B / 64-slot group
-before ranking small gaps or expanding the matrix. Retain busy retries as the intended
-dedicated-core condition.
+or validate a specific cache hypothesis with role-specific PMU counts. A first
+[PMU diagnostic](experiments/026-spsc-role-pmu-diagnostic.md) at fixed queue page offset found
+that slow `cached-index` processes retired nearly identical consumer instructions but had about
+31% more consumer L2 request misses per message than fast processes. The event does not identify
+the affected line or whether the misses cause or follow the rate state. The next test should
+distinguish queue/worker address mapping from occupancy or coherence changes, using controlled
+relative placement or address-resolved evidence. Any proposed protocol must repeat across
+independent processes in the canonical, uninstrumented 8 B / 64-slot group before ranking small
+gaps or expanding the matrix. Retain busy retries as the intended dedicated-core condition.
 
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)
