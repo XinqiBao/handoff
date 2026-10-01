@@ -63,3 +63,5 @@ requested worker affinity mask; macOS reports affinity as unsupported.
   qualification.
 - [Reproducibility](docs/reproducibility.md): builds, host controls, exact procedures.
 - [External inspirations](docs/inspirations/README.md): ideas and primary-source provenance.
+
+Licensed under the [MIT License](LICENSE).
