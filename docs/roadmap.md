@@ -43,12 +43,22 @@ Small effects below observed dispersion stay unresolved. Do not make identificat
 state a prerequisite for a different qualified comparison group. Reopen that diagnosis only for a
 specific test likely to change a useful conclusion.
 
-The next high-value candidate is whether the Experiment 022 `mpsc-slot`/`mpsc-count` direction
-persists under current busy retries, using the same two-producer/one-consumer completion contract
-and a new workload-specific host qualification. A second candidate is the large
-`spmc-slot`/`spmc-serialized` work-sharing contrast from
-[Experiment 017](experiments/017-spmc-consumer-coordination.md) under busy retries. These are
-questions, not a required matrix; retain only comparisons whose expected effect is resolvable.
+[Experiment 031](experiments/031-busy-retry-mpsc-comparison.md) answers the current busy-retry
+MPSC question: slot beat count in all eight balanced pairs after actual-route host qualification,
+and the full route ranges did not overlap. The direction is resolved for this workload; its varying
+magnitude does not support isolated publication-cost attribution or an enduring percentage. Stop
+this comparison here, retaining all rows and the unresolved SPSC cause.
+
+A future two-route `spmc-slot`/`spmc-serialized` comparison is justified only for the concrete
+question of whether overlapping consumer ownership/processing retains a large complete-route
+advantage over whole-operation serialization under busy retries. The shared work and final
+producer-verified reuse boundary make that axis meaningful; mutex admission, overlap, release,
+and discovery still differ. [Experiment 017](experiments/017-spmc-consumer-coordination.md)
+suggests a potentially resolvable effect, with anomalous rows limiting its magnitude. Requalify both
+actual routes and placement independently. This campaign reassessed that candidate without running
+it; do not add ordered release to make a three-way ranking. No further MPSC or open-ended SPSC
+measurement is currently justified without a distinct question.
+
 Scalar SPSC (`basic`, `cache-line`, `cached-index`) is a separate lossless one-pair group, with
 grouped SPSC comparing group operations only under matched group work. MPSC and SPMC each have
 their own role topology and completion boundary. Reliable fan-out, pipeline, lossy observation,

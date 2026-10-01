@@ -59,4 +59,7 @@ paths; the argument above supplies the C++ synchronization basis.
 The controlled [producer-completion comparison](../experiments/016-mpsc-producer-completion.md)
 records the original complete-route N150 observation. A later
 [fixed-frequency count/slot comparison](../experiments/022-fixed-frequency-mpsc-comparison.md)
-rechecks that pair under workload-qualified host controls.
+rechecks that pair under workload-qualified host controls with historical yield retries.
+The [busy-retry comparison](../experiments/031-busy-retry-mpsc-comparison.md)
+retains the same directional complete-route observation under the current workload;
+neither result isolates publication cost.

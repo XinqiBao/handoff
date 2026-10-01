@@ -32,6 +32,8 @@ identities, raw order, host checks, and interrupted attempts together.
 
 ## Measurement reference records
 
+- [031: Busy-retry MPSC completion comparison](031-busy-retry-mpsc-comparison.md):
+  the current canonical workload retains a resolved complete-route direction.
 - [022: Fixed-frequency MPSC completion comparison](022-fixed-frequency-mpsc-comparison.md):
   a resolved complete-route direction under historical yield retries.
 - [023: Scalar SPSC measurement stability](023-spsc-measurement-stability.md):
