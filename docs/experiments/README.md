@@ -51,3 +51,4 @@ its own record. Keep unrelated research questions separate.
 - [Clock-read floor on the isolated N150](024-clock-read-calibration.md)
 - [Busy-retry SPSC process-state diagnostic](025-spsc-process-state-diagnostic.md)
 - [Role-specific PMU check of SPSC rate states](026-spsc-role-pmu-diagnostic.md)
+- [Physical pages and sampled addresses in SPSC rate states](027-spsc-address-state-diagnostic.md)

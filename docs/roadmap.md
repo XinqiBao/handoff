@@ -61,11 +61,15 @@ or validate a specific cache hypothesis with role-specific PMU counts. A first
 [PMU diagnostic](experiments/026-spsc-role-pmu-diagnostic.md) at fixed queue page offset found
 that slow `cached-index` processes retired nearly identical consumer instructions but had about
 31% more consumer L2 request misses per message than fast processes. The event does not identify
-the affected line or whether the misses cause or follow the rate state. The next test should
-distinguish queue/worker address mapping from occupancy or coherence changes, using controlled
-relative placement or address-resolved evidence. Any proposed protocol must repeat across
-independent processes in the canonical, uninstrumented 8 B / 64-slot group before ranking small
-gaps or expanding the matrix. Retain busy retries as the intended dedicated-core condition.
+the affected line or whether the misses cause or follow the rate state. The
+[page and address diagnostic](experiments/027-spsc-address-state-diagnostic.md) found that
+queue PFN residue modulo 32 does not label the rate states; sampled consumer L2 load misses all
+addressed the queue, but sampling itself changed the observed rates. A bounded next test should
+control initial occupancy or worker start phase within and across processes, or validate a more
+specific placement hypothesis with lower-impact counters. Any proposed protocol must repeat
+across independent processes in the canonical, uninstrumented 8 B / 64-slot group before
+ranking small gaps or expanding the matrix. Retain busy retries as the intended dedicated-core
+condition.
 
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)
