@@ -39,9 +39,10 @@ are observations, but precise rate gaps are not established. The remaining RTT a
 were stopped before formal measurement; their partial qualifications remain in ignored `results/`.
 A pinned [clock-read probe](experiments/024-clock-read-calibration.md) found no read-cost advantage
 for fenced TSC over `steady_clock` on this host and did not explain throughput drift. The next
-distinct question is whether retry/occupancy states change across rows under busy retries; use
-diagnostic instrumentation separately from performance rows and assess its perturbation before
-repeating the small scalar group. Do not extend to grouped SPSC or three-worker routes until the
+distinct question is whether retry/occupancy states change across rows under busy retries; that
+contention is a target mechanism property on dedicated cores. Use diagnostic instrumentation
+separately from performance rows and assess its perturbation before repeating the small scalar
+group. Do not extend to grouped SPSC or three-worker routes until the
 measurement question is resolved. Preserve every row, execution order, sidecar, and invalidated
 group. Historical measurements remain tied to their original exact SHAs.
 

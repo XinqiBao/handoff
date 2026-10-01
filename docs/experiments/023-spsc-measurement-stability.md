@@ -145,9 +145,12 @@ last validated item. A roughly 28 ns clock read cannot directly account for mult
 between-row throughput changes. The coordinator-to-worker release is included once per row and
 is negligible relative to the 11-25-second timed regions, but this does not rule out a workload
 state change. Busy retries, queue occupancy, cache-line traffic, and intermittent interference
-remain hypotheses; neither isolation nor these summaries identify the cause. Before expanding to
-batch, sequence, fan-out, pipeline, or record layouts, use a focused diagnostic of retry and
-occupancy states and repeat only after its perturbation has been assessed. For reliable fan-out,
+remain hypotheses; neither isolation nor these summaries identify the cause. Contention under
+dedicated-core busy retries is part of the intended mechanism behavior, not grounds to discard a
+route. The unresolved issue is why the same route moves between rate states under nominally equal
+conditions. Before expanding to batch, sequence, fan-out, pipeline, or record layouts, use a
+focused diagnostic of retry and occupancy states and repeat only after its perturbation has been
+assessed. For reliable fan-out,
 one completed publication requires two observations; its numerator and role work differ from
 single-consumer SPSC. Pipeline requires ordered upstream/downstream stages. They can be compared
 as complete three-worker contracts after separate host qualification, not on a universal rate
