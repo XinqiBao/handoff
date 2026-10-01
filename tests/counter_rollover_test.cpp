@@ -76,25 +76,32 @@ template <std::size_t Capacity>
 concept DescriptorCapacitySupported =
     requires { typename handoff::descriptor::DescriptorPayloadRing<Capacity, 128>; };
 
-template <std::size_t Capacity>
-concept WrappingSlotsSupported = requires {
-  typename handoff::spsc::BasicBoundedRing<int, Capacity>;
-  typename handoff::spsc::CacheLineBoundedRing<int, Capacity>;
-  typename handoff::spsc::CachedIndexBoundedRing<int, Capacity>;
-  typename handoff::spsc::BatchBoundedRing<int, Capacity>;
-  typename handoff::spsc::BulkBurstBoundedRing<int, Capacity>;
-  typename handoff::spsc::StagedBoundedRing<int, Capacity>;
-  typename handoff::record::FixedRecordRing<8, Capacity>;
-  typename handoff::descriptor::DescriptorPayloadRing<Capacity, 128>;
-  typename handoff::topology::TwoPathMerge<int, Capacity>;
-};
+template <std::size_t Capacity> constexpr bool all_wrapping_slots_support(bool expected) {
+  const std::array supported{requires {typename handoff::spsc::BasicBoundedRing<int, Capacity>;
+}
+, requires { typename handoff::spsc::CacheLineBoundedRing<int, Capacity>; },
+    requires { typename handoff::spsc::CachedIndexBoundedRing<int, Capacity>; },
+    requires { typename handoff::spsc::BatchBoundedRing<int, Capacity>; },
+    requires { typename handoff::spsc::BulkBurstBoundedRing<int, Capacity>; },
+    requires { typename handoff::spsc::StagedBoundedRing<int, Capacity>; },
+    requires { typename handoff::record::FixedRecordRing<8, Capacity>; },
+    requires { typename handoff::descriptor::DescriptorPayloadRing<Capacity, 128>; },
+    requires { typename handoff::topology::TwoPathMerge<int, Capacity>; }
+}; // namespace
+for (const bool accepts : supported) {
+  if (accepts != expected) {
+    return false;
+  }
+}
+return true;
+}
 } // namespace
 
 TEST_CASE("wrapping slot capacities preserve physical mapping at machine rollover", "[rollover]") {
-  STATIC_CHECK(WrappingSlotsSupported<1>);
-  STATIC_CHECK(WrappingSlotsSupported<4>);
-  STATIC_CHECK_FALSE(WrappingSlotsSupported<0>);
-  STATIC_CHECK_FALSE(WrappingSlotsSupported<3>);
+  STATIC_CHECK(all_wrapping_slots_support<1>(true));
+  STATIC_CHECK(all_wrapping_slots_support<4>(true));
+  STATIC_CHECK(all_wrapping_slots_support<0>(false));
+  STATIC_CHECK(all_wrapping_slots_support<3>(false));
   STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::BasicBoundedRing, 3>);
   STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::CacheLineBoundedRing, 3>);
   STATIC_CHECK_FALSE(CapacitySupported<handoff::spsc::CachedIndexBoundedRing, 3>);
