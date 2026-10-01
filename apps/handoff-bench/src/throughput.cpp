@@ -293,46 +293,51 @@ RunResults run_spsc(const Options& options) {
   return results;
 }
 
+template <GroupOperation Operation, typename Queue, std::size_t Bytes, bool GroupedScalar>
+RunResults dispatch_batch(const Options& options) {
+  if constexpr (Operation == GroupOperation::sequence ||
+                (Operation == GroupOperation::scalar && !GroupedScalar)) {
+    if (options.batch_size != 1) {
+      throw std::logic_error("validated scalar throughput requires batch size 1");
+    }
+    return run_spsc<Operation, Queue, Bytes, 1>(options);
+  } else {
+    switch (options.batch_size) {
+    case 1:
+      return run_spsc<Operation, Queue, Bytes, 1>(options);
+    case 4:
+      return run_spsc<Operation, Queue, Bytes, 4>(options);
+    case 16:
+      return run_spsc<Operation, Queue, Bytes, 16>(options);
+    default:
+      throw std::logic_error("validated batch size was not dispatched");
+    }
+  }
+}
+
 template <GroupOperation Operation, template <typename, std::size_t> typename Ring,
-          std::size_t Bytes>
+          std::size_t Bytes, bool GroupedScalar>
 RunResults dispatch_capacity(const Options& options) {
   switch (options.capacity_slots) {
   case 64:
-    switch (options.batch_size) {
-    case 1:
-      return run_spsc<Operation, Ring<Payload<Bytes>, 64>, Bytes, 1>(options);
-    case 4:
-      return run_spsc<Operation, Ring<Payload<Bytes>, 64>, Bytes, 4>(options);
-    case 16:
-      return run_spsc<Operation, Ring<Payload<Bytes>, 64>, Bytes, 16>(options);
-    default:
-      throw std::logic_error("validated batch size was not dispatched");
-    }
+    return dispatch_batch<Operation, Ring<Payload<Bytes>, 64>, Bytes, GroupedScalar>(options);
   case 1'024:
-    switch (options.batch_size) {
-    case 1:
-      return run_spsc<Operation, Ring<Payload<Bytes>, 1'024>, Bytes, 1>(options);
-    case 4:
-      return run_spsc<Operation, Ring<Payload<Bytes>, 1'024>, Bytes, 4>(options);
-    case 16:
-      return run_spsc<Operation, Ring<Payload<Bytes>, 1'024>, Bytes, 16>(options);
-    default:
-      throw std::logic_error("validated batch size was not dispatched");
-    }
+    return dispatch_batch<Operation, Ring<Payload<Bytes>, 1'024>, Bytes, GroupedScalar>(options);
   default:
     throw std::logic_error("validated capacity was not dispatched");
   }
 }
 
-template <GroupOperation Operation, template <typename, std::size_t> typename Ring>
+template <GroupOperation Operation, template <typename, std::size_t> typename Ring,
+          bool GroupedScalar = false>
 RunResults dispatch_payload(const Options& options) {
   switch (options.payload_bytes) {
   case 8:
-    return dispatch_capacity<Operation, Ring, 8>(options);
+    return dispatch_capacity<Operation, Ring, 8, GroupedScalar>(options);
   case 64:
-    return dispatch_capacity<Operation, Ring, 64>(options);
+    return dispatch_capacity<Operation, Ring, 64, GroupedScalar>(options);
   case 256:
-    return dispatch_capacity<Operation, Ring, 256>(options);
+    return dispatch_capacity<Operation, Ring, 256, GroupedScalar>(options);
   default:
     throw std::logic_error("validated payload size was not dispatched");
   }
@@ -428,7 +433,7 @@ RunResults dispatch_descriptor_payload(const Options& options) {
 RunResults run_throughput(const Options& options) {
   switch (options.implementation) {
   case Implementation::basic:
-    return dispatch_payload<GroupOperation::scalar, spsc::BasicBoundedRing>(options);
+    return dispatch_payload<GroupOperation::scalar, spsc::BasicBoundedRing, true>(options);
   case Implementation::batch:
     return dispatch_payload<GroupOperation::batch, spsc::BatchBoundedRing>(options);
   case Implementation::bulk:

@@ -28,32 +28,6 @@ function(expect_success expected_output)
   endif()
 endfunction()
 
-execute_process(
-  COMMAND "${BENCHMARK_EXECUTABLE}" list
-  RESULT_VARIABLE list_result
-  OUTPUT_VARIABLE catalog_output)
-string(FIND "${catalog_output}" "Mechanism assets (24):" catalog_heading)
-if(NOT list_result EQUAL 0 OR catalog_heading EQUAL -1)
-  message(FATAL_ERROR "mechanism catalog is unavailable: ${catalog_output}")
-endif()
-string(FIND "${catalog_output}" "Benchmark controls: mpsc-serialized" control_heading)
-if(control_heading EQUAL -1)
-  message(FATAL_ERROR "benchmark control is missing from discovery")
-endif()
-file(GLOB mechanism_notes "${SOURCE_ROOT}/docs/mechanisms/*.md")
-list(REMOVE_ITEM mechanism_notes "${SOURCE_ROOT}/docs/mechanisms/README.md")
-list(LENGTH mechanism_notes note_count)
-if(NOT note_count EQUAL 24)
-  message(FATAL_ERROR "expected 24 mechanism notes, got ${note_count}")
-endif()
-foreach(note IN LISTS mechanism_notes)
-  get_filename_component(asset "${note}" NAME_WE)
-  if(NOT catalog_output MATCHES "  ${asset}[	]routes:|  ${asset}[	]tests only")
-    message(FATAL_ERROR "catalog does not classify ${asset}")
-  endif()
-  expect_success("note: docs/mechanisms/${asset}.md" describe "${asset}")
-endforeach()
-
 expect_success("workloads: throughput, publication-hole" describe mpsc-slot)
 expect_success("exploratory defaults: 8 B payload, 64 slots, 100 warmup, 10000 iterations, 1 trial" describe mpsc-slot)
 expect_success("--impl is an alias for --implementation" help)
@@ -97,10 +71,10 @@ expect_success("ping-pong / basic" run ping-pong --iterations 1000 --warmup 100 
 expect_failure(
   2 "option --batch-size does not apply to offered-load" run offered-load --batch-size 4)
 expect_failure(
-  2 "offered-load requires implementation sequence-payload"
+  2 "route basic does not support offered-load"
   run offered-load --implementation basic)
 expect_failure(
-  2 "implementation sequence-payload applies only to offered-load"
+  2 "route sequence-payload does not support throughput"
   run throughput --implementation sequence-payload)
 expect_failure(
   2 "option --producer-interval-ns applies only to offered-load"
@@ -150,7 +124,7 @@ expect_failure(
   run throughput --implementation byte-record --capacity 64)
 expect_failure(
   2
-  "--capacity-bytes requires implementation byte-record or descriptor-record"
+  "--capacity-bytes does not apply to route basic"
   run throughput --implementation basic --capacity-bytes 4096)
 expect_failure(
   2
@@ -174,23 +148,23 @@ expect_failure(
   run throughput --implementation pipeline --batch-size 4)
 expect_failure(
   2
-  "implementations bulk, burst, fan-out, pipeline, and staged apply only to throughput"
+  "route bulk does not support ping-pong"
   run ping-pong --implementation bulk)
 expect_failure(
   2
-  "implementations bulk, burst, fan-out, pipeline, and staged apply only to throughput"
+  "route burst does not support ping-pong"
   run ping-pong --implementation burst)
 expect_failure(
   2
-  "implementations bulk, burst, fan-out, pipeline, and staged apply only to throughput"
+  "route staged does not support ping-pong"
   run ping-pong --implementation staged)
 expect_failure(
   2
-  "implementations bulk, burst, fan-out, pipeline, and staged apply only to throughput"
+  "route fan-out does not support ping-pong"
   run ping-pong --implementation fan-out)
 expect_failure(
   2
-  "implementations bulk, burst, fan-out, pipeline, and staged apply only to throughput"
+  "route pipeline does not support ping-pong"
   run ping-pong --implementation pipeline)
 expect_failure(
   2
@@ -246,7 +220,7 @@ expect_failure(
   run throughput --producer-cpu 0 --consumer-cpu 0)
 expect_failure(
   2
-  "MPSC implementations apply only to throughput"
+  "route mpsc-ordered does not support ping-pong"
   run ping-pong --implementation mpsc-ordered)
 expect_failure(
   2
@@ -272,3 +246,10 @@ expect_failure(
   1
   "unable to open output file"
   run smoke --iterations 1 --warmup 0 --trials 1 --output "${CMAKE_CURRENT_LIST_DIR}")
+
+expect_failure(2 "route spmc-slot does not support ping-pong"
+  run ping-pong --implementation spmc-slot)
+expect_failure(2 "route basic does not support publication-hole"
+  run publication-hole --implementation basic)
+expect_failure(2 "route mpsc-serialized does not support publication-hole"
+  run publication-hole --implementation mpsc-serialized)

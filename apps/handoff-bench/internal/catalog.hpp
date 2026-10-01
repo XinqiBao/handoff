@@ -35,6 +35,27 @@ inline constexpr std::uint8_t publication_hole_workload = 8;
 inline constexpr std::uint8_t ordinary_workloads = throughput_workload | ping_pong_workload;
 inline constexpr std::uint8_t mpsc_workloads = throughput_workload | publication_hole_workload;
 
+constexpr bool supports(const RouteDescriptor& route, Benchmark benchmark) {
+  std::uint8_t flag = 0;
+  switch (benchmark) {
+  case Benchmark::smoke:
+    return false;
+  case Benchmark::throughput:
+    flag = throughput_workload;
+    break;
+  case Benchmark::ping_pong:
+    flag = ping_pong_workload;
+    break;
+  case Benchmark::offered_load:
+    flag = offered_load_workload;
+    break;
+  case Benchmark::publication_hole:
+    flag = publication_hole_workload;
+    break;
+  }
+  return (route.workloads & flag) != 0;
+}
+
 inline constexpr std::array assets{
     AssetDescriptor{"basic-bounded-spsc", "docs/mechanisms/basic-bounded-spsc.md"},
     AssetDescriptor{"cache-line-bounded-spsc", "docs/mechanisms/cache-line-bounded-spsc.md"},
@@ -121,6 +142,16 @@ inline constexpr std::array routes{
 };
 
 consteval bool catalog_consistent() {
+  for (std::size_t index = 0; index < assets.size(); ++index) {
+    if (assets[index].name.empty() || assets[index].note.empty()) {
+      return false;
+    }
+    for (std::size_t other = index + 1; other < assets.size(); ++other) {
+      if (assets[index].name == assets[other].name || assets[index].note == assets[other].note) {
+        return false;
+      }
+    }
+  }
   for (std::size_t index = 0; index < routes.size(); ++index) {
     const auto& route = routes[index];
     bool asset_found = false;
@@ -135,24 +166,7 @@ consteval bool catalog_consistent() {
         route.name == "publication-hole") {
       return false;
     }
-    std::uint8_t default_flag = 0;
-    switch (route.default_workload) {
-    case Benchmark::smoke:
-      return false;
-    case Benchmark::throughput:
-      default_flag = throughput_workload;
-      break;
-    case Benchmark::ping_pong:
-      default_flag = ping_pong_workload;
-      break;
-    case Benchmark::offered_load:
-      default_flag = offered_load_workload;
-      break;
-    case Benchmark::publication_hole:
-      default_flag = publication_hole_workload;
-      break;
-    }
-    if ((route.workloads & default_flag) == 0) {
+    if (!supports(route, route.default_workload)) {
       return false;
     }
     for (std::size_t other = index + 1; other < routes.size(); ++other) {
@@ -171,6 +185,6 @@ const AssetDescriptor* find_asset(std::string_view name);
 const RouteDescriptor* find_route(std::string_view name);
 const RouteDescriptor& route_for(Implementation implementation);
 std::string_view benchmark_name(Benchmark benchmark);
-bool supports(const RouteDescriptor& route, Benchmark benchmark);
+Options exploratory_options(const RouteDescriptor& route);
 
 } // namespace handoff::bench

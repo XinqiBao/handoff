@@ -47,25 +47,18 @@ std::string_view benchmark_name(Benchmark benchmark) {
   throw std::logic_error("unknown benchmark");
 }
 
-bool supports(const RouteDescriptor& route, Benchmark benchmark) {
-  std::uint8_t flag = 0;
-  switch (benchmark) {
-  case Benchmark::smoke:
-    return false;
-  case Benchmark::throughput:
-    flag = throughput_workload;
-    break;
-  case Benchmark::ping_pong:
-    flag = ping_pong_workload;
-    break;
-  case Benchmark::offered_load:
-    flag = offered_load_workload;
-    break;
-  case Benchmark::publication_hole:
-    flag = publication_hole_workload;
-    break;
+Options exploratory_options(const RouteDescriptor& route) {
+  Options options;
+  options.implementation = route.implementation;
+  options.iterations = 10'000;
+  options.warmup = 100;
+  options.trials = 1;
+  options.payload_bytes = 8;
+  options.capacity_slots = 64;
+  if (route.capacity != CapacityKind::slots) {
+    options.capacity_bytes = 4'096;
   }
-  return (route.workloads & flag) != 0;
+  return options;
 }
 
 } // namespace handoff::bench

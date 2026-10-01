@@ -10,6 +10,7 @@ option(HANDOFF_WARNINGS_AS_ERRORS "Treat project warnings as errors" OFF)
 option(HANDOFF_ENABLE_ASAN_UBSAN "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(HANDOFF_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(HANDOFF_ENABLE_CLANG_TIDY "Run clang-tidy while compiling project targets" OFF)
+option(HANDOFF_BUILD_BENCHMARK "Build benchmark executable and harness checks" ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -19,7 +20,9 @@ include(HandoffProjectOptions)
 handoff_define_project_options()
 
 add_subdirectory(src)
-add_subdirectory(apps/handoff-bench)
+if(HANDOFF_BUILD_BENCHMARK)
+  add_subdirectory(apps/handoff-bench)
+endif()
 
 include(CTest)
 if(BUILD_TESTING)
@@ -33,7 +36,8 @@ file(
   "${PROJECT_SOURCE_DIR}/apps/*.hpp"
   "${PROJECT_SOURCE_DIR}/include/*.hpp"
   "${PROJECT_SOURCE_DIR}/src/*.cpp"
-  "${PROJECT_SOURCE_DIR}/tests/*.cpp")
+  "${PROJECT_SOURCE_DIR}/tests/*.cpp"
+  "${PROJECT_SOURCE_DIR}/tests/*.hpp")
 
 find_program(HANDOFF_CLANG_FORMAT NAMES clang-format)
 if(HANDOFF_CLANG_FORMAT)

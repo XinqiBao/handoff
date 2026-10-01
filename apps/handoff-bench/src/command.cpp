@@ -95,18 +95,7 @@ bool applies_to_smoke(std::string_view option) {
 std::optional<Options> parse_options(std::span<char*> arguments, Benchmark benchmark,
                                      std::ostream& errors,
                                      const RouteDescriptor* selected_route = nullptr) {
-  Options options;
-  if (selected_route) {
-    options.implementation = selected_route->implementation;
-    options.iterations = 10'000;
-    options.warmup = 100;
-    options.trials = 1;
-    options.payload_bytes = 8;
-    options.capacity_slots = 64;
-    if (selected_route->capacity != CapacityKind::slots) {
-      options.capacity_bytes = 4'096;
-    }
-  }
+  Options options = selected_route ? exploratory_options(*selected_route) : Options{};
   if (!selected_route && benchmark == Benchmark::offered_load) {
     options.implementation = Implementation::sequence_payload;
   } else if (!selected_route && benchmark == Benchmark::publication_hole) {
@@ -288,14 +277,9 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     errors << "--latency-samples and --output must use different files\n";
     return std::nullopt;
   }
-  if (benchmark == Benchmark::offered_load &&
-      options.implementation != Implementation::sequence_payload) {
-    errors << "offered-load requires implementation sequence-payload\n";
-    return std::nullopt;
-  }
-  if (benchmark != Benchmark::offered_load &&
-      options.implementation == Implementation::sequence_payload) {
-    errors << "implementation sequence-payload applies only to offered-load\n";
+  const auto& route = route_for(options.implementation);
+  if (benchmark != Benchmark::smoke && !supports(route, benchmark)) {
+    errors << "route " << route.name << " does not support " << benchmark_name(benchmark) << '\n';
     return std::nullopt;
   }
   if ((options.consumer_stall_every == 0) != (options.consumer_stall_ns == 0)) {
@@ -303,21 +287,21 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
               "positive\n";
     return std::nullopt;
   }
-  if (options.implementation == Implementation::byte_record) {
-    if (slot_capacity_specified) {
-      errors << "--capacity does not apply to byte-record; use --capacity-bytes\n";
-      return std::nullopt;
-    }
-    if (!options.capacity_bytes) {
-      options.capacity_bytes = 65'536;
-    }
-  } else if (options.implementation == Implementation::descriptor_record) {
+  if (route.capacity == CapacityKind::bytes && slot_capacity_specified) {
+    errors << "--capacity does not apply to " << route.name << "; use --capacity-bytes\n";
+    return std::nullopt;
+  }
+  if (route.capacity == CapacityKind::slots && options.capacity_bytes) {
+    errors << "--capacity-bytes does not apply to route " << route.name << '\n';
+    return std::nullopt;
+  }
+  if (route.capacity != CapacityKind::slots && !options.capacity_bytes) {
+    options.capacity_bytes = 65'536;
+  }
+  if (options.implementation == Implementation::descriptor_record) {
     if (slot_capacity_specified != byte_capacity_specified) {
       errors << "descriptor-record requires --capacity and --capacity-bytes together\n";
       return std::nullopt;
-    }
-    if (!options.capacity_bytes) {
-      options.capacity_bytes = 65'536;
     }
     const bool small = options.capacity_slots == 64 && *options.capacity_bytes == 4'096;
     const bool large = options.capacity_slots == 1'024 && *options.capacity_bytes == 65'536;
@@ -325,24 +309,13 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       errors << "descriptor-record capacity pairs must be 64/4096 or 1024/65536\n";
       return std::nullopt;
     }
-  } else if (options.capacity_bytes) {
-    errors << "--capacity-bytes requires implementation byte-record or descriptor-record\n";
-    return std::nullopt;
   }
 
-  const auto role = route_for(options.implementation).role;
+  const auto role = route.role;
   const bool multi_producer = role == RouteRole::mpsc;
   const bool spmc = role == RouteRole::shared_consumers;
   const bool multi_consumer = role == RouteRole::fan_out || role == RouteRole::pipeline || spmc;
-  if (spmc && benchmark != Benchmark::throughput) {
-    errors << "SPMC implementations apply only to throughput\n";
-    return std::nullopt;
-  }
   if (multi_producer) {
-    if (benchmark != Benchmark::throughput && benchmark != Benchmark::publication_hole) {
-      errors << "MPSC implementations apply only to throughput\n";
-      return std::nullopt;
-    }
     if (options.producer_cpu || options.consumer_cpus) {
       errors << "MPSC placement uses --producer-cpus and --consumer-cpu\n";
       return std::nullopt;
@@ -398,13 +371,6 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       return std::nullopt;
     }
   }
-  if (benchmark == Benchmark::publication_hole &&
-      options.implementation != Implementation::mpsc_ordered &&
-      options.implementation != Implementation::mpsc_count &&
-      options.implementation != Implementation::mpsc_slot) {
-    errors << "publication-hole requires mpsc-ordered, mpsc-count, or mpsc-slot\n";
-    return std::nullopt;
-  }
   if (benchmark == Benchmark::throughput && options.batch_size > 1 &&
       options.implementation != Implementation::basic &&
       options.implementation != Implementation::batch &&
@@ -413,15 +379,6 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       options.implementation != Implementation::staged) {
     errors << "--batch-size greater than 1 requires implementation basic, batch, bulk, burst, or "
               "staged\n";
-    return std::nullopt;
-  }
-  if (benchmark == Benchmark::ping_pong && (options.implementation == Implementation::bulk ||
-                                            options.implementation == Implementation::burst ||
-                                            options.implementation == Implementation::fan_out ||
-                                            options.implementation == Implementation::pipeline ||
-                                            options.implementation == Implementation::staged)) {
-    errors << "implementations bulk, burst, fan-out, pipeline, and staged apply only to "
-              "throughput\n";
     return std::nullopt;
   }
   if (benchmark == Benchmark::throughput &&
@@ -441,11 +398,6 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       (options.iterations > payload_sequence_limit ||
        options.warmup > payload_sequence_limit - options.iterations)) {
     errors << "--iterations plus --warmup exceeds the sequence-payload range\n";
-    return std::nullopt;
-  }
-  if (benchmark != Benchmark::smoke && !supports(route_for(options.implementation), benchmark)) {
-    errors << "route " << route_for(options.implementation).name << " does not support "
-           << benchmark_name(benchmark) << '\n';
     return std::nullopt;
   }
   return options;
@@ -567,11 +519,25 @@ void describe_route(const RouteDescriptor& route) {
     std::cout << "one producer, two ordered stages";
     break;
   }
-  std::cout << "\nexploratory defaults: 8 B payload, "
-            << (route.capacity == CapacityKind::bytes             ? "4096 bytes"
-                : route.capacity == CapacityKind::slots_and_bytes ? "64 slots + 4096 bytes"
-                                                                  : "64 slots");
-  std::cout << ", 100 warmup, 10000 iterations, 1 trial";
+  const auto defaults = exploratory_options(route);
+  std::cout << "\nexploratory defaults: " << defaults.payload_bytes << " B payload, ";
+  switch (route.capacity) {
+  case CapacityKind::slots:
+    std::cout << defaults.capacity_slots << " slots";
+    break;
+  case CapacityKind::bytes:
+  case CapacityKind::slots_and_bytes:
+    if (!defaults.capacity_bytes) {
+      throw std::logic_error("exploratory byte capacity is missing");
+    }
+    if (route.capacity == CapacityKind::slots_and_bytes) {
+      std::cout << defaults.capacity_slots << " slots + ";
+    }
+    std::cout << *defaults.capacity_bytes << " bytes";
+    break;
+  }
+  std::cout << ", " << defaults.warmup << " warmup, " << defaults.iterations << " iterations, "
+            << defaults.trials << " trial";
   std::cout << "\nexploratory run: handoff-bench run " << route.name << '\n';
 }
 

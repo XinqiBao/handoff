@@ -9,7 +9,6 @@ set_property(TARGET Catch2 PROPERTY SYSTEM ON)
 
 add_executable(
   handoff_tests
-  benchmark_support_test.cpp
   bounded_spsc_test.cpp
   bulk_burst_spsc_test.cpp
   completion_mpsc_test.cpp
@@ -33,13 +32,24 @@ add_executable(
   two_branch_join_test.cpp
   two_path_merge_test.cpp
   variable_record_ring_test.cpp)
-target_include_directories(handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
 target_link_libraries(handoff_tests PRIVATE handoff::core Catch2::Catch2WithMain)
 handoff_configure_target(handoff_tests)
 
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
 include(Catch)
 catch_discover_tests(handoff_tests DISCOVERY_MODE PRE_TEST PROPERTIES TIMEOUT 120)
+
+if(NOT HANDOFF_BUILD_BENCHMARK)
+  return()
+endif()
+
+add_executable(handoff_benchmark_tests benchmark_support_test.cpp)
+target_include_directories(handoff_benchmark_tests PRIVATE
+                          "${PROJECT_SOURCE_DIR}/apps/handoff-bench/internal")
+target_link_libraries(handoff_benchmark_tests PRIVATE handoff::core Catch2::Catch2WithMain)
+handoff_configure_target(handoff_benchmark_tests)
+catch_discover_tests(handoff_benchmark_tests DISCOVERY_MODE PRE_TEST
+                     PROPERTIES TIMEOUT 120)
 
 add_test(NAME benchmark.list COMMAND handoff-bench list)
 set_tests_properties(benchmark.list PROPERTIES PASS_REGULAR_EXPRESSION
@@ -51,8 +61,14 @@ add_test(
   NAME benchmark.cli
   COMMAND
     "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench>
-    -DSOURCE_ROOT=${PROJECT_SOURCE_DIR} -P
+    -P
     "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_cli_test.cmake")
+add_test(
+  NAME benchmark.catalog
+  COMMAND
+    "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench>
+    -DSOURCE_ROOT=${PROJECT_SOURCE_DIR} -P
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_catalog_test.cmake")
 add_test(
   NAME benchmark.csv
   COMMAND

@@ -26,6 +26,12 @@
       }
     },
     {
+      "name": "debug-correctness",
+      "displayName": "Debug correctness only",
+      "inherits": "debug",
+      "cacheVariables": { "HANDOFF_BUILD_BENCHMARK": "OFF" }
+    },
+    {
       "name": "release",
       "displayName": "Release",
       "inherits": "base",
@@ -62,6 +68,7 @@
   ],
   "buildPresets": [
     { "name": "debug", "configurePreset": "debug" },
+    { "name": "debug-correctness", "configurePreset": "debug-correctness" },
     { "name": "release", "configurePreset": "release" },
     { "name": "asan-ubsan", "configurePreset": "asan-ubsan" },
     { "name": "tsan", "configurePreset": "tsan" },
@@ -71,6 +78,11 @@
     {
       "name": "debug",
       "configurePreset": "debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "debug-correctness",
+      "configurePreset": "debug-correctness",
       "output": { "outputOnFailure": true }
     },
     {
