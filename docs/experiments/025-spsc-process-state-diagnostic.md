@@ -1,8 +1,10 @@
 # Experiment: Where does busy-retry SPSC rate dispersion arise?
 
 - Type: measurement-method diagnostic, not a route ranking
-- Status: complete for process and page-offset hypotheses; cache cause unresolved
-- Source revision: `5799b9f23cd3397ebe94c634003ce61d966df0c0`
+- Status: complete for process, page-offset, ASLR, and same-process interleaving hypotheses;
+  cache cause unresolved
+- Source revisions: `5799b9f23cd3397ebe94c634003ce61d966df0c0` (initial probes),
+  `94f6f16be06b1802ab3bd968d9d07b3874e397c1` (ASLR and route interleaving)
 - Date: 2026-10-01 (Asia/Shanghai)
 
 ## Question and boundary
@@ -69,6 +71,33 @@ offsets *within* each process, alternating forward and reverse order. Each proce
 fast or slow state. Relative addresses, thread stacks, cache mapping, and other process state
 remain possible influences, not established causes.
 
+At a fixed queue page offset of zero, a balanced adjacent-pair test alternated normal process
+launches with `setarch -R`; every row verified the effective personality bit. The eight ASLR-on
+process means had a 10.939-13.884 M/s range and 9.92% sample CV. The eight ASLR-off means still
+had an 11.633-13.869 M/s range and 6.57% sample CV. Adjacent off/on differences ranged from
+-16.03% to +18.28% and changed sign. Both workload shapes passed their separate 2400-MHz,
+placement, IRQ, SMI, power, temperature, and throttle qualifications. Disabling ASLR did not
+produce a stable process rate or isolate its cause.
+
+A separate probe interleaved basic, cache-line, and cached-index *inside one process* in four
+balanced six-row blocks, with a new ring and worker pair per row at queue page offset zero.
+Each route passed its own actual-workload host qualification. Two independent 24-row processes
+produced these diagnostic summaries (M/s medians and sample CVs):
+
+| Process | Basic | Cache-line | Cached-index | Cache-line/basic block differences | Cached-index/basic block differences |
+| --- | --- | --- | --- | --- | --- |
+| A | 13.165 / 0.52% | 16.392 / 0.46% | 10.949 / 0.51% | +23.86% to +24.75% | -17.04% to -15.89% |
+| B | 13.839 / 1.21% | 16.134 / 0.25% | 13.818 / 0.13% | +16.07% to +17.14% | -0.76% to +0.67% |
+
+Thus interleaving reduced within-process spread, but the relative effects still changed across
+independent processes, especially for cached-index/basic. The probe retained its failed-attempt
+counters and ten segment clock reads per row, so even the repeatable cache-line direction here is
+not a formal canonical-harness estimate. Raw segments, global orders, sidecars, qualifications,
+assessment files, ordered and paired/block-difference charts, and restored-policy readbacks are in
+`results/spsc-retry-diagnostic-20261001/aslr/`, `v7/`, and `v7b/`. The scripts `run-aslr.sh`,
+`run-v7.sh`, and `run-v7b.sh` reproduce these diagnostic shapes. All 320 ASLR and 240 segments
+per interleaved process remain available, including anomalous rows.
+
 The canonical throughput timer reads only at phase boundaries. Together with the isolated
 [clock-read probe](024-clock-read-calibration.md), these multi-second row differences cannot
 plausibly be attributed to the nanosecond clock-read floor. The host checks narrow the usual
@@ -80,11 +109,11 @@ address placement with queue design still limit causal attribution.
 
 The isolated host supports controlled observation of busy-retry behavior, but the current
 one-route-per-process harness does not support precise small SPSC throughput gaps at this
-shape. The stable within-process states and non-monotonic cross-process states make process
-memory layout a concrete investigation target. The next bounded test should hold or randomize
-queue and worker-accessed address relationships within a single process and validate any
-suspected cache-set or coherence effect with role-specific counters. Then repeat the canonical
-8 B / 64-slot group without diagnostic counters and check whether its dispersion is below the
-effect of interest. No queue implementation has been declared defective, and the busy-retry
-contract remains the production-oriented comparison condition. Do not expand to other SPSC
-parameter groups or three-worker routes on the strength of these diagnostic rates.
+shape. Neither disabling ASLR nor same-process route interleaving alone established a stable
+cross-process effect. The next bounded test should control or vary relative addresses of the
+queue and worker-accessed data, or validate a specific cache hypothesis with role-specific PMU
+counts. Any proposed comparison protocol must then repeat across independent processes in the
+canonical 8 B / 64-slot benchmark without diagnostic counters and show dispersion below the
+effect of interest. No particular cache event, host fault, or queue implementation defect has
+been established. Busy retries remain the intended dedicated-core condition. Do not expand to
+other SPSC parameter groups or three-worker routes on the strength of these diagnostic rates.
