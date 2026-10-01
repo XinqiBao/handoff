@@ -57,6 +57,7 @@ struct Options {
   std::optional<std::array<unsigned int, 2>> producer_cpus;
   std::optional<unsigned int> consumer_cpu;
   std::optional<std::array<unsigned int, 2>> consumer_cpus;
+  bool spin_wait{false};
   std::optional<std::filesystem::path> output;
 };
 

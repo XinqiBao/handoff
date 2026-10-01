@@ -245,6 +245,23 @@ validate_descriptor_record_mode(throughput 1)
 validate_descriptor_record_mode(ping-pong "")
 
 file(REMOVE "${output_path}")
+
+execute_process(
+  COMMAND
+    "${BENCHMARK_EXECUTABLE}" run ping-pong --implementation basic --wait spin --payload-bytes 8
+    --capacity 64 --iterations 1000 --warmup 100 --trials 1 --output "${output_path}"
+  RESULT_VARIABLE result
+  OUTPUT_VARIABLE output
+  ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "spin ping-pong failed with ${result}\nstdout: ${output}\nstderr: ${error}")
+endif()
+file(READ "${output_path}" contents)
+if(NOT contents MATCHES "# waiting_behavior=spin\n" OR
+   NOT contents MATCHES "ping-pong,basic,8,64,,,[0-9]+,1,[0-9]+,,[0-9]+\\.[0-9]+,")
+  message(FATAL_ERROR "spin ping-pong CSV is missing metadata or RTT: ${contents}")
+endif()
+file(REMOVE "${output_path}")
 execute_process(
   COMMAND "${BENCHMARK_EXECUTABLE}" run publication-hole --payload-bytes 8 --capacity 64
           --output "${output_path}"

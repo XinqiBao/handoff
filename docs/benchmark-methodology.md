@@ -168,6 +168,11 @@ a separate progress schema so those counts cannot be mistaken for rates.
 Collect repeated round-trip time samples and report their distribution. A value derived as RTT/2 is
 only a proxy under symmetry assumptions; it is not an exact one-way latency measurement. Avoid
 mixing queueing latency from an offered-load test into the minimum-ish ping-pong interpretation.
+The default `--wait yield` calls the scheduler on an unavailable request or response. For a
+minimum-ish dedicated-core comparison, `--wait spin` retries immediately without that scheduler
+call. Record the selected policy and compare only rows using the same policy; it changes both CPU
+use and measured latency. The timed request/response work, validation, and RTT clock reads are
+otherwise the same. Neither mode measures offered-load queueing latency.
 
 ## Correctness gates
 

@@ -48,7 +48,8 @@ void print_usage(std::ostream& stream) {
          "[--payload-bytes 8|64|256] [--capacity 64|1024] "
          "[--capacity-bytes 4096|65536] [--batch-size 1|4|16]\n"
          "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
-         "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] [--output FILE]\n"
+         "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] "
+         "[--wait yield|spin (ping-pong only)] [--output FILE]\n"
          "  --impl is an alias for --implementation. Use list/describe for routes and workloads.\n";
 }
 
@@ -68,7 +69,7 @@ bool is_known_option(std::string_view option) {
          option == "--batch-size" || option == "--producer-cpu" || option == "--producer-cpus" ||
          option == "--consumer-cpu" || option == "--consumer-cpus" ||
          option == "--producer-interval-ns" || option == "--consumer-stall-every" ||
-         option == "--consumer-stall-ns";
+         option == "--consumer-stall-ns" || option == "--wait";
 }
 
 std::optional<std::array<unsigned int, 2>> parse_cpu_pair(std::string_view text) {
@@ -132,6 +133,10 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       errors << "option --batch-size does not apply to ping-pong\n";
       return std::nullopt;
     }
+    if (benchmark != Benchmark::ping_pong && argument == "--wait") {
+      errors << "option --wait applies only to ping-pong\n";
+      return std::nullopt;
+    }
     if (benchmark == Benchmark::offered_load && argument == "--batch-size") {
       errors << "option --batch-size does not apply to offered-load\n";
       return std::nullopt;
@@ -175,6 +180,15 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.output = std::filesystem::path(value);
+    } else if (argument == "--wait") {
+      if (value == "spin") {
+        options.spin_wait = true;
+      } else if (value == "yield") {
+        options.spin_wait = false;
+      } else {
+        errors << "--wait must be yield or spin\n";
+        return std::nullopt;
+      }
     } else if (argument == "--implementation" || argument == "--impl") {
       const auto* route = find_route(value);
       if (!route) {
@@ -475,7 +489,10 @@ int run_benchmark_command(Benchmark benchmark, std::span<char*> arguments,
         << "exploratory route configuration; use explicit recorded commands for comparisons\n";
   }
 
-  const auto metadata = collect_run_metadata();
+  auto metadata = collect_run_metadata();
+  if (benchmark == Benchmark::ping_pong && options->spin_wait) {
+    metadata.waiting_behavior = "spin";
+  }
   RunResults results;
   switch (benchmark) {
   case Benchmark::smoke:

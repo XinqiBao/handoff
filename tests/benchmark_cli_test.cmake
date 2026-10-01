@@ -81,6 +81,9 @@ expect_failure(
   run publication-hole --producer-cpus 1,2)
 expect_failure(2 "option --implementation does not apply to smoke" run smoke --implementation basic)
 expect_failure(2 "option --batch-size does not apply to ping-pong" run ping-pong --batch-size 4)
+expect_failure(2 "option --wait applies only to ping-pong" run throughput --wait spin)
+expect_failure(2 "--wait must be yield or spin" run ping-pong --wait pause)
+expect_success("ping-pong / basic" run ping-pong --wait spin --iterations 1000 --warmup 100 --trials 1)
 expect_failure(
   2 "option --batch-size does not apply to offered-load" run offered-load --batch-size 4)
 expect_failure(
