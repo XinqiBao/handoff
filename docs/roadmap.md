@@ -12,57 +12,59 @@ variants; sequence publication, reliable fan-out, and a fixed dependency pipelin
 storage layouts; and lossy sequence-addressed metadata and payload observation. Selected controlled
 Linux comparisons establish conditional observations for one host and workload set, not a ranking.
 
-## Controlled performance reassessment: active boundary
+## Controlled performance comparisons: current boundary
 
-The current question is whether the dedicated N150 profile, busy worker retries, and a qualified
-clock can produce stable, reproducible differences for equivalent workload contracts. First check
-the timing method and repeatability of scalar SPSC throughput and ping-pong RTT across selected
-payload/capacity conditions. Then assess grouped SPSC and the two-reader fan-out/pipeline workload
-as separate comparison groups, each with its own numerator, work, and semantic limits. MPSC and
-SPMC are eligible only for comparably qualified complete-throughput questions. This is not a
-ranking of all mechanisms, a one-way latency claim from RTT, or fine cache-line attribution.
+The dedicated N150 can resolve some complete-workload directions under qualified placement and
+fixed delivered frequency; it has no universal resolution or route ranking. In
+[Experiment 022](experiments/022-fixed-frequency-mpsc-comparison.md), `mpsc-slot` beat
+`mpsc-count` in all eight order-balanced, independent-process pairs (+23.40% to +46.24%). The
+direction survived host controls; the exact magnitude and isolated publication cost remain
+unknown. That result used yield retries and cannot be pooled with the current busy-retry workload.
 
-The fixed-frequency [scalar SPSC reassessment](experiments/023-spsc-measurement-stability.md)
-found that 8 B / 64-slot rates dispersed despite qualified placement, frequency, IRQ, power,
-temperature, and throttle checks. Busy retries are now the intended dedicated-core condition,
-but the CI-green busy-retry group still had 4.13%-13.69% sample CV across its three routes.
-The [clock-read probe](experiments/024-clock-read-calibration.md) found no advantage for fenced
-TSC on this host and no clock explanation for multi-second throughput drift. Earlier yield-based
-rows and stopped qualifications remain tied to their original revisions in ignored `results/`.
-
-The [process-state](experiments/025-spsc-process-state-diagnostic.md),
+[Experiment 023](experiments/023-spsc-measurement-stability.md) and the
+[clock](experiments/024-clock-read-calibration.md),
+[process](experiments/025-spsc-process-state-diagnostic.md),
 [PMU](experiments/026-spsc-role-pmu-diagnostic.md),
-[address](experiments/027-spsc-address-state-diagnostic.md), and
-[occupancy](experiments/028-spsc-initial-occupancy-diagnostic.md) diagnostics found that
-`cached-index` rate states often persist within a process but differ across processes. Fixing
-queue page offset, disabling ASLR, and changing initial empty/full occupancy did not remove
-them. Slower processes had about 31% more consumer L2 request misses with nearly identical
-retired instructions; sampled misses addressed the queue, but do not establish a cache cause.
-The [no-handoff, sampler, and split-line controls](experiments/029-spsc-causality-controls.md)
-found an extremely stable dual-core local workload and a large sampler-associated rate change.
-Unsampled SPSC processes still varied. Splitting the four index members into separate cache
-lines made every paired process faster (median +57.39%) but retained 6.00% cross-process CV;
-simple line separation is not a stabilization fix. Neither generic host drift, short clock-read
-cost, nor the initial occupancy condition explains the observed states; sustained phase and
-relative address placement remain hypotheses.
+[address](experiments/027-spsc-address-state-diagnostic.md),
+[occupancy](experiments/028-spsc-initial-occupancy-diagnostic.md), and
+[control](experiments/029-spsc-causality-controls.md) probes characterize the narrower
+8 B / 64-slot SPSC throughput limit. `cached-index` has persistent, sometimes switching,
+cross-process rate states despite passing placement, busy-frequency, IRQ, power, temperature, and
+throttle checks. The clock probe found no TSC advantage or boundary-timer explanation. Fixed queue
+page offset, ASLR control, initial empty/full occupancy, and excluding the first timed segment did
+not remove the states. Slower processes had more L2 request misses, but PMU association and
+queue-address samples do not prove a cause; the sampling mode was associated with a rate change.
+A no-handoff dual-core control was extremely repeatable under its different workload. Splitting
+index lines produced a large paired layout effect but retained process dispersion. These results
+justify stopping open-ended diagnosis while preserving its negative evidence. The precise
+unsampled SPSC state cause and small scalar route throughput gaps remain unresolved; busy
+contention is intended workload behavior.
 
-The active measurement gate is to identify or control the process state through one explicit
-queue/worker address or sustained-phase hypothesis, then demonstrate repeatability across
-independent canonical **unsampled** 8 B / 64-slot processes before estimating small route gaps.
-Retain busy contention as target workload behavior. Do not expand to grouped SPSC, fan-out,
-pipeline, or a broad parameter matrix until this gate passes. Preserve raw rows, order,
-sidecars, and anomalous groups. A fine RTT campaign must retain ordered raw samples and check
-end-to-end timer perturbation before making nanosecond-scale tail claims.
+[Experiment 030](experiments/030-spsc-rtt-repeatability.md) retained ordered 8 B / 64-slot
+ping-pong RTT samples. The `cached-index` minus `basic` median difference ranged 0-64 ns across
+eight pairs, so a precise median gap is unresolved; its p95 and p99 were higher in all eight pairs,
+supporting a conditional two-ring tail direction. Neither RTT nor the current saturated
+throughput workload measures one-way or specified-offered-rate latency. An offered-load latency
+route would require its own admission, timestamp, and host gate.
 
-The [ordered RTT reassessment](experiments/030-spsc-rtt-repeatability.md) now retains individual
-spin ping-pong samples and tests the optional output path. The 8 B / 64-slot `basic` RTT medians
-spanned 403-416 ns across eight independent processes; `cached-index` spanned 415-469 ns and
-showed sustained within-process states. Its p95 and p99 exceeded `basic` in every one of eight
-adjacent pairs, while the paired median difference ranged 0-64 ns. Four output on/off pairs did
-not show a consistent signed effect, but do not establish a zero perturbation bound. This supports
-only a conditional two-ring RTT tail direction. Next diagnose a specific state mechanism and
-endpoint work limit before claiming a precise median RTT or completed-throughput gap. A later
-specified-offered-rate latency workload would need its own admission, timestamp, and host gate.
+Future comparisons follow the [effect-relative protocol](benchmark-methodology.md#repeatability-gate-for-small-comparisons):
+first match semantics, numerator, capacity, completion, and endpoint work; then qualify the actual
+workload and compare independent, interleaved processes with raw order and paired differences.
+Small effects below observed dispersion stay unresolved. Do not make identification of the SPSC
+state a prerequisite for a different qualified comparison group. Reopen that diagnosis only for a
+specific test likely to change a useful conclusion.
+
+The next high-value candidate is whether the Experiment 022 `mpsc-slot`/`mpsc-count` direction
+persists under current busy retries, using the same two-producer/one-consumer completion contract
+and a new workload-specific host qualification. A second candidate is the large
+`spmc-slot`/`spmc-serialized` work-sharing contrast from
+[Experiment 017](experiments/017-spmc-consumer-coordination.md) under busy retries. These are
+questions, not a required matrix; retain only comparisons whose expected effect is resolvable.
+Scalar SPSC (`basic`, `cache-line`, `cached-index`) is a separate lossless one-pair group, with
+grouped SPSC comparing group operations only under matched group work. MPSC and SPMC each have
+their own role topology and completion boundary. Reliable fan-out, pipeline, lossy observation,
+and variable-size storage have different delivery or capacity contracts and no current peer for a
+simple common-rate ranking.
 
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)

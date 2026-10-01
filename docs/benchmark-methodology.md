@@ -201,13 +201,29 @@ small tail difference; output does not remove timer perturbation or make RTT a o
 
 ## Repeatability gate for small comparisons
 
-Check the same route across independently launched processes, then interleave comparable routes
-under one host profile. Inspect ordered rates, within-process segments, RTT distributions, and
-paired differences before summarizing. A small route difference is not resolved when its magnitude
-is comparable to unexplained between-process state changes. A large, consistently signed paired
-difference may support a directional complete-workload claim even if its exact magnitude varies.
-Use equivalent endpoint work and a producer/consumer work-limit control when attributing a rate
-change to a queue design.
+Before a comparison, state the delivery and progress contracts, topology, native capacity,
+benchmark-side work, timed completion boundary, and exact numerator. A common CSV unit does not
+make different contracts comparable. For a qualified host and one explicit workload shape, warm up
+each route, use multiple independent process launches, and interleave comparable routes in a
+recorded order balanced across positions. Retain every ordered CSV row, global order, sidecar, and
+anomalous result; do not silently remove outliers. Report per-route medians and full ranges (or
+another explicitly named spread), adjacent paired differences where appropriate, and how often
+the direction agrees. Within-process trials alone cannot establish cross-process resolution.
+
+Judge resolution against the effect being claimed, not a universal CV threshold. A large,
+consistently signed paired difference can support a conditional *complete-workload direction* even
+when its size varies. When the difference is comparable to unexplained process-state dispersion or
+changes sign, report it as unresolved; more decimal places or a pooled median do not resolve it.
+Throughput includes producer and consumer endpoint work, retries, and queue behavior. A claim about
+an isolated queue cost needs a discriminating endpoint/work-limit control, not just a route rate.
+Use ordered segments or RTT samples only when the question requires within-run state or tails, and
+check whether instrumentation changes the result.
+
+Stop measurement diagnosis when host qualification passes but remaining variance does not change a
+useful directional conclusion, or when an effect of interest is below the observed resolution and
+no specific, feasible control would distinguish competing explanations. Reopen it for a stated
+hypothesis whose result could change a planned comparison or engineering decision. Unresolved
+microarchitectural causes do not invalidate other workload and mechanism groups by default.
 
 Closed-loop ping-pong has at most one outstanding request and responds only after completion. It
 cannot describe latency at a specified offered rate or expose delay hidden by a producer that stops

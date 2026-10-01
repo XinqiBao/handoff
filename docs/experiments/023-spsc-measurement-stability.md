@@ -1,7 +1,8 @@
 # Experiment: Can the isolated N150 resolve scalar SPSC differences?
 
 - Type: measurement-method characterization and complete-route comparison
-- Status: running; busy-retry throughput remains too dispersed for a precise rate comparison
+- Status: complete for retained groups; busy-retry throughput remains too dispersed for a precise
+  small-gap comparison
 - Yield-throughput and yield-RTT revision: `9891fd0b5eb44cdcba96eb77b5d6d3c9b76ce5cd`
 - Spin-RTT and yield-diagnostic revision: `7b3c299a46081ce0543958c0b3021aae2d78bc42`
 - Busy-retry follow-up revision: `f9eea5152608d0fc5b1006f1958f186ac2195ffb`
@@ -155,6 +156,11 @@ one completed publication requires two observations; its numerator and role work
 single-consumer SPSC. Pipeline requires ordered upstream/downstream stages. They can be compared
 as complete three-worker contracts after separate host qualification, not on a universal rate
 axis.
+
+The next gate above records the decision at this experiment's revision; the current
+[comparison boundary](../roadmap.md#controlled-performance-comparisons-current-boundary) accounts
+for Experiments 024-030 and does not require resolving this SPSC state before other qualified
+mechanism comparisons.
 
 The local scripts `canonical.sh`, `spin.sh`, matrix `run.sh`, and yield-diagnostic `run.sh` retain
 the exact commands, save/restore sequence, raw rows, order, and analysis logic. Historical SHAs

@@ -91,3 +91,7 @@ a distinct workload and clock validation. Before broadening the SPSC matrix, iso
 source of the sustained `cached-index` state, and check producer/consumer work-limit controls for
 throughput. `basic` and `cached-index` RTT tail direction may guide that diagnosis; it does not
 make all SPSC latency comparisons stable.
+
+This next gate records the decision at this experiment's revision. The later
+[campaign reassessment](../roadmap.md#controlled-performance-comparisons-current-boundary) leaves
+the SPSC state cause unresolved and judges future comparisons against each effect's resolution.
