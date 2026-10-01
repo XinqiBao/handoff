@@ -32,10 +32,18 @@ yield count did not consistently increase in slower rows. These observations jus
 current timed-worker policy to busy retries and calibrating clock-read overhead before extending
 the matrix. The raw groups and aborted qualification remain in ignored `results/`.
 
-At the next checkpoint, compare the same question on the new CI-green busy-retry revision. Stop
-expanding parameters if a route's repeated rows still drift beyond the effect of interest; first
-resolve the timing, scheduler, or mechanism hypothesis. Preserve every row, execution order,
-sidecar, and invalidated group. Historical measurements remain tied to their original exact SHAs.
+The CI-green busy-retry revision `f9eea51` still dispersed at 8 B / 64 slots despite all three
+route-specific host qualifications passing. The 24-row throughput group had sample CVs of 9.17%
+for basic, 4.13% for cache-line, and 13.69% for cached-index. Its broad block-difference directions
+are observations, but precise rate gaps are not established. The remaining RTT and 64 B groups
+were stopped before formal measurement; their partial qualifications remain in ignored `results/`.
+A pinned [clock-read probe](experiments/024-clock-read-calibration.md) found no read-cost advantage
+for fenced TSC over `steady_clock` on this host and did not explain throughput drift. The next
+distinct question is whether retry/occupancy states change across rows under busy retries; use
+diagnostic instrumentation separately from performance rows and assess its perturbation before
+repeating the small scalar group. Do not extend to grouped SPSC or three-worker routes until the
+measurement question is resolved. Preserve every row, execution order, sidecar, and invalidated
+group. Historical measurements remain tied to their original exact SHAs.
 
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)

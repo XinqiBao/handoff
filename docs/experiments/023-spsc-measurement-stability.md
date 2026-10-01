@@ -1,9 +1,10 @@
 # Experiment: Can the isolated N150 resolve scalar SPSC differences?
 
 - Type: measurement-method characterization and complete-route comparison
-- Status: running; busy-retry follow-up pending
+- Status: running; busy-retry throughput remains too dispersed for a precise rate comparison
 - Yield-throughput and yield-RTT revision: `9891fd0b5eb44cdcba96eb77b5d6d3c9b76ce5cd`
 - Spin-RTT and yield-diagnostic revision: `7b3c299a46081ce0543958c0b3021aae2d78bc42`
+- Busy-retry follow-up revision: `f9eea5152608d0fc5b1006f1958f186ac2195ffb`
 - Date: 2026-10-01 (Asia/Shanghai)
 
 ## Question and boundary
@@ -111,11 +112,42 @@ preemption explanation; millions of yield syscalls and changing queue occupancy 
 workload influences, not proven causes. The `cached-index` 8 B throughput stability also shows the
 variation is route-dependent under the tested conditions.
 
-The next formal step uses a new CI-green busy-retry revision. Qualify and repeat the 8 B / 64-slot
-and 64 B / 1024-slot scalar throughput groups, retaining order and abnormal rows. In parallel,
-measure clock-read overhead, effective resolution, and TSC calibration on the same pinned host.
-If the busy-retry group still drifts, investigate occupancy/retry states or a timed-region defect
-before expanding to batch, sequence, fan-out, pipeline, or record layouts. For reliable fan-out,
+The next formal step used the clean, CI-green busy-retry revision (`36814828867`, all five jobs
+passed; native Release 168/168). All three 8 B / 64-slot throughput routes passed their separate
+800-million-message qualifications: 16 full-busy two-second windows each, delivered 2400 MHz on
+both pinned workers, 60-65 C package temperature, 6.16-6.31 W, and no worker device IRQ, SMI,
+or throttle delta. A 24-row order-balanced throughput group then produced:
+
+| Route | Median M/s | Range M/s | Sample CV |
+| --- | ---: | ---: | ---: |
+| basic | 14.328 | 13.732-17.019 | 9.17% |
+| cache-line | 17.438 | 15.536-17.801 | 4.13% |
+| cached-index | 11.304 | 8.089-11.880 | 13.69% |
+
+The four cache-line/basic block median differences were +11.92%, +3.87%, +25.35%, and +22.96%;
+the cached-index/basic differences were -28.44%, -27.02%, -28.91%, and -29.16%. These directions
+are observed under busy retries, but the within-route spread, particularly for basic and
+cached-index, does not support a precise performance gap. The rate and route ordering also differ
+substantially from yield retries; the two policies describe different workloads and must not be
+pooled. All 24 rows, their global order, per-row CSV, sidecar, host checks, and derived order and
+block-difference plots are in `results/spsc-spin-reassessment-20261001/`; none was excluded.
+
+The planned 8 B ping-pong and 64 B / 1024-slot groups were stopped during 8 B ping-pong
+qualification once the throughput stability gate failed. The first 8 B ping-pong qualification
+passed; the second was interrupted, and neither is formal RTT evidence. The interrupted files
+remain in the same directory. The frequency profile was restored byte for byte to its saved
+700-3600 MHz `powersave`/`balance_performance` policy. `turbostat` emitted a TSC-rate warning
+after one qualification, although its active-window busy-frequency observations were 2400 MHz;
+the independent [clock probe](024-clock-read-calibration.md) addresses clock-read cost separately.
+
+The throughput timer reads once before releasing the timed phase and once after the consumer's
+last validated item. A roughly 28 ns clock read cannot directly account for multi-second
+between-row throughput changes. The coordinator-to-worker release is included once per row and
+is negligible relative to the 11-25-second timed regions, but this does not rule out a workload
+state change. Busy retries, queue occupancy, cache-line traffic, and intermittent interference
+remain hypotheses; neither isolation nor these summaries identify the cause. Before expanding to
+batch, sequence, fan-out, pipeline, or record layouts, use a focused diagnostic of retry and
+occupancy states and repeat only after its perturbation has been assessed. For reliable fan-out,
 one completed publication requires two observations; its numerator and role work differ from
 single-consumer SPSC. Pipeline requires ordered upstream/downstream stages. They can be compared
 as complete three-worker contracts after separate host qualification, not on a universal rate
