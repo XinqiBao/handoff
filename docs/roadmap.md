@@ -46,6 +46,17 @@ group. Do not extend to grouped SPSC or three-worker routes until the
 measurement question is resolved. Preserve every row, execution order, sidecar, and invalidated
 group. Historical measurements remain tied to their original exact SHAs.
 
+The [process-state diagnostic](experiments/025-spsc-process-state-diagnostic.md) narrowed that
+question. Instrumented routes usually found producer-side full retries and almost no consumer-side
+empty retries. Repeated `cached-index` trials were usually tight within one process while separate
+processes occupied different rate states; one process also switched state internally. Explicitly
+fixing the queue page offset did not remove dispersion, while changing offsets inside a process
+could change rate. This is evidence for an interaction involving process memory placement and
+the busy-retry workload, not proof of a particular cache event or a host fault. The next distinct
+test should control relative addresses of the queue and worker-accessed data, or validate a
+specific cache hypothesis with role-specific PMU counts, before modifying the canonical harness
+or ranking small gaps. Retain busy retries as the intended dedicated-core condition.
+
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)
 established publication-call blocking across a hole and recorded one controlled N150 comparison.

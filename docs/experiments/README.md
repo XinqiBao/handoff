@@ -49,3 +49,4 @@ its own record. Keep unrelated research questions separate.
 
 - [Linux measurement host baseline](linux-host-baseline.md)
 - [Clock-read floor on the isolated N150](024-clock-read-calibration.md)
+- [Busy-retry SPSC process-state diagnostic](025-spsc-process-state-diagnostic.md)
