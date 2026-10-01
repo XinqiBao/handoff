@@ -19,10 +19,11 @@ to the precision of the intended claim and record the live outcome. See
 [benchmark methodology](benchmark-methodology.md) for evidence terms.
 
 The historical Intel N150 [host baseline](experiments/linux-host-baseline.md)
-and subsequent experiment records describe measurements made without dedicated
-housekeeping or IRQ isolation. Their exact-revision observations remain valid
-within their stated conditions, but do not establish fine cache or coherence
-cost attribution. Semantic tests do not depend on throughput precision.
+describes the original measurements without dedicated housekeeping or IRQ isolation.
+[Experiment 022](experiments/022-fixed-frequency-mpsc-comparison.md) and later qualified sessions
+record their own isolation and delivered-frequency checks. Historical exact-revision observations
+remain valid within their stated conditions, but do not establish fine cache or coherence cost
+attribution. Semantic tests do not depend on throughput precision.
 
 ## Two-machine revision workflow
 

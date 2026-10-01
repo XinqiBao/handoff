@@ -17,7 +17,30 @@ Create a planned record only when a question has a defensible protocol and is pr
 execution. Earlier unmeasured plans remain in Git history, not in the active experiment index.
 One record may combine a deterministic diagnostic, canonical comparison, and targeted sensitivity
 checks when they answer one coherent question; a command or benchmark mode alone does not require
-its own record. Keep unrelated research questions separate.
+its own record. Keep unrelated research questions separate. A new anomaly investigation needs a
+specific hypothesis, a discriminating protocol, and an explanation of how either outcome changes
+a useful conclusion or engineering decision. Add follow-up controls to the same record when they
+answer that question rather than numbering every probe.
+
+For current practice, start with the [methodology](../benchmark-methodology.md),
+[host guide](../measurement-host.md), and
+[current comparison boundary](../roadmap.md#controlled-performance-comparisons-current-boundary).
+A record's proposed next gate belongs to its stated revision; later campaign decisions may supersede
+it without rewriting the evidence. Raw output is local and ignored, not bundled with this index.
+Each record names its evidence directory and procedures; retain those scripts, source/binary
+identities, raw order, host checks, and interrupted attempts together.
+
+## Measurement reference records
+
+- [022: Fixed-frequency MPSC completion comparison](022-fixed-frequency-mpsc-comparison.md):
+  a resolved complete-route direction under historical yield retries.
+- [023: Scalar SPSC measurement stability](023-spsc-measurement-stability.md):
+  workload-dependent resolution and the transition to busy retries.
+- [030: Ordered SPSC RTT samples and process repeatability](030-spsc-rtt-repeatability.md):
+  raw-output control and a bounded two-ring tail comparison.
+
+The intermediate SPSC controls remain under [supporting investigations](#supporting-measurement-investigations).
+These reading aids do not promote old workloads into current rankings.
 
 ## Single-producer baselines and dependencies
 
@@ -26,7 +49,6 @@ its own record. Keep unrelated research questions separate.
 - [Basic scalar versus all-or-nothing batch SPSC](005-batch-spsc-comparison.md)
 - [Bulk versus staged direct-slot SPSC](007-staged-spsc-comparison.md)
 - [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
-- [Isolated N150 scalar SPSC measurement stability](023-spsc-measurement-stability.md)
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
 
@@ -43,9 +65,12 @@ its own record. Keep unrelated research questions separate.
 - [Producer-owned paths and merge authority](019-two-path-merge.md)
 - [Independent branch writes at a fixed join](020-two-branch-join.md)
 - [Paired MPSC descriptor and byte credit](021-mpsc-variable-record.md)
-- [Fixed-frequency MPSC completion comparison](022-fixed-frequency-mpsc-comparison.md)
 
-## Measurement method
+## Supporting measurement investigations
+
+These preserve the path to the current boundary, including failed stabilization hypotheses and
+instrumentation effects. Read them when checking a specific explanation or reproducing a probe;
+the unresolved SPSC cause is not a global gate for other workloads.
 
 - [Linux measurement host baseline](linux-host-baseline.md)
 - [Clock-read floor on the isolated N150](024-clock-read-calibration.md)
@@ -54,4 +79,3 @@ its own record. Keep unrelated research questions separate.
 - [Physical pages and sampled addresses in SPSC rate states](027-spsc-address-state-diagnostic.md)
 - [Initial queue occupancy and SPSC process states](028-spsc-initial-occupancy-diagnostic.md)
 - [No-handoff, sampler, and layout controls for SPSC rate states](029-spsc-causality-controls.md)
-- [Ordered SPSC RTT samples and process repeatability](030-spsc-rtt-repeatability.md)

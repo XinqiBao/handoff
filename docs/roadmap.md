@@ -21,31 +21,20 @@ fixed delivered frequency; it has no universal resolution or route ranking. In
 direction survived host controls; the exact magnitude and isolated publication cost remain
 unknown. That result used yield retries and cannot be pooled with the current busy-retry workload.
 
-[Experiment 023](experiments/023-spsc-measurement-stability.md) and the
-[clock](experiments/024-clock-read-calibration.md),
-[process](experiments/025-spsc-process-state-diagnostic.md),
-[PMU](experiments/026-spsc-role-pmu-diagnostic.md),
-[address](experiments/027-spsc-address-state-diagnostic.md),
-[occupancy](experiments/028-spsc-initial-occupancy-diagnostic.md), and
-[control](experiments/029-spsc-causality-controls.md) probes characterize the narrower
-8 B / 64-slot SPSC throughput limit. `cached-index` has persistent, sometimes switching,
-cross-process rate states despite passing placement, busy-frequency, IRQ, power, temperature, and
-throttle checks. The clock probe found no TSC advantage or boundary-timer explanation. Fixed queue
-page offset, ASLR control, initial empty/full occupancy, and excluding the first timed segment did
-not remove the states. Slower processes had more L2 request misses, but PMU association and
-queue-address samples do not prove a cause; the sampling mode was associated with a rate change.
-A no-handoff dual-core control was extremely repeatable under its different workload. Splitting
-index lines produced a large paired layout effect but retained process dispersion. These results
-justify stopping open-ended diagnosis while preserving its negative evidence. The precise
-unsampled SPSC state cause and small scalar route throughput gaps remain unresolved; busy
-contention is intended workload behavior.
+[Experiment 023](experiments/023-spsc-measurement-stability.md) establishes the narrower
+8 B / 64-slot scalar SPSC throughput limit: persistent, sometimes switching process rate states
+remain despite passing relevant host checks. The
+[supporting controls](experiments/README.md#supporting-measurement-investigations) did not establish
+a clock, simple placement, initial-occupancy, or index-line stabilization explanation. They retain
+useful negative evidence and instrumentation effects, but do not prove a microarchitectural cause.
+Small scalar throughput gaps remain unresolved at this shape; stop open-ended diagnosis unless a
+specific discriminating hypothesis would change a useful engineering decision. Busy contention
+remains intended workload behavior.
 
-[Experiment 030](experiments/030-spsc-rtt-repeatability.md) retained ordered 8 B / 64-slot
-ping-pong RTT samples. The `cached-index` minus `basic` median difference ranged 0-64 ns across
-eight pairs, so a precise median gap is unresolved; its p95 and p99 were higher in all eight pairs,
-supporting a conditional two-ring tail direction. Neither RTT nor the current saturated
-throughput workload measures one-way or specified-offered-rate latency. An offered-load latency
-route would require its own admission, timestamp, and host gate.
+[Experiment 030](experiments/030-spsc-rtt-repeatability.md) supports a conditional two-ring RTT
+tail direction, while its small median gap remains unresolved. Exact observations and probe
+chronology belong in the records. Neither RTT nor saturated throughput measures one-way or
+specified-offered-rate latency; a new latency route needs its own contract and host gate.
 
 Future comparisons follow the [effect-relative protocol](benchmark-methodology.md#repeatability-gate-for-small-comparisons):
 first match semantics, numerator, capacity, completion, and endpoint work; then qualify the actual
@@ -102,15 +91,6 @@ across these areas.
 These regions interact but are not a matrix to implement. Fixed-slot topology work may reveal a
 later storage or recovery question; crossing that boundary requires a new campaign decision. The
 verification and performance regions provide methods only when they answer a concrete question.
-
-The fixed-2400-MHz [MPSC count/slot comparison](experiments/022-fixed-frequency-mpsc-comparison.md)
-answers one bounded measurement question on the prepared N150: the earlier
-slot-over-count complete-route direction persisted in all eight interleaved
-pairs after workload-specific host qualification. The paired median difference
-was +30.80%, with a +23.40% to +46.24% range, so the magnitude is less stable
-than the direction. No PMU or source-level coherence attribution follows.
-A next performance program would need a causal question and a protocol that
-isolates its proposed cost; another catalog-wide ranking has no current value.
 
 This is a curated implementation catalog. A mechanism earns retention by exposing a meaningful
 semantic, progress, or structural distinction, including an instructive intermediate result. Faster
