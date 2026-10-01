@@ -101,6 +101,13 @@ Report completed messages per second from a complete producer-to-consumer handof
 publication alone, unless publication rate is the explicit subject. Validate the final count and a
 minimal checksum so consumer work and payload reads remain observable to the optimizer.
 
+In the scalar SPSC throughput route, the coordinator reads `steady_clock` immediately before
+releasing the timed workers; the consumer reads it after validating the final message. The CSV
+rate is `iterations / elapsed_ns` in seconds, using one elapsed interval per trial. No message
+carries a timestamp, and the route does not randomly sample individual handoffs. The interval
+includes phase-release skew and all timed producer/consumer work; its two clock reads are
+amortized over the full run. It is not a per-message latency distribution.
+
 Keep equivalent benchmark-side work, payload generation, validation, and termination conditions
 consistent across implementations.
 Current throughput routes busy spin on an unavailable claim, publication, observation, or
@@ -176,6 +183,12 @@ Ping-pong busy spins on an unavailable request or response. Historical revisions
 yielding; compare only rows with the same waiting policy. The timed request/response work,
 validation, and RTT clock reads are otherwise the same. RTT does not measure offered-load queueing
 latency.
+The producer reads `steady_clock` before sending each request and after receiving its response,
+stores every measured RTT in memory, and summarizes after the timed phase. The timestamps do not
+travel in the message. Current CSV retains the trial median and indexed p95/p99, not the ordered
+individual RTTs, so it cannot independently reanalyze tails or identify when an outlier occurred.
+The two clock reads, their placement, and loop work matter at sub-microsecond scale; an isolated
+clock-read cost should not be subtracted from the RTT distribution without an end-to-end check.
 
 ## Correctness gates
 

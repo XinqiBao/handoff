@@ -22,57 +22,35 @@ as separate comparison groups, each with its own numerator, work, and semantic l
 SPMC are eligible only for comparably qualified complete-throughput questions. This is not a
 ranking of all mechanisms, a one-way latency claim from RTT, or fine cache-line attribution.
 
-The initial fixed-2400-MHz scalar SPSC group at `9891fd0` repeated a cache-line throughput
-direction at 64 B / 1024 slots, but yield-based RTT showed fast/slow modes. A subsequent `spin`
-RTT group at `7b3c299` reduced that ambiguity for cache-line and cached-index while basic RTT
-still varied. At 8 B / 64 slots, yield-based throughput was too dispersed for a precise rate
-claim despite qualified frequency, placement, IRQ, power, temperature, and throttle observations.
-Diagnostic `perf` rows found millions of yield calls but only tens of context switches per run;
-yield count did not consistently increase in slower rows. These observations justify changing the
-current timed-worker policy to busy retries and calibrating clock-read overhead before extending
-the matrix. The raw groups and aborted qualification remain in ignored `results/`.
+The fixed-frequency [scalar SPSC reassessment](experiments/023-spsc-measurement-stability.md)
+found that 8 B / 64-slot rates dispersed despite qualified placement, frequency, IRQ, power,
+temperature, and throttle checks. Busy retries are now the intended dedicated-core condition,
+but the CI-green busy-retry group still had 4.13%-13.69% sample CV across its three routes.
+The [clock-read probe](experiments/024-clock-read-calibration.md) found no advantage for fenced
+TSC on this host and no clock explanation for multi-second throughput drift. Earlier yield-based
+rows and stopped qualifications remain tied to their original revisions in ignored `results/`.
 
-The CI-green busy-retry revision `f9eea51` still dispersed at 8 B / 64 slots despite all three
-route-specific host qualifications passing. The 24-row throughput group had sample CVs of 9.17%
-for basic, 4.13% for cache-line, and 13.69% for cached-index. Its broad block-difference directions
-are observations, but precise rate gaps are not established. The remaining RTT and 64 B groups
-were stopped before formal measurement; their partial qualifications remain in ignored `results/`.
-A pinned [clock-read probe](experiments/024-clock-read-calibration.md) found no read-cost advantage
-for fenced TSC over `steady_clock` on this host and did not explain throughput drift. The next
-distinct question is whether retry/occupancy states change across rows under busy retries; that
-contention is a target mechanism property on dedicated cores. Use diagnostic instrumentation
-separately from performance rows and assess its perturbation before repeating the small scalar
-group. Do not extend to grouped SPSC or three-worker routes until the
-measurement question is resolved. Preserve every row, execution order, sidecar, and invalidated
-group. Historical measurements remain tied to their original exact SHAs.
+The [process-state](experiments/025-spsc-process-state-diagnostic.md),
+[PMU](experiments/026-spsc-role-pmu-diagnostic.md),
+[address](experiments/027-spsc-address-state-diagnostic.md), and
+[occupancy](experiments/028-spsc-initial-occupancy-diagnostic.md) diagnostics found that
+`cached-index` rate states often persist within a process but differ across processes. Fixing
+queue page offset, disabling ASLR, and changing initial empty/full occupancy did not remove
+them. Slower processes had about 31% more consumer L2 request misses with nearly identical
+retired instructions; sampled misses addressed the queue, but do not establish a cache cause.
+The [no-handoff and sampler controls](experiments/029-spsc-causality-controls.md) found an
+extremely stable dual-core local workload and a large sampler-associated rate change. Unsampled
+SPSC processes still varied. Neither generic host drift, short clock-read cost, nor the initial
+occupancy condition explains the observed states; shared-line behavior, sustained phase, and
+relative address placement remain hypotheses.
 
-The [process-state diagnostic](experiments/025-spsc-process-state-diagnostic.md) narrowed that
-question. Instrumented routes usually found producer-side full retries and almost no consumer-side
-empty retries. Repeated `cached-index` trials were usually tight within one process while separate
-processes occupied different rate states; one process also switched state internally. Explicitly
-fixing the queue page offset did not remove dispersion, while changing offsets inside a process
-could change rate. Disabling ASLR still left 6.57% cross-process CV and sign-changing paired
-differences. Same-process interleaving of three routes reduced each route's within-process CV to
-at most 1.21% in two independent runs, yet the cached-index/basic block effect changed from
-about -16% to about zero across those processes. This is evidence for an interaction involving
-process state and the busy-retry workload, not proof of a particular cache event or a host fault.
-The next distinct test should control relative addresses of the queue and worker-accessed data,
-or validate a specific cache hypothesis with role-specific PMU counts. A first
-[PMU diagnostic](experiments/026-spsc-role-pmu-diagnostic.md) at fixed queue page offset found
-that slow `cached-index` processes retired nearly identical consumer instructions but had about
-31% more consumer L2 request misses per message than fast processes. The event does not identify
-the affected line or whether the misses cause or follow the rate state. The
-[page and address diagnostic](experiments/027-spsc-address-state-diagnostic.md) found that
-queue PFN residue modulo 32 does not label the rate states; sampled consumer L2 load misses all
-addressed the queue, but sampling itself changed the observed rates. The
-[initial-occupancy diagnostic](experiments/028-spsc-initial-occupancy-diagnostic.md) found
-full/empty block effects within +/-0.13% inside each of two processes, while those processes
-ran at about 13.44 and 11.60 million/s. This rules out that single initialization condition
-as a sufficient explanation; it leaves sustained phase, occupancy, and placement unresolved.
-The current package ends at this measurement gate: a next package must identify or control the
-process state and repeat in the canonical, uninstrumented 8 B / 64-slot group before ranking
-small gaps or expanding to SPSC parameter, fan-out, or pipeline matrices. Retain busy retries
-as the intended dedicated-core condition.
+The active measurement gate is to identify or control the process state through one explicit
+queue/worker address or cache-line hypothesis, then demonstrate repeatability across independent
+canonical **unsampled** 8 B / 64-slot processes before estimating small route gaps. Retain busy
+contention as target workload behavior. Do not expand to grouped SPSC, fan-out, pipeline, or a
+broad parameter matrix until this gate passes; preserve raw rows, order, sidecars, and anomalous
+groups. A fine RTT campaign must also retain ordered raw samples and check end-to-end timer
+perturbation before making nanosecond-scale tail claims.
 
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)

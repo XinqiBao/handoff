@@ -53,3 +53,4 @@ its own record. Keep unrelated research questions separate.
 - [Role-specific PMU check of SPSC rate states](026-spsc-role-pmu-diagnostic.md)
 - [Physical pages and sampled addresses in SPSC rate states](027-spsc-address-state-diagnostic.md)
 - [Initial queue occupancy and SPSC process states](028-spsc-initial-occupancy-diagnostic.md)
+- [No-handoff and sampler controls for SPSC rate states](029-spsc-causality-controls.md)

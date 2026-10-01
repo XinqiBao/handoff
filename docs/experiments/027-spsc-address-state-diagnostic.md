@@ -55,8 +55,11 @@ averaged 10.910 million/s with 46.1% of their samples in the index line; the fas
 averaged 11.925 million/s with 71.7% there. These are **shares of sampled retired load misses**,
 not exact counts of all L2 requests or proof that one area caused a rate state. The sampled
 group's rate range was only 10.893-12.141 million/s (median 11.006, sample CV 4.03%), unlike
-the unsampled and CPU-wide counting groups. Sampling perturbed the workload, so its rates and
-shares must not be pooled with them or used to rank mechanisms.
+the unsampled and CPU-wide counting groups. These groups ran at different times, so this
+contrast alone cannot establish sampling causality. A later
+[balanced adjacent-pair control](029-spsc-causality-controls.md) supports a sampler-associated
+rate change under the same binary and identity. The sampled rates and shares must not be
+pooled with unsampled rates or used to rank mechanisms.
 
 The ignored `results/spsc-retry-diagnostic-20261001/pfn/` and `address-samples/` directories
 retain exact scripts, probe source/binary hashes, sidecars, all 240 and 160 raw segments,
@@ -67,8 +70,9 @@ before/fixed/restored policy readbacks. No anomalous row was removed.
 ## Decision
 
 The queue's simple physical-page residue does not determine its process rate. Address samples
-confirm that the consumer's sampled L2 load misses concern queue storage and the index line,
-but the sampler changes the observed operating state. The prior CPU-wide L2 request association
+confirm that the consumer's sampled L2 load misses concern queue storage and the index line.
+The later paired control supports a sampler-associated change in the observed operating state.
+The prior CPU-wide L2 request association
 remains valid as a diagnostic; these data do not isolate a cache mapping, false sharing cost,
 or implementation defect. A next useful test should change one explicit initial occupancy or
 worker phase condition within one process and repeat it across processes, or use lower-impact
