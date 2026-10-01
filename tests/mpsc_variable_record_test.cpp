@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -13,6 +14,30 @@
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
+
+namespace handoff::mpsc {
+struct VariableRecordTestAccess {
+  using Ring = VariableRecordRing<4, 128>;
+
+  // Only a fresh, empty, quiescent ring: descriptor ordinals and ready tags stay at zero.
+  static void seed_empty_bytes(Ring& ring, std::uint64_t position) {
+    assert(position % Ring::payload_alignment == 0);
+    assert(ring.next_claim_ == 0 && ring.next_to_observe_ == 0);
+    assert(ring.next_byte_claim_ == 0 && ring.next_byte_release_ == 0);
+    assert(ring.released_records_.load() == 0 && ring.released_bytes_.load() == 0);
+    assert(!ring.consumer_observing_);
+    ring.next_byte_claim_ = position;
+    ring.next_byte_release_ = position;
+    ring.released_bytes_.store(position);
+  }
+
+  static auto cursors(const Ring& ring) {
+    return std::array{
+        ring.next_claim_,      ring.released_records_.load(), ring.next_to_observe_,
+        ring.next_byte_claim_, ring.released_bytes_.load(),   ring.next_byte_release_};
+  }
+};
+} // namespace handoff::mpsc
 
 namespace {
 
@@ -191,6 +216,79 @@ TEST_CASE("MPSC variable record positions stop at the finite limit", "[mpsc][rec
     observation.release();
   }
   CHECK_FALSE(ring.try_claim(0));
+  CHECK_FALSE(ring.try_observe());
+}
+
+TEST_CASE("MPSC byte exhaustion preserves outstanding records and zero-byte progress",
+          "[mpsc][record]") {
+  using Access = handoff::mpsc::VariableRecordTestAccess;
+  using Ring = Access::Ring;
+  constexpr auto last = std::numeric_limits<std::uint64_t>::max() - 15;
+  Ring ring;
+  Access::seed_empty_bytes(ring, last - 32);
+  auto claim = required(ring.try_claim(17)); // Last admissible 32-byte aligned extent.
+  CHECK(claim.position() == 0);
+  fill(claim);
+  claim.publish(7);
+  auto held = required(ring.try_observe());
+  const auto before = Access::cursors(ring);
+  CHECK(before[3] == last);
+  CHECK_FALSE(ring.try_claim(1));
+  CHECK(Access::cursors(ring) == before);
+  CHECK(matches(held, 0, 17, 7));
+
+  auto empty = required(ring.try_claim(0));
+  CHECK(empty.position() == 1);
+  CHECK(empty.payload().empty());
+  empty.publish(8);
+  CHECK(Access::cursors(ring)[3] == last);
+  CHECK_FALSE(ring.try_observe());
+  CHECK(matches(held, 0, 17, 7));
+  held.release();
+  auto observation = required(ring.try_observe());
+  CHECK(matches(observation, 1, 0, 8));
+  observation.release();
+  CHECK(Access::cursors(ring)[4] == last);
+
+  const auto drained = Access::cursors(ring);
+  CHECK_FALSE(ring.try_claim(1)); // Release returns credit but cannot extend the finite stream.
+  CHECK(Access::cursors(ring) == drained);
+  empty = required(ring.try_claim(0));
+  CHECK(empty.position() == 2);
+  empty.publish(9);
+  observation = required(ring.try_observe());
+  CHECK(matches(observation, 2, 0, 9));
+  observation.release();
+  CHECK_FALSE(ring.try_observe());
+}
+
+TEST_CASE("an overflowing MPSC wrap gap reserves neither resource", "[mpsc][record]") {
+  using Access = handoff::mpsc::VariableRecordTestAccess;
+  using Ring = Access::Ring;
+  constexpr auto last = std::numeric_limits<std::uint64_t>::max() - 15;
+  Ring ring;
+  Access::seed_empty_bytes(ring, last - 48); // Physical offset 64.
+  auto first = required(ring.try_claim(17)); // Ends at offset 96, leaving a 32-byte suffix.
+  fill(first);
+  first.publish(10);
+  auto held = required(ring.try_observe());
+  const auto before = Access::cursors(ring);
+  CHECK_FALSE(ring.try_claim(33)); // 32-byte gap + 48-byte footprint exceeds the byte limit.
+  CHECK(Access::cursors(ring) == before);
+  CHECK(matches(held, 0, 17, 10));
+
+  // A smaller extent still fits: failed admission consumed no ordinal, descriptor, or byte credit.
+  auto smaller = required(ring.try_claim(1));
+  CHECK(smaller.position() == 1);
+  fill(smaller);
+  smaller.publish(11);
+  CHECK(Access::cursors(ring)[3] == last);
+  CHECK(matches(held, 0, 17, 10));
+  held.release();
+  auto observation = required(ring.try_observe());
+  CHECK(matches(observation, 1, 1, 11));
+  observation.release();
+  CHECK(Access::cursors(ring)[4] == last);
   CHECK_FALSE(ring.try_observe());
 }
 

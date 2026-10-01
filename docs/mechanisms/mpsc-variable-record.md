@@ -39,9 +39,12 @@ the byte ring is empty. An unsuccessful claim never consumes only one of the two
 Ordinal `max(Sequence)` is reserved as exhaustion: positions `0 .. max - 1` are claimable and
 ready tags use `position + 1`. The ring does not roll descriptor generations over. Its 64-bit byte
 cursor also stops before adding a reservation that would overflow, while physical offsets use
-capacity masking. A stale released-byte snapshot may reject a claim conservatively; an out-of-range
-distance is treated as full. Neither cursor rolls over, so an old snapshot or ready tag cannot
-validate a new generation.
+capacity masking. Since extents and gaps are multiples of 16, its last reachable endpoint is
+`UINT64_MAX - 15`, not `UINT64_MAX`. Exhausting the byte stream still permits zero-byte claims
+while descriptor ordinals and credit remain available; release does not reset the finite stream.
+A stale released-byte snapshot may reject a claim conservatively; an out-of-range distance is
+treated as full. Neither cursor rolls over, so an old snapshot or ready tag cannot validate a new
+generation.
 
 ## Visibility and reuse
 
@@ -69,6 +72,10 @@ follows. Direct spans avoid an extra ring-side copy but do not imply end-to-end 
 
 Deterministic tests cover independent descriptor and byte fullness, zero-byte records, a later
 publication across an earlier hole, a physically wrapped gap owned by that claim, final-read reuse,
-observation cancellation, and finite ordinal exhaustion. Two concurrent producers and one consumer
-exercise mixed lengths and repeated reuse. [Experiment 021](../experiments/021-mpsc-variable-record.md)
+observation cancellation, and finite ordinal exhaustion. Private test access seeds only an empty,
+quiescent byte stream near its production limit. Boundary tests cover the last aligned extent,
+overflow rejection including a charged wrap gap, unchanged paired cursors, outstanding payload
+integrity, release, smaller admissible reservations, and zero-byte progress after byte exhaustion.
+Two concurrent producers and one consumer exercise mixed lengths and repeated reuse.
+[Experiment 021](../experiments/021-mpsc-variable-record.md)
 records the validation and limits. There is no timed benchmark route.

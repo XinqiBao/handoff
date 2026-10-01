@@ -226,6 +226,8 @@ public:
   };
 
 private:
+  friend struct VariableRecordTestAccess;
+
   alignas(payload_alignment) std::array<std::byte, PayloadByteCapacity> payload_{};
   std::uint64_t next_byte_claim_{0};
   std::atomic<std::uint64_t> released_bytes_{0};
