@@ -46,7 +46,9 @@ public:
   [[nodiscard]] std::optional<ConsumerClaim> try_acquire() noexcept {
     auto next = next_acquire_.load(std::memory_order_relaxed);
     for (;;) {
-      if (next == published_.load(std::memory_order_acquire)) {
+      // A relaxed claim-cursor observation can be newer than this publication load.
+      // Positions never roll over: only a strict bound grants published ownership.
+      if (next >= published_.load(std::memory_order_acquire)) {
         return std::nullopt;
       }
       if (next_acquire_.compare_exchange_weak(next, static_cast<Sequence>(next + 1),

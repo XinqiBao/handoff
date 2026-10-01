@@ -29,8 +29,18 @@ a prior generation has a different value. The final claimable position is
 `max(Sequence) - 1`, leaving the terminal one-past value representable.
 Logical positions never wrap, so tag equality cannot be confused by rollover.
 
-The publication release/acquire pair orders the producer write before the
-owner's read. Claim CAS grants exclusive ownership. The owner's last read
+The producer release-publishes the contiguous interval `[0, published)`.
+Before every CAS, the consumer's own acquire load must observe a publication
+cursor strictly beyond the candidate position. That load orders the producer's
+payload writes before the owner's read; relaxed claim CAS grants exclusive
+ownership only. An initial relaxed cursor load or failed CAS can observe a
+cursor ahead of an independently stale publication load. Rejecting
+`next_acquire >= published` handles both histories conservatively, whereas
+equality alone could accept unpublished storage. Failed CAS refreshes the
+candidate, and the loop reloads publication before retrying. Logical positions
+never wrap, so ordinary ordering also prevents claiming the terminal cursor.
+
+The owner's last read
 precedes its per-slot release store; the producer's acquire load of the
 matching tag orders the next write of that physical slot after the owner's
 access. Repeated scans may see a stale mismatching tag and reject a claim
@@ -44,10 +54,15 @@ Latch tests hold the first owner while two later owners return from release,
 then check that the producer alone discovers the completed prefix when the
 hole closes. A second test leaves a newer owner unfinished. Shared tests
 cover exact capacity, repeated physical wrap, unique delivery, payload
-integrity, and finite exhaustion.
+integrity, the single-slot empty/publication boundary, and finite exhaustion.
+A tiny observation model enumerates independent stale cursor/publication
+observations and failed-CAS refresh, exposing the former equality-only bound.
+It does not simulate the full C++ memory model or force stale reads in a live run.
 
 The controlled [consumer-coordination comparison](../experiments/017-spmc-consumer-coordination.md)
 retains this route for its independent release-call return and producer-only
 prefix discovery. It measured above the other two complete routes in every
 canonical N150 row. One repeatability row was unusually high, so the data do
-not isolate the cause or a stable gap size.
+not isolate the cause or a stable gap size. The measurements predate the
+publication-bound repair and apply to their recorded revision; the corrected
+acquisition loop has no new performance measurement.
