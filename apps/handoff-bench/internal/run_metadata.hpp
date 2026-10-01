@@ -9,9 +9,13 @@ namespace handoff::bench {
 
 struct RunMetadata {
   platform::SystemInfo system;
-  std::optional<std::string> git_revision;
-  std::optional<bool> git_dirty;
+  std::string build_git_revision;
+  std::string build_git_dirty;
+  std::string build_source_sha256;
+  std::optional<std::string> checkout_git_revision;
+  std::optional<bool> checkout_git_dirty;
   std::string build_mode;
+  std::string build_flags;
   std::string waiting_behavior;
   std::string control_waiting_behavior;
 };

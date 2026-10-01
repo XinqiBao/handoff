@@ -1,9 +1,13 @@
 #include "run_metadata.hpp"
 
+#include "build_config.hpp"
+#include "build_identity.hpp"
+
 #include <array>
 #include <cerrno>
 #include <cstddef>
 #include <fcntl.h>
+#include <filesystem>
 #include <initializer_list>
 #include <optional>
 #include <spawn.h>
@@ -110,21 +114,27 @@ std::optional<std::string> run_git(std::initializer_list<std::string_view> argum
 
 RunMetadata collect_run_metadata() {
   RunMetadata metadata{.system = platform::current_system_info(),
-                       .git_revision = std::nullopt,
-                       .git_dirty = std::nullopt,
+                       .build_git_revision = HANDOFF_BUILD_GIT_REVISION,
+                       .build_git_dirty = HANDOFF_BUILD_GIT_DIRTY,
+                       .build_source_sha256 = HANDOFF_BUILD_SOURCE_SHA256,
+                       .checkout_git_revision = std::nullopt,
+                       .checkout_git_dirty = std::nullopt,
                        .build_mode = HANDOFF_BUILD_MODE,
+                       .build_flags = HANDOFF_BUILD_FLAGS,
                        .waiting_behavior = "spin",
                        .control_waiting_behavior = "atomic-wait"};
 
-  if (std::string_view(HANDOFF_SOURCE_DIR).empty()) {
+  if (std::string_view(HANDOFF_SOURCE_DIR).empty() ||
+      !std::filesystem::exists(std::filesystem::path(HANDOFF_SOURCE_DIR) / ".git")) {
     return metadata;
   }
 
-  metadata.git_revision = run_git({"-C", HANDOFF_SOURCE_DIR, "rev-parse", "--verify", "HEAD"});
+  metadata.checkout_git_revision =
+      run_git({"-C", HANDOFF_SOURCE_DIR, "rev-parse", "--verify", "HEAD"});
   const auto status =
       run_git({"-C", HANDOFF_SOURCE_DIR, "status", "--porcelain=v1", "--untracked-files=normal"});
   if (status) {
-    metadata.git_dirty = !status->empty();
+    metadata.checkout_git_dirty = !status->empty();
   }
   return metadata;
 }

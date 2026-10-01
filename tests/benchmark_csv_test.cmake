@@ -367,11 +367,15 @@ endif()
 
 file(READ "${output_path}" contents)
 foreach(metadata_pattern IN ITEMS
-    "# git_revision=[0-9a-f]+"
-    "# git_dirty=(true|false)"
+    "# build_git_revision=[0-9a-f]+"
+    "# build_git_dirty=(true|false)"
+    "# build_source_sha256=[0-9a-f]+"
+    "# checkout_git_revision=[0-9a-f]+"
+    "# checkout_git_dirty=(true|false)"
     "# compiler=Clang"
     "# compiler_version=[^\n]+"
     "# build_mode=${EXPECTED_BUILD_MODE}"
+    "# build_flags=[^\n]+"
     "# operating_system=[^\n]+"
     "# architecture=[^\n]+"
     "# cpu_model=[^\n]+"

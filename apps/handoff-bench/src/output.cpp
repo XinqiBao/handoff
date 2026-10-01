@@ -104,6 +104,19 @@ void write_optional(std::ostream& output, const std::optional<Value>& value) {
   }
 }
 
+void write_build_metadata(std::ostream& output, const RunMetadata& metadata) {
+  output << "# build_git_revision=" << metadata.build_git_revision << '\n'
+         << "# build_git_dirty=" << metadata.build_git_dirty << '\n'
+         << "# build_source_sha256=" << metadata.build_source_sha256 << '\n'
+         << "# checkout_git_revision=" << optional_string_value(metadata.checkout_git_revision)
+         << '\n'
+         << "# checkout_git_dirty=" << optional_bool_value(metadata.checkout_git_dirty) << '\n'
+         << "# compiler=" << metadata.system.compiler << '\n'
+         << "# compiler_version=" << metadata.system.compiler_version << '\n'
+         << "# build_mode=" << metadata.build_mode << '\n'
+         << "# build_flags=" << metadata.build_flags << '\n';
+}
+
 } // namespace
 
 bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Options& options,
@@ -119,12 +132,8 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
       throw std::logic_error("publication-hole result is missing");
     }
     const auto& progress = *results.progress;
-    output << "# git_revision=" << optional_string_value(metadata.git_revision) << '\n'
-           << "# git_dirty=" << optional_bool_value(metadata.git_dirty) << '\n'
-           << "# compiler=" << metadata.system.compiler << '\n'
-           << "# compiler_version=" << metadata.system.compiler_version << '\n'
-           << "# build_mode=" << metadata.build_mode << '\n'
-           << "# operating_system=" << metadata.system.operating_system << '\n'
+    write_build_metadata(output, metadata);
+    output << "# operating_system=" << metadata.system.operating_system << '\n'
            << "# cpu_model=" << metadata.system.cpu_model << '\n'
            << "benchmark,implementation,payload_bytes,capacity_slots,claims_before_release,"
               "payloads_completed_before_release,publication_attempts_rejected_before_release,"
@@ -147,12 +156,8 @@ bool write_csv(const std::filesystem::path& path, Benchmark benchmark, const Opt
     return true;
   }
 
-  output << "# git_revision=" << optional_string_value(metadata.git_revision) << '\n'
-         << "# git_dirty=" << optional_bool_value(metadata.git_dirty) << '\n'
-         << "# compiler=" << metadata.system.compiler << '\n'
-         << "# compiler_version=" << metadata.system.compiler_version << '\n'
-         << "# build_mode=" << metadata.build_mode << '\n'
-         << "# operating_system=" << metadata.system.operating_system << '\n'
+  write_build_metadata(output, metadata);
+  output << "# operating_system=" << metadata.system.operating_system << '\n'
          << "# architecture=" << metadata.system.architecture << '\n'
          << "# cpu_model=" << metadata.system.cpu_model << '\n'
          << "# waiting_behavior=" << metadata.waiting_behavior << '\n'

@@ -70,6 +70,12 @@ add_test(
     -DSOURCE_ROOT=${PROJECT_SOURCE_DIR} -P
     "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_catalog_test.cmake")
 add_test(
+  NAME benchmark.provenance
+  COMMAND
+    "${CMAKE_COMMAND}" -DSOURCE_ROOT=${PROJECT_SOURCE_DIR}
+    -DTEST_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR} -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_provenance_test.cmake")
+add_test(
   NAME benchmark.csv
   COMMAND
     "${CMAKE_COMMAND}" -DBENCHMARK_EXECUTABLE=$<TARGET_FILE:handoff-bench>
