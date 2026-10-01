@@ -83,6 +83,11 @@ explicitly documents different semantics.
 
 ## Harness and output checks
 
+Mechanism checks live in `handoff_tests`; benchmark support checks live in
+`handoff_benchmark_tests`. CTest scripts separately check catalog/document inventory, CLI behavior,
+CSV meaning, build identity, and Linux affinity. `HANDOFF_BUILD_BENCHMARK=OFF` omits the benchmark
+and all its checks; default presets and CI retain them. Formatting includes test headers.
+
 CLI integration tests should cover help and listing, representative valid commands, invalid enum
 values and numeric ranges, incompatible options, output failures, and stable exit behavior. CSV
 tests should validate column meaning, empty non-applicable fields, trial counts, metadata, and

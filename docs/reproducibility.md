@@ -44,7 +44,8 @@ development checkout and treat the Git remote plus an exact commit as the proven
 
 Do not use a shared network build tree or bidirectional source synchronization for formal results.
 Do not describe an execution clone as "latest main" in an experiment record: identify the measured
-commit. A source-affecting change after measurement invalidates affected evidence until it is rerun.
+commit. A source-affecting change limits the old observation to its measured revision. It does not
+establish performance of the new implementation; rerun only when a current question needs that evidence.
 
 ## Build presets
 
@@ -75,163 +76,68 @@ cmake --build --preset tidy --target format-check
 ctest --preset tidy --no-tests=error
 ```
 
-Fan-out and dependency-pipeline plumbing can be exercised with:
+For mechanism-only work, the `debug-correctness` configure/build/test presets set
+`HANDOFF_BUILD_BENCHMARK=OFF`. The ordinary presets retain the benchmark and its tests, including
+sanitizer and static-analysis coverage. The same option is available to a manual configuration.
+
+## Benchmark exploration and integration
+
+`list` shows mechanisms and executable routes; `describe <route>` shows supported workloads,
+capacity kind, roles, and exploratory defaults. Small mechanism-first commands use the same execution
+path as explicit workload-first commands:
+
+```sh
+./build/release/apps/handoff-bench/handoff-bench list
+./build/release/apps/handoff-bench/handoff-bench describe descriptor-record
+./build/release/apps/handoff-bench/handoff-bench run mpsc-slot
+./build/release/apps/handoff-bench/handoff-bench run smoke \
+  --iterations 1000 --warmup 100 --trials 1 --output /tmp/handoff-smoke.csv
+./build/release/apps/handoff-bench/handoff-bench run ping-pong \
+  --implementation basic --payload-bytes 8 --capacity 64 \
+  --iterations 1000 --warmup 100 --trials 2 --output /tmp/handoff-rtt-smoke.csv
+```
+
+These validate CLI, workload, timing, and output plumbing. They are not controlled performance
+measurements. Use `help` for current options, the [catalog](mechanisms/README.md) for route navigation,
+and [methodology](benchmark-methodology.md) for workload boundaries and special restrictions.
+Historical records own their original command shapes; current CLI compatibility is retained when
+useful, without a guarantee for every historical probe or raw-output schema.
+
+Capacity is native to storage: `--capacity` means slots, `--capacity-bytes` means byte storage,
+and descriptor/payload routes require both. For example:
 
 ```sh
 ./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation fan-out --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5 \
-  --producer-cpu 1 --consumer-cpus 2,3
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation pipeline --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5 \
-  --producer-cpu 1 --consumer-cpus 2,3
+  --implementation descriptor-record --payload-bytes 64 \
+  --capacity 64 --capacity-bytes 4096 \
+  --iterations 1000 --warmup 100 --trials 1
 ```
 
-Run controlled forms under `taskset -c 0` so the blocked coordinator and unpinned process work stay
-on CPU 0. Consumer list order maps to fan-out consumer 0/1 and pipeline upstream/downstream. The
-benchmark rejects incomplete, duplicate, or producer-overlapping multi-consumer placement.
+An equal numeric capacity is not an equivalent message or byte capacity across layouts.
+The publication-hole route reports untimed logical progress, not performance.
+Offered-load publication pacing and observer stalls belong to the lossy sequence-payload workload;
+they do not add a latency contract to throughput or ping-pong.
 
-The same placement form applies to `spmc-serialized`, `spmc-ordered`, and
-`spmc-slot` throughput. These deliver each publication to one worker and end
-timing after the producer verifies the final reusable prefix. For example:
+For controlled work, use explicit role placement on a qualified host. On a four-core host with CPU 0
+reserved for coordinator/housekeeping, the two-producer shape is:
 
 ```sh
 taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation spmc-slot --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5 \
-  --producer-cpu 1 --consumer-cpus 2,3
-```
-
-The two-producer throughput comparison can be exercised with:
-
-```sh
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation mpsc-serialized --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5 \
-  --producer-cpus 1,2 --consumer-cpu 3
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation mpsc-ordered --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5 \
-  --producer-cpus 1,2 --consumer-cpu 3
-./build/release/apps/handoff-bench/handoff-bench run publication-hole \
-  --payload-bytes 64 --capacity 1024
-# Independent producer completion and consumer slot discovery use the same shapes:
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation mpsc-count --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5 \
-  --producer-cpus 1,2 --consumer-cpu 3
-./build/release/apps/handoff-bench/handoff-bench run throughput \
   --implementation mpsc-slot --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5 \
-  --producer-cpus 1,2 --consumer-cpu 3
-./build/release/apps/handoff-bench/handoff-bench run publication-hole \
-  --implementation mpsc-count --payload-bytes 64 --capacity 64
-./build/release/apps/handoff-bench/handoff-bench run publication-hole \
-  --implementation mpsc-slot --payload-bytes 64 --capacity 64
+  --iterations 20000000 --warmup 2000000 --trials 1 \
+  --producer-cpus 1,2 --consumer-cpu 3 --output ROW.csv
 ```
 
-For a controlled run on the historical four-core host, restrict the coordinator to CPU 0 and
-recheck current placement, interference, and repeatability first. The publication-hole command
-reports logical progress counts only; its output is not timing evidence.
-
-Fixed-record plumbing can be exercised with:
-
-```sh
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation fixed-record --payload-bytes 64 --capacity 1024 \
-  --iterations 1000000 --warmup 10000 --trials 5
-./build/release/apps/handoff-bench/handoff-bench run ping-pong \
-  --implementation fixed-record --payload-bytes 64 --capacity 1024 \
-  --iterations 100000 --warmup 10000 --trials 5
-```
-
-These commands validate benchmark plumbing on a development host. Their timing is not controlled
-performance evidence.
-
-Variable-record byte-ring plumbing can be exercised with:
-
-```sh
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation byte-record --payload-bytes 64 --capacity-bytes 4096 \
-  --iterations 1000000 --warmup 10000 --trials 5
-./build/release/apps/handoff-bench/handoff-bench run ping-pong \
-  --implementation byte-record --payload-bytes 64 --capacity-bytes 4096 \
-  --iterations 100000 --warmup 10000 --trials 5
-```
-
-These commands are also plumbing checks rather than controlled performance evidence. Byte-ring
-capacity is native bytes and must not be reported as an equivalent fixed-slot count.
-
-Descriptor/payload plumbing can be exercised with:
-
-```sh
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation descriptor-record --payload-bytes 64 \
-  --capacity 64 --capacity-bytes 4096 \
-  --iterations 1000000 --warmup 10000 --trials 5
-./build/release/apps/handoff-bench/handoff-bench run ping-pong \
-  --implementation descriptor-record --payload-bytes 64 \
-  --capacity 64 --capacity-bytes 4096 \
-  --iterations 100000 --warmup 10000 --trials 5
-```
-
-These are plumbing checks, not performance evidence. Descriptor slots and payload bytes are
-independent native limits even though the benchmark exposes only two deliberate capacity pairs.
-
-Sequence-payload offered-load plumbing can be exercised in three deliberate shapes:
-
-```sh
-# Unpaced pressure
-./build/release/apps/handoff-bench/handoff-bench run offered-load \
-  --implementation sequence-payload --payload-bytes 64 --capacity 1024 \
-  --producer-interval-ns 0 --iterations 1000000 --warmup 10000 --trials 5
-
-# Paced producer
-./build/release/apps/handoff-bench/handoff-bench run offered-load \
-  --implementation sequence-payload --payload-bytes 64 --capacity 1024 \
-  --producer-interval-ns 1000 --iterations 1000000 --warmup 10000 --trials 5
-
-# Periodic observer stalls
-./build/release/apps/handoff-bench/handoff-bench run offered-load \
-  --implementation sequence-payload --payload-bytes 64 --capacity 1024 \
-  --producer-interval-ns 1000 --consumer-stall-every 1024 \
-  --consumer-stall-ns 100000 --iterations 1000000 --warmup 10000 --trials 5
-```
-
-These command shapes are not controlled performance evidence when run on macOS, a development
-host, or a GitHub-hosted runner. Controlled conclusions require the Linux placement and host
-controls described below.
+For one producer/two consumers, use `--producer-cpu 1 --consumer-cpus 2,3`; list order identifies
+fan-out reader 0/1, pipeline upstream/downstream, or SPMC worker 0/1. The benchmark rejects
+incomplete, duplicate, or overlapping placement. SPMC timing ends after producer-verified reuse;
+fan-out delivers each publication to both readers, so their rate meanings differ. Linux verifies
+requested affinity exactly. macOS reports it unsupported and remains suitable for plumbing.
+A command shape and placement alone do not qualify a measurement; follow the gates below.
 
 ASan/UBSan and TSan are separate because these runtimes are not combined. TSan availability and
 behavior vary by platform and toolchain; report a concrete limitation rather than weakening a valid
 low-level design to obtain a clean run.
-
-## Benchmark smoke check
-
-For initial exploration, `handoff-bench list` distinguishes all mechanism assets from executable
-routes; `handoff-bench describe mpsc-slot` shows its workloads and defaults. A small
-`handoff-bench run mpsc-slot` uses exploratory settings. Existing experiment commands use the
-workload-first `run <workload> --implementation <route>` form, which remains valid; `--impl` is an
-interactive alias. Use explicit settings and the recorded exact-SHA procedure for controlled work.
-
-```sh
-./build/release/apps/handoff-bench/handoff-bench list
-./build/release/apps/handoff-bench/handoff-bench run smoke \
-  --iterations 1000 --warmup 100 --trials 1 \
-  --output /tmp/handoff-smoke.csv
-./build/release/apps/handoff-bench/handoff-bench run throughput \
-  --implementation basic --payload-bytes 8 --capacity 64 \
-  --iterations 1000 --warmup 100 --trials 2 \
-  --output /tmp/handoff-throughput-smoke.csv
-./build/release/apps/handoff-bench/handoff-bench run ping-pong \
-  --implementation basic --payload-bytes 8 --capacity 64 \
-  --iterations 1000 --warmup 100 --trials 2 \
-  --output /tmp/handoff-ping-pong-smoke.csv
-```
-
-These small runs confirm CLI, timing, queue-workload validation, and CSV plumbing only. Their
-timings are not performance evidence.
 
 ## Preparing a measurement run
 
@@ -245,7 +151,9 @@ For results intended to support a conclusion:
 4. Select CPUs explicitly and require the read-back effective masks to match exactly.
 5. Keep producer and consumer on one NUMA node unless cross-node placement is intentional.
 6. Run warmup and multiple trials using exact recorded commands.
-7. Preserve raw trials and explain exclusions or deviations.
+7. Keep all raw trials during analysis and explain exclusions or deviations in the record.
+8. Distill the question, revision/conditions, method, observations, interpretation, limits, and
+   consequence into a tracked experiment record before discarding useful working material.
 
 Exploratory work may begin on a stock host, but repeated trials or warmup cannot
 make an unqualified host suitable for a stronger claim. Prepare and validate
@@ -261,7 +169,8 @@ Mach-specific emulation.
 
 Record:
 
-- git revision and whether the working tree was clean;
+- executable build-source revision, dirty state, and source fingerprint;
+- invocation-time checkout revision and dirty state separately;
 - compiler name and full version;
 - CMake preset and build mode;
 - OS, architecture, and CPU model;
@@ -269,8 +178,20 @@ Record:
 - warmup, iterations, trials, and workload-specific dimensions;
 - relevant system tuning and diagnostic commands.
 
-CSV output records baseline run metadata when the command starts. Git fields are reported as
-`unavailable` when the source checkout or Git executable cannot be queried. Effective CPU fields are
+CSV output distinguishes `build_git_revision`/`build_git_dirty` from invocation-time
+`checkout_git_revision`/`checkout_git_dirty`. The build identity is refreshed by a build-time step,
+including incremental builds, rather than frozen at configuration time. `build_source_sha256`
+hashes sorted production files under `apps/`, `include/`, and `src/`, top-level and production
+subdirectory `CMakeLists.txt`, `CMakePresets.json`, and `cmake/` files. Tests, documentation, and local results
+are excluded. Build Git dirty state covers the whole checkout's tracked changes and nonignored
+untracked files, including documentation; it is deliberately broader than the source fingerprint.
+`build_mode`, compiler identity, and `build_flags` (CMake flags plus target compile options)
+separately describe configuration. Source must remain quiescent while the build step and compiler
+run; this model does not snapshot files concurrently with edits. These fields identify source/configuration, not a permanent
+artifact archive or an executable hash. An old executable keeps its embedded build identity after
+the checkout changes. Checkout fields query the configured source path when the command starts;
+Git fields report `unavailable` when Git or the checkout cannot be queried. The former ambiguous
+`git_revision`/`git_dirty` fields are deliberately replaced. Effective CPU fields are
 available only after a requested affinity operation succeeds and its Linux mask is verified.
 `waiting_behavior` describes mechanism-side waits; `control_waiting_behavior` separately records
 the blocking harness synchronization. Record system tuning, topology
@@ -291,8 +212,12 @@ The Phase I [Linux measurement host baseline](experiments/linux-host-baseline.md
 verified N150 placement, stock policy, conditioning, and observed repeatability. Recheck these
 facts before a new controlled run; a previous host observation is not a permanent tuning rule.
 
-Raw local output belongs under the ignored `results/` directory by convention. Commit concise
-experiment records and selected data only when they are needed to reproduce a conclusion.
+Raw local output belongs under ignored `results/` by convention. It is disposable working material,
+not a permanent evidence source. Keep it while analysis needs it. Before cleanup, check for a useful
+conclusion, invariant, method, or small input missing from tracked documentation and distill only
+what matters into the existing mechanism note, experiment record, or procedure. Do not publish raw
+CSV collections, full host logs, or temporary probes merely because they once informed a result.
+Historical paths and formats impose no compatibility requirement on current tools.
 
 ## Sources of variation
 

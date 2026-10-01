@@ -50,8 +50,8 @@ worker count, gating state, and topology are inseparable parts of this richer-co
 The full ranges were 4.216% and 11.782% of the respective medians. Paired block deltas were
 -44.786%, -42.691%, and -39.732%, so fan-out completed fewer publications per second in all three
 blocks. Fan-out also rose across the group; its first-to-last change was +10.231%, which makes the
-exact magnitude less stable than the repeated direction. Raw evidence remains in ignored
-`results/l1/l1c-sequence/` on both hosts.
+exact magnitude less stable than the repeated direction. Working output was collected under ignored
+`results/l1/l1c-sequence/`.
 
 ## Interpretation
 

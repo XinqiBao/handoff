@@ -65,8 +65,7 @@ The primary summaries pool all retained rows for each implementation and size. P
 The basic/batch full ranges were 12.533%/2.672% at size 1, 10.374%/9.346% at size 4, and
 2.845%/2.411% at size 16. Paired block deltas were -4.983%, +2.355%, +1.109%, and -4.706% at size
 1; +5.845%, +5.397%, +0.768%, and +5.401% at size 4; and +1.295%, +2.716%, and +3.369% at size 16.
-Raw CSV, stdout/stderr, sidecars, temperature/frequency observations, throttle counters, and analysis
-remain in ignored `results/l1/l1b2-grouped/` on both hosts.
+Working output was collected under ignored `results/l1/l1b2-grouped/`.
 
 ## Interpretation
 
@@ -137,3 +136,11 @@ done
 
 The retained sidecars record the exact host state, load, policy, placement, temperature/frequency,
 and throttle-counter deltas for the initial and supplemental groups.
+
+## Current applicability
+
+This record describes its stated revision and conditions. The later correctness campaign restricts
+wrapping fixed-slot SPSC families to power-of-two slot capacities so physical mapping remains valid
+at machine-counter rollover. Ordinary physical wrap in these historical tests did not exercise that
+rollover. Existing benchmark capacities remain supported, but these measurements are not renewed
+evidence for the current implementation.

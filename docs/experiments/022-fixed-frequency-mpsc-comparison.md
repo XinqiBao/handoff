@@ -94,13 +94,10 @@ changed; the two experiments must not be pooled into a frequency effect.
 
 ## Reproduction and retained evidence
 
-Raw CSVs, stdout, global `order.csv`, host sidecar, per-route 2-second
-`turbostat` data, IRQ/throttle snapshots, qualification assessments, analysis
-script, and generated order and paired-difference SVGs are retained in ignored
-`results/controlled-mpsc-2400-20261001/`. Earlier interrupted diagnostics
-remain there separately and are not part of the 16-row formal set. The SVGs
-and summaries were generated from the retained per-command CSV rows; no row
-was filtered.
+Working output was collected under ignored `results/controlled-mpsc-2400-20261001/`.
+Earlier interrupted diagnostics were separated from the 16-row formal set.
+Plots and summaries used all per-command rows; none was filtered. The ordered
+observations, host conditions, and limitations above are the durable evidence.
 
 The exact session commands and save/restore procedure are in local `run.sh`.
 After a clean native Release build and correctness gate at the measurement

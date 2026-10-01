@@ -43,6 +43,6 @@ boundaries; this probe does not explain its observed large between-row rate chan
 `steady_clock` for now; changing the reader needs an end-to-end paired RTT comparison and a
 portable fallback contract.
 
-All 800,000 raw pairs, source and binary hashes, seven-ratio output, sidecar, host snapshots,
-`turbostat`, the initial assertion failure record, corrected assessment, and save/restore records are
-retained in ignored `results/clock-calibration-20261001/`.
+Working calibration output was collected under ignored `results/clock-calibration-20261001/`.
+The sample counts, clock comparison, corrected assertion, host conditions, and limits above preserve
+the useful method and conclusion independently of those files.

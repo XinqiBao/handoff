@@ -40,7 +40,7 @@ exactly. It also retained 20,000-sample ordered windows. No row or outlier was e
 The first qualification attempt stopped before formal rows. It had run the benchmark through
 root-owned `turbostat`, so Git's user-level `tags` ignore rule did not apply and the CSV reported
 `git_dirty=true` despite the user's clean worktree. That monitor form also emitted only a total
-window. Its CSV, host snapshots, fixed/restored policies, and failure are retained under
+window. Its working output was separated under
 `results/spsc-rtt-metric-20261001/qualification-attempt-1/`. The corrected attempt ran the
 benchmark as the repository user and monitored independently as root; it passed the gates above.
 
@@ -71,10 +71,9 @@ the following `basic` row stayed between 405 and 407 ns. `cached-index` row 10 c
 the process: 52/100 windows had medians at least 450 ns. Thus its process spread cannot be
 explained solely by a few exceptional samples or by reducing each process to one summary.
 
-Ignored `results/spsc-rtt-metric-20261001/` retains the exact scripts, executable hash, sidecar,
-all process CSVs and raw samples, global order, 20,000-sample windows, paired-difference CSVs,
-ordered and paired SVGs, qualification streams, host snapshots, and both policy snapshots. The
-514 MB raw set is kept for independent reanalysis. No historical result was removed.
+Working output was collected under ignored `results/spsc-rtt-metric-20261001/`. The roughly
+514 MB raw sample set supported the analysis above and is disposable after the knowledge audit;
+the question, sample/window method, observations, and limits remain in this tracked record.
 
 ## Interpretation and next gate
 

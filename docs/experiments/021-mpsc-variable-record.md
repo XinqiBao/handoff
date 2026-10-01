@@ -40,3 +40,12 @@ failure recovery, lock-free progress, or an ordering rule for payload work outsi
 Local Clang/C++23 Debug, Release, ASan/UBSan, and TSan builds passed, with all 168 tests passing
 in each preset. The format check and clang-tidy build passed. The exact mechanism revision passed
 CI run `36577046502`, including Linux and macOS Release, sanitizers, formatting, and clang-tidy.
+
+## Selection consequence
+
+One mutex-admission mechanism answered the paired-lifetime question. CAS admission would vary cost
+and progress without a current contention hypothesis; adding consumers would combine known byte
+credit and fixed-slot completion rules without an identified new joint race. Lossy multi-reader
+work was skipped because independent observers, overwrite detection, and resynchronization already
+exist. Recovery lacks a detector and policy; a bounded model needs an untested history it can
+distinguish. These are conditional future questions, not successor implementations owed by this result.

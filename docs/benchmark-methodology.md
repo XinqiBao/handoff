@@ -356,11 +356,17 @@ RTT values. Throughput leaves all latency columns empty. If a clock reports a ze
 the corresponding rate is unavailable and remains empty rather than being synthesized from a
 one-nanosecond denominator.
 
-Lightweight run metadata should accompany results as CSV comments or a simple adjacent file. Record
-at least git revision and dirty state, compiler and version, build mode, OS, CPU model, requested and
-effective CPUs, affinity outcomes, mechanism and control waiting behavior, warmup, and trial count.
-Facts that can change
-after configuration, including Git state, must be collected when the command starts.
+Lightweight run metadata accompanies results as CSV fields or a simple adjacent file. Distinguish
+embedded build-source revision/dirty state and source fingerprint from invocation-time checkout
+revision/dirty state. Record compiler/version, build mode/flags, OS, CPU model, requested/effective
+CPUs, affinity outcomes, mechanism/control waiting behavior, warmup, and trial count.
+[Reproducibility](reproducibility.md#run-metadata) owns the current field meanings and collection
+procedure. A checkout change cannot relabel the source of an already built executable.
+
+Raw samples and diagnostics support analysis while an investigation is active. The durable record
+preserves enough question, conditions, method, observations, interpretation, and limits to understand
+the conclusion without keeping every sample or failed attempt. Audit useful knowledge before local
+cleanup; ignored raw results are disposable and do not constrain later mechanisms or output schemas.
 
 ## Interpretation and CI
 

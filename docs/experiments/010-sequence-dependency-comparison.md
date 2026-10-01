@@ -52,8 +52,8 @@ gating.
 
 The full ranges were 9.017% and 10.030% of the respective medians. Paired block deltas for pipeline
 were +2.914%, -6.338%, and +4.932%. The pooled medians were nearly identical, but block direction
-alternated and dispersion was several orders of magnitude larger than the median difference. Raw
-evidence remains in ignored `results/l1/l1c-sequence/` on both hosts.
+alternated and dispersion was several orders of magnitude larger than the median difference. Working
+output was collected under ignored `results/l1/l1c-sequence/`.
 
 ## Interpretation
 

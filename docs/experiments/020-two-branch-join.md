@@ -41,3 +41,13 @@ question, and the N150's four cores provide no spare core for a clean four-role 
 Local Clang/C++23 Debug, Release, ASan/UBSan, TSan, and tidy builds passed; all 162 tests passed
 in each preset, and the format check passed. The exact mechanism revision passed CI run
 `36511943487`, including Linux and macOS Release, sanitizers, formatting, and clang-tidy.
+
+## Topology consequence
+
+The bounded topology campaign separated common claim-order FIFO, consumer-owned merge order, and
+two publication edges into one write/join. It stopped after those distinct ownership authorities
+were established. A mechanical MPSC/SPMC composition was skipped: producer claims and publication,
+consumer claims and completion, and contiguous reuse were already explicit in prior rings and the
+worker stage. An MPMC successor needs a simultaneous-competition race, progress rule, or generation
+lifecycle invariant those proofs cannot simply compose. A vacant topology category is insufficient.
+Owner failure, fair scheduling, variable-byte storage, and lossy observation remained separate scope.

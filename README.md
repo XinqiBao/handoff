@@ -1,6 +1,6 @@
 # handoff
 
-`handoff` is a C++23 collection of 24 independent bounded in-memory handoff mechanisms. Each
+`handoff` is a C++23 collection of independent bounded in-memory handoff mechanisms. Each
 isolates a question about ownership, publication, completion, reuse, storage, broadcast, or
 contention. The collection is for systems study and controlled experiments: it is not a production
 IPC framework, a universal queue library, or a claim that one design is always fastest.
@@ -22,7 +22,9 @@ cmake --build --preset debug
 ctest --preset debug --no-tests=error
 ```
 
-The first test-enabled configuration fetches pinned Catch2. Release and sanitizer procedures are in
+For a correctness-only build that omits benchmark compilation, use the `debug-correctness` configure,
+build, and test presets. The first test-enabled configuration fetches pinned Catch2. Release and
+sanitizer procedures are in
 [reproducibility](docs/reproducibility.md).
 
 ## Explore

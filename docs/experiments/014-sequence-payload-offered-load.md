@@ -77,8 +77,7 @@ and share were effectively constant at the shown precision.
 For the 20 ms stall, median observed share was 49.493% with 0.048% sample CV and a 0.119% full range
 of the median; median offered-rate CV was 0.322%. The 50 ms setting observed exactly 61,440 of
 300,000 offers in every row, giving the same 20.480% observed share six times; offered-rate CV was
-0.008%. Raw CSV, pilots, stdout/stderr, sidecars, temperature/frequency observations, throttle
-counters, and analysis remain in ignored `results/l1/l1d-offered-load/` on both hosts.
+0.008%. Working output was collected under ignored `results/l1/l1d-offered-load/`.
 
 ## Interpretation
 

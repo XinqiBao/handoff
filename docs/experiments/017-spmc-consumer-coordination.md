@@ -112,9 +112,8 @@ run without a more specific causal hypothesis.
 
 ## Reproduction and raw data
 
-Raw CSVs and host sidecars are preserved under ignored
-`results/phase2/consumer-coordination-final/` in both the execution clone
-and authoritative checkout. From a clean detached checkout of the measured
+Working output and host sidecars were collected under ignored
+`results/phase2/consumer-coordination-final/`. From a clean detached checkout of the measured
 SHA after native Release build and tests, the conditioning command was:
 
 ```sh
@@ -156,3 +155,17 @@ operation-wide lock-freedom, and MPMC composition are not established.
 This is one host, two workers, one payload/capacity pair, one waiting policy,
 and one placement. The observed rate order is conditional; the variable
 ordered and slot rows leave their performance causes unresolved.
+
+## Selection and current applicability
+
+The three routes distinguish acquisition overlap, release-call return, and producer-discovered reuse.
+A shared consumer completion count was skipped because it can hold a completed prefix behind a newer
+unfinished claim without a distinct consumer-side question. Consumer helping and local turn reuse
+were skipped because producer-only discovery resolves the hole, and one ordered cyclic producer
+still cannot cross the earliest owned slot. Partitioned SPSC paths change FIFO merge authority.
+
+These rates describe the measurement revision above. The later correctness campaign repaired the
+ordered-release and slot-completion acquisition bound: consumers must acquire a publication bound
+strictly greater than the position they CAS-claim. A newer shared claim cursor cannot substitute for
+that payload visibility edge. The historical tests and rates did not establish correctness of every
+portable C++ history, and the rates do not predict performance of the repaired implementations.

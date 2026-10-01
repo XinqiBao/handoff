@@ -105,15 +105,10 @@ these index members is **not sufficient** to make this workload repeatable
 across processes. It also changes queue size and address placement, so the
 large rate gain alone cannot be assigned to one false-sharing transfer.
 
-Ignored `results/spsc-causality-20261001/` and the earlier
-`results/spsc-retry-diagnostic-20261001/probe-pfn.cpp` retain the local probe
-sources, binaries and hashes, exact scripts, sidecars, all 480 raw formal segments,
-global process order, sampler perf binaries and decoded addresses, qualification
-and formal host snapshots, original/fixed/restored policies, assessments,
-and ordered/paired SVGs. No row was excluded. Both `sampling-pairs/` and
-`line-split/` contain paired-difference and ordered-metric CSVs generated
-from the retained per-process rows. The exact shadow header is retained beside
-their scripts in the same ignored parent directory.
+Working output was collected under ignored `results/spsc-causality-20261001/` and
+`results/spsc-retry-diagnostic-20261001/`. All 480 formal segments were included; no row was
+excluded. The protocol above records the sampler controls and the shadow-header layout change
+without depending on those temporary sources or traces.
 
 ## Interpretation and next gate
 

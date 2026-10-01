@@ -40,3 +40,11 @@ formatting, and clang-tidy. No timed comparison is made. The existing shared MPS
 single global FIFO and shared capacity; assigning equal total slots would still leave different
 backpressure and ordering contracts. The N150 is useful for these semantic tests and plumbing, not
 for an unsupported cache/coherence attribution.
+
+## Current applicability
+
+This record describes its stated revision and conditions. The later correctness campaign restricts
+wrapping fixed-slot SPSC families to power-of-two slot capacities so physical mapping remains valid
+at machine-counter rollover. Ordinary physical wrap in these historical tests did not exercise that
+rollover. The arbitrary path capacities exercised here are no longer supported. These semantic
+observations remain historical; current supported-capacity tests own current verification.

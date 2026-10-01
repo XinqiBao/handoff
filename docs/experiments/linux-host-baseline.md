@@ -28,5 +28,4 @@ The host ran its stock `intel_pstate` `powersave` governor with `balance_perform
 governor, EPP, perf policy, IRQ, kernel, or boot setting was changed. This supports bounded relative
 comparisons after consistent warm-state conditioning. It is not a mechanism-performance claim;
 effects near the observed dispersion require caution. Later experiments retain their own setup and
-limits. Raw CSV, sidecars, affinity checks, turbostat output, and analysis remain in ignored local
-`results/l1/l1a-baseline/` storage on both machines.
+limits. Working output was collected under ignored `results/l1/l1a-baseline/`.

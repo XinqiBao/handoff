@@ -35,13 +35,10 @@ message basic-throughput conditioning command, 20,000,000 measured and 2,000,000
 for throughput, and 4,000,000 measured and 400,000 warmup exchanges for ping-pong. The shortest
 timed row was 2.330 seconds. The final group retained eight rows per implementation and workload.
 
-All earlier groups remain under `results/l1/l1b-scalar/` and `repetition/`; they were not silently
-discarded or pooled with the final group because their trial grouping, conditioning, and ping-pong
-iteration counts differ. A local analyzer path error made the final runner exit after all benchmark
-commands and diagnostics had completed. The 32 final CSV files, stdout/stderr, event timestamps,
-thermal and turbostat observations, and throttle counters are intact; the corrected ignored
-analyzer subsequently validated and summarized every final CSV. The failed tail step only left the
-completion footer absent from that group's sidecar.
+Earlier groups were not pooled with the final group because trial grouping, conditioning, and
+ping-pong iteration counts differed. Working output was collected under ignored
+`results/l1/l1b-scalar/`; all final rows were validated and summarized despite a repaired local
+analyzer path error after collection.
 
 ## Compared variants
 
@@ -135,3 +132,16 @@ done
 
 Capture the same host, power-policy, load, temperature/frequency, and throttle sidecars as
 experiment 003, and preserve every row.
+
+## Current applicability
+
+This record describes its stated revision and conditions. The later correctness campaign restricts
+wrapping fixed-slot SPSC families to power-of-two slot capacities so physical mapping remains valid
+at machine-counter rollover. Ordinary physical wrap in these historical tests did not exercise that
+rollover. Existing benchmark capacities remain supported, but these measurements are not renewed
+evidence for the current implementation.
+
+[Experiment 023](023-spsc-measurement-stability.md) and its supporting controls later exposed
+workload-dependent process states and unresolved small scalar throughput gaps.
+[Experiment 030](030-spsc-rtt-repeatability.md) supports only its conditional two-ring tail direction.
+Those later limits prevent promoting this historical observation into a current general ranking.

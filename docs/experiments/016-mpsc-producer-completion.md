@@ -114,16 +114,13 @@ the ordered route differs in publication waiting; count and slot routes differ
 in metadata placement, producer coordination, and consumer checks. The N150
 has no spare physical core for the coordinator beyond CPUs 0-3, and endpoint
 sidecars cannot rule out transient interference. A preliminary 12-row run at
-`827f155` preceded a source reporting fix; its raw files are kept locally but
-are not used as formal evidence under the repository exact-SHA rule.
+`827f155` preceded a source reporting fix; it is not used as formal evidence under the repository exact-SHA rule.
 
 ## Reproduction and raw data
 
-Raw CSVs and host sidecars are preserved in ignored
-`results/phase2/producer-completion-final/` in the execution clone and
-authoritative checkout. The sidecars include revision, tracked state,
-compiler, OS/kernel, topology, allowed CPUs, policy, load, processes,
-softirqs, temperature, and throttle counters before/after the group.
+Working output and host sidecars were collected under ignored
+`results/phase2/producer-completion-final/`. The setup, ordered observations,
+and limitations above preserve the conclusion independently of those files.
 
 From a clean detached checkout of the measurement revision after native
 Release build and tests, run the three untimed probes with
@@ -141,3 +138,13 @@ Retained commands used the same invocation with `--iterations 20000000` and
 the twelve implementation values in order `serialized ordered count slot
 slot count ordered serialized ordered slot serialized count`, writing one CSV
 per block position. No CPU policy was changed for the experiment.
+
+## Selection consequence
+
+Count and slot are retained for their different ready-prefix visibility, independent of rates.
+Producer-helped slot finalization was skipped because the consumer already discovers the prefix;
+a shared helped frontier needs a demonstrated bottleneck to justify helping races and traffic.
+Producer-owned SPSC paths were not an equivalent control: per-producer FIFO needs a merge rule,
+while global claim-order FIFO needs another ordering authority. [Experiment 019](019-two-path-merge.md)
+later studied that distinct topology question. More producers, different workloads, causal cost
+attribution, and abandoned-claim recovery remain separate questions.

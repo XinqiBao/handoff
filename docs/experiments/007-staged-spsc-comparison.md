@@ -68,8 +68,8 @@ count, checksum, yield waiting, blocked phase control, and conservative acquire/
 | 9,444,096 msg/s | 9,897,072 msg/s | +4.796% | 0.971% | 0.157% |
 
 The full ranges were 2.549% and 0.496% of the respective medians. Paired block deltas were +4.970%,
-+4.742%, and +3.629%, so staged was faster in all three blocks. Raw evidence remains with the batch
-comparison in ignored `results/l1/l1b2-grouped/` on both hosts.
++4.742%, and +3.629%, so staged was faster in all three blocks. Working output was collected with the batch
+comparison under ignored `results/l1/l1b2-grouped/`.
 
 The PMU follow-up reproduced the throughput observation and reported aggregate worker counts. Raw
 and scaled medians are identical because neither event was multiplexed. `counts/s` uses the fixed
@@ -163,6 +163,13 @@ perf stat --timeout 5000 --no-big-num --no-scale -x, \
   -e cycles:u,instructions:u -t "$producer_tid,$consumer_tid"
 ```
 
-The ignored `results/l1/l1e-pmu/` directory on both hosts retains the method and thermal pilots,
-formal runner, sidecar, every CSV row, TID and window evidence, raw perf output, turbostat and
-throttle data, analysis, and the excluded hot method runs.
+PMU working output was collected under ignored `results/l1/l1e-pmu/`, including the excluded
+hot method runs. The protocol and limitations above preserve the useful method.
+
+## Current applicability
+
+This record describes its stated revision and conditions. The later correctness campaign restricts
+wrapping fixed-slot SPSC families to power-of-two slot capacities so physical mapping remains valid
+at machine-counter rollover. Ordinary physical wrap in these historical tests did not exercise that
+rollover. Existing benchmark capacities remain supported, but these measurements are not renewed
+evidence for the current implementation.

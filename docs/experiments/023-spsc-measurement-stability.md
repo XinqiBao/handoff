@@ -37,12 +37,11 @@ warning appeared after some diagnostics; active-window busy-frequency samples re
 clock-read behavior still needs independent calibration.
 
 Each formal group used 24 one-trial rows in four six-position, order-balanced blocks. The three
-routes each appear twice per block. All raw CSV rows, stdout, global order, pre/post IRQ and
-throttle snapshots, host sidecar, per-route qualification, ordered plots, and block-difference
-plots are retained under ignored `results/spsc-cross-conditions-20261001/` and
+routes each appear twice per block. Working output was collected under ignored
+`results/spsc-cross-conditions-20261001/` and
 `results/spsc-scalar-matrix-20261001/`. No anomalous row was excluded. The 256 B / 1024-slot
 matrix was intentionally stopped during its first qualification when the high dispersion at 8 B
-required diagnosis; its partial records are retained and are not comparative evidence.
+required diagnosis; its partial records were not comparative evidence.
 
 ## Observations
 
@@ -131,7 +130,8 @@ are observed under busy retries, but the within-route spread, particularly for b
 cached-index, does not support a precise performance gap. The rate and route ordering also differ
 substantially from yield retries; the two policies describe different workloads and must not be
 pooled. All 24 rows, their global order, per-row CSV, sidecar, host checks, and derived order and
-block-difference plots are in `results/spsc-spin-reassessment-20261001/`; none was excluded.
+block-difference plots were collected under `results/spsc-spin-reassessment-20261001/`; no row
+was excluded.
 
 The planned 8 B ping-pong and 64 B / 1024-slot groups were stopped during 8 B ping-pong
 qualification once the throughput stability gate failed. The first 8 B ping-pong qualification
@@ -162,7 +162,7 @@ The next gate above records the decision at this experiment's revision; the curr
 for Experiments 024-030 and does not require resolving this SPSC state before other qualified
 mechanism comparisons.
 
-The local scripts `canonical.sh`, `spin.sh`, matrix `run.sh`, and yield-diagnostic `run.sh` retain
-the exact commands, save/restore sequence, raw rows, order, and analysis logic. Historical SHAs
+The local scripts `canonical.sh`, `spin.sh`, matrix `run.sh`, and yield-diagnostic `run.sh`
+implemented the command shapes, save/restore sequence, order, and analysis described above. Historical SHAs
 are necessary for reproducing yield-based rows; current source is not a substitute for those
 revisions.

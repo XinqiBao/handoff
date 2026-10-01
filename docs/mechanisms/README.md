@@ -1,6 +1,6 @@
 # Mechanism Catalog
 
-These 24 independent assets are organized by contract, not by experiment number. Each row links
+These independent assets are organized by contract, not by experiment number. Each row links
 the exact note, implementation, a representative correctness test, relevant evidence, and any
 `handoff-bench` route. `tests only` means no executable benchmark route exists. Experiment numbers
 are historical identifiers, not reading order. See the [design space](../design-space.md) for

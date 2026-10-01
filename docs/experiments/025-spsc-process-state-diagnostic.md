@@ -34,9 +34,9 @@ Each materially different probe shape had a sustained qualification with exact w
 full-busy `turbostat` windows at 2400 MHz, package power/temperature, worker IRQ and runnable
 thread snapshots, SMI, and thermal-throttle checks. All retained formal groups passed their
 checks. The largest observed qualifying package temperature was 65 C and power 6.60 W; no
-worker device IRQ, SMI, or thermal-throttle delta was found. The local `results/` directory
-retains sidecars, exact scripts and probe binaries/hashes, raw segments, global order, host
-snapshots, assessments, and both aborted and completed attempts.
+worker device IRQ, SMI, or thermal-throttle delta was found. Working diagnostics, including aborted
+attempts, were collected under ignored `results/`.
+Their durable method and observations are recorded here.
 
 ## Observations
 
@@ -92,11 +92,10 @@ produced these diagnostic summaries (M/s medians and sample CVs):
 Thus interleaving reduced within-process spread, but the relative effects still changed across
 independent processes, especially for cached-index/basic. The probe retained its failed-attempt
 counters and ten segment clock reads per row, so even the repeatable cache-line direction here is
-not a formal canonical-harness estimate. Raw segments, global orders, sidecars, qualifications,
-assessment files, ordered and paired/block-difference charts, and restored-policy readbacks are in
+not a formal canonical-harness estimate. Working output was collected under
 `results/spsc-retry-diagnostic-20261001/aslr/`, `v7/`, and `v7b/`. The scripts `run-aslr.sh`,
-`run-v7.sh`, and `run-v7b.sh` reproduce these diagnostic shapes. All 320 ASLR and 240 segments
-per interleaved process remain available, including anomalous rows.
+`run-v7.sh`, and `run-v7b.sh` implemented these diagnostic shapes. Analysis included all 320 ASLR
+and 240 segments per interleaved process, including anomalous rows.
 
 The canonical throughput timer reads only at phase boundaries. Together with the isolated
 [clock-read probe](024-clock-read-calibration.md), these multi-second row differences cannot

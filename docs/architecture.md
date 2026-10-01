@@ -35,7 +35,14 @@ process infrastructure is planned.
   and current-thread CPU affinity.
 - **Tests** establish common bounded-FIFO invariants and mechanism-specific semantics according to
   the [testing strategy](testing-strategy.md) before a mechanism enters comparisons.
-- **Documentation** records intent, exact mechanism semantics, experiment questions, and provenance.
+- **Mechanism notes** own current contracts, memory-order reasoning, limitations, and concise evidence
+  interpretation, with source/test/experiment links.
+- **Experiment records** own revision-specific questions, methods, observations, interpretation, and
+  limits. The experiment index owns topic navigation, not another results ledger.
+- **Methodology** owns measurement meaning and comparability; reproducibility and the host guide own
+  current execution procedure. The roadmap owns open questions and selection boundaries.
+- **Local results** are ignored, disposable investigation material. Distilled knowledge belongs in
+  tracked documentation; raw artifacts are not a durable source of project truth.
 
 Dependencies should point from executables and tests toward mechanisms and small utilities, never
 from mechanisms toward the harness. No common abstract queue base class is planned: mechanisms may
@@ -57,7 +64,10 @@ Current targets are deliberately small:
   two-producer throughput comparison and publication-hole diagnostic, two-consumer work sharing
   and fan-out, a fixed two-stage pipeline, record layouts, and one lossy sequence-payload
   offered-load workload;
-- `handoff_tests`: Catch2-based correctness checks.
+- `handoff_tests`: Catch2-based mechanism correctness checks;
+- `handoff_benchmark_tests`: benchmark-private workload support checks when the benchmark is
+  enabled; separate CTest scripts verify catalog inventory, CLI, CSV output, provenance, and Linux
+  affinity integration.
 
 Within `handoff-bench`, the application root holds only the process entry point and target build
 description. `src/` holds responsibility-specific implementation files, while `internal/` holds
@@ -69,8 +79,9 @@ through includes and are not repeated as target sources. Repository-wide mainten
 as formatting may use configure-aware recursive globs because their purpose is exhaustive coverage,
 not definition of a linkable target boundary.
 
-Catch2 is fetched only for test-enabled builds and pinned to a commit. The project does not use a
-general package manager.
+`HANDOFF_BUILD_BENCHMARK=OFF` omits the benchmark and its tests for correctness-only work.
+Default builds and CI retain benchmark verification. Catch2 is fetched only for test-enabled builds
+and pinned to a commit. The project does not use a general package manager.
 
 ## Benchmark data flow
 

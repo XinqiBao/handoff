@@ -2,8 +2,8 @@
 
 Numbers preserve research identity and chronology; they are not prerequisites or a recommended
 reading sequence. Use the [mechanism catalog](../mechanisms/README.md) for conceptual paths and
-source/test navigation. The records below preserve exact revisions, procedures, negative results,
-and limits.
+source/test navigation. The records below preserve questions, relevant revisions and conditions, methods, observations,
+interpretation, negative findings, and limits.
 
 Experiments begin with a question or hypothesis, not an unbounded collection of numbers. Each
 mechanism result identifies itself as a mechanism-isolation experiment or an implementation
@@ -11,7 +11,8 @@ comparison. Host calibration may instead be recorded as measurement-method chara
 follow the repository [benchmark methodology](../benchmark-methodology.md).
 
 Use [`template.md`](template.md) for a new experiment. Keep setup and results specific to the
-question, preserve individual trials where practical, and separate observations from explanations.
+question, include ordered observations when they matter to interpretation, and separate observations
+from explanations.
 Do not commit routine smoke timings as experimental evidence.
 Create a planned record only when a question has a defensible protocol and is promoted for
 execution. Earlier unmeasured plans remain in Git history, not in the active experiment index.
@@ -26,9 +27,12 @@ For current practice, start with the [methodology](../benchmark-methodology.md),
 [host guide](../measurement-host.md), and
 [current comparison boundary](../roadmap.md#controlled-performance-comparisons-current-boundary).
 A record's proposed next gate belongs to its stated revision; later campaign decisions may supersede
-it without rewriting the evidence. Raw output is local and ignored, not bundled with this index.
-Each record names its evidence directory and procedures; retain those scripts, source/binary
-identities, raw order, host checks, and interrupted attempts together.
+it without rewriting the evidence. Raw output is ignored, local, and disposable. Keep working samples and diagnostics together while
+an investigation needs them; distill useful conclusions before removing them. A record must remain
+understandable without its former local directory. Historical paths identify the workspace used at
+collection time and do not promise continued availability. Temporary probe binaries, failed attempts,
+and old output schemas do not acquire compatibility rights. No permanent raw-evidence archive is
+required.
 
 ## Measurement reference records
 
@@ -71,7 +75,7 @@ These reading aids do not promote old workloads into current rankings.
 ## Supporting measurement investigations
 
 These preserve the path to the current boundary, including failed stabilization hypotheses and
-instrumentation effects. Read them when checking a specific explanation or reproducing a probe;
+instrumentation effects. Read them when checking a specific explanation or designing a focused control;
 the unresolved SPSC cause is not a global gate for other workloads.
 
 - [Linux measurement host baseline](linux-host-baseline.md)

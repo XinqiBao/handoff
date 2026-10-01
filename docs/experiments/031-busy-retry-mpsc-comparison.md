@@ -137,9 +137,7 @@ abstraction is justified by this checkpoint.
 
 ## Reproduction and evidence
 
-Raw rows, stdout/stderr, order, sidecar, benchmark hash, qualification streams,
-IRQ/throttle/thread snapshots, frequency save/fixed/restored values, protocol,
-contract review, run script, and analyzer are local and ignored under
+Working rows, qualifications, and diagnostics were collected under ignored
 `results/controlled-mpsc-busy-20261001/`. The ordered values above preserve the
 comparison in the tracked record.
 After a clean native Release build and correctness gate at the measured SHA:
@@ -154,7 +152,6 @@ taskset -c 0 ./build/release/apps/handoff-bench/handoff-bench run throughput \
 Substitute `mpsc-slot` and follow the recorded four-block order. Qualification
 uses the same options with 120 million iterations and external two-second
 `turbostat`; conditioning uses slot with 40 million iterations. The local
-`run.sh` preserves exact host save/readback/restore and diagnostic commands;
-`analyze.py` checks CSV metadata, placement, workload, checksums, rate arithmetic,
-order, and host snapshots before deriving ordered and paired CSV summaries.
+`run.sh` implemented host save/readback/restore and diagnostics; `analyze.py` checked metadata,
+placement, workload, checksums, rate arithmetic, order, and host snapshots before deriving summaries.
 Recheck live host controls and delivered frequency before any controlled rerun.

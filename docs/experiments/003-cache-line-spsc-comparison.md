@@ -61,8 +61,8 @@ The throughput full ranges were 2.012% and 1.752% of the respective medians. The
 ranges were 7.020% and 1.472%. Paired block deltas were +11.888%, +10.524%, and +11.212% for
 throughput and -4.765%, -10.233%, and -8.170% for ping-pong. The direction therefore held in every
 block and was materially larger than the 0.280% warm-state basic-throughput CV established in L1A.
-Raw CSV, stdout/stderr, sidecars, temperature and frequency observations, throttle counters, and
-analysis remain in ignored `results/l1/l1b-scalar/repetition/` on both hosts.
+Working output was collected under ignored `results/l1/l1b-scalar/repetition/`; the observations
+and conditions above are the durable record.
 
 ## Interpretation
 
@@ -128,3 +128,16 @@ done
 
 The retained sidecar records the host, exact clean SHA, topology, load, stock power policy,
 temperature/frequency observations, and throttle-counter delta.
+
+## Current applicability
+
+This record describes its stated revision and conditions. The later correctness campaign restricts
+wrapping fixed-slot SPSC families to power-of-two slot capacities so physical mapping remains valid
+at machine-counter rollover. Ordinary physical wrap in these historical tests did not exercise that
+rollover. Existing benchmark capacities remain supported, but these measurements are not renewed
+evidence for the current implementation.
+
+[Experiment 023](023-spsc-measurement-stability.md) and its supporting controls later exposed
+workload-dependent process states and unresolved small scalar throughput gaps.
+[Experiment 030](030-spsc-rtt-repeatability.md) supports only its conditional two-ring tail direction.
+Those later limits prevent promoting this historical observation into a current general ranking.

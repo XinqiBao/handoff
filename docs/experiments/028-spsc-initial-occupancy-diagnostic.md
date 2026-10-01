@@ -54,10 +54,8 @@ across both initialization conditions, yet the processes occupied different over
 Consumer empty retries were nearly zero in both groups; full start naturally gave no initial
 empty observation, but did not select a persistent higher or lower rate.
 
-The ignored `results/spsc-retry-diagnostic-20261001/phase/` directory retains the exact script,
-probe source/binary hashes, sidecar, all 320 raw segment rows, global process/block order,
-ordered and block-difference CSVs and SVGs, anomalous rows, qualification snapshots,
-assessments, and before/fixed/restored cpufreq readbacks.
+Working output was collected under ignored `results/spsc-retry-diagnostic-20261001/phase/`.
+All 320 segment rows and both process/block orders were included in the analysis.
 
 ## Decision
 

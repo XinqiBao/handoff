@@ -42,9 +42,8 @@ Host sidecars captured before and after the group include topology, current allo
 compiler/kernel/OS, policies, load, active processes, temperatures, softirqs, and thermal
 throttle counters. The recorded core throttle counts did not change. Thermal zone 2 was 70 C
 before and 68 C after; these endpoints do not establish each trial's temperature or frequency.
-CPU 3 also handled network softirqs, as in the historical host baseline. Raw CSV and sidecars
-remain in ignored `results/phase2/mpsc-ordered/` in both the execution clone and authoritative
-checkout.
+CPU 3 also handled network softirqs, as in the historical host baseline. Working output was
+collected under ignored `results/phase2/mpsc-ordered/`.
 
 ## Compared routes
 
@@ -78,7 +77,7 @@ range was 4.578-5.410 million/s (CV 6.6%, full range 17.8%). The publication-hol
 later publication attempts, no returned blocking publication, no visible or consumed position,
 and a rejected further claim before the first producer completed. After it completed, all 64
 positions were validated and released with checksum `14174018928408746452`. Its raw
-`progress-64.csv` is retained beside the throughput rows. That diagnostic is an untimed semantic
+`progress-64.csv` was collected beside the throughput rows. That diagnostic is an untimed semantic
 observation.
 
 ## Interpretation

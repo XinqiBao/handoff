@@ -20,7 +20,8 @@ State the intended independent variable and relevant constants.
 
 ## Results
 
-Preserve individual trials where practical and identify the summary statistic.
+Include individual ordered observations when needed to assess the conclusion and identify the
+summary statistic. Raw working output need not be archived.
 
 ## Interpretation
 
@@ -30,4 +31,5 @@ Separate observations from explanations.
 
 ## Reproduction
 
-List the exact preset and command lines.
+Record the revision, relevant conditions, preset, and command shape needed to understand the method.
+Explain limitations independently of disposable local artifacts.

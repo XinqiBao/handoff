@@ -34,7 +34,7 @@ exact saved policies afterward. A sustained four-row probe under the same PMU co
 62-64 C and power 6.17-6.41 W, with no worker device IRQ, SMI, or thermal-throttle delta.
 Mid/late snapshots found only the two expected runnable workers on CPUs 1 and 2. `turbostat`
 printed an initial slow-TSC diagnostic warning; its active APERF/MPERF samples passed the gate.
-This warning and all raw files are retained in the sidecar. The formal group's before/after
+This warning was recorded in the sidecar. The formal group's before/after
 device IRQ and throttle counters also did not change on worker cores.
 
 ## Observations
@@ -55,10 +55,8 @@ simple monotonic association (consumer rate correlation +0.418); the data do not
 single coherence event as the explanation. Generic `cache-misses` counts were much smaller than
 the model-specific L2 event and should not be treated as an interchangeable measure.
 
-The ignored `results/spsc-retry-diagnostic-20261001/pmu/` directory retains the exact script,
-analyzer, source/binary hashes, sidecar, qualification and formal snapshots, all 160 raw segment
-rows, global process order, individual per-core PMU CSVs, derived ordered metrics, two SVG order
-plots, assessment, and before/fixed/restored frequency profiles. No anomalous row was removed.
+Working output was collected under ignored `results/spsc-retry-diagnostic-20261001/pmu/`.
+Analysis included all 160 segment rows and each per-core PMU row; no anomalous row was removed.
 
 ## Decision
 

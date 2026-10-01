@@ -144,9 +144,10 @@ bootloader update command, rollback method, remote-access dependence, selected
 CPU layout, saved runtime controls, source revision, and pending post-boot checks
 in a bounded local note. Mark each step as planned, applied, or verified. After
 reboot, inspect the live machine rather than trusting the note's planned state.
-Keep host-specific notes and raw calibration in ignored local storage; commit
-only durable, host-independent procedure and selected evidence needed to support
-a project conclusion. Do not record credentials or session transcripts.
+Keep active host-specific notes and raw calibration in ignored local storage. Distill durable
+procedure and relevant observed conditions into tracked guides or experiment records before
+cleanup. Completed host logs and temporary diagnostics are disposable; historical qualification
+does not make them a permanent source of truth for the live machine. Do not record credentials or session transcripts.
 
 The Linux [kernel parameter](https://docs.kernel.org/admin-guide/kernel-parameters.html),
 [cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html), and

@@ -61,11 +61,9 @@ contrast alone cannot establish sampling causality. A later
 rate change under the same binary and identity. The sampled rates and shares must not be
 pooled with unsampled rates or used to rank mechanisms.
 
-The ignored `results/spsc-retry-diagnostic-20261001/pfn/` and `address-samples/` directories
-retain exact scripts, probe source/binary hashes, sidecars, all 240 and 160 raw segments,
-respectively, global order, virtual addresses and PFNs, per-row binary PMU traces and decoded
-addresses for the sampled group, assessments, order plots, qualification snapshots, and exact
-before/fixed/restored policy readbacks. No anomalous row was removed.
+Working output was collected under ignored `results/spsc-retry-diagnostic-20261001/pfn/` and
+`address-samples/`. Analysis included all 240 unsampled and 160 sampled segments, respectively,
+and decoded sampled addresses; no anomalous row was removed.
 
 ## Decision
 

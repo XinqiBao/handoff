@@ -67,9 +67,8 @@ direction reversed in the final block. The throughput comparison is therefore in
 Ping-pong full ranges were 10.025% and 6.150%. Its paired RTT deltas were +0.370%, +2.064%, and
 +3.560%, so all three blocks placed sequence RTT slightly higher, but command position materially
 affected individual rows. Median p95 RTT was 810.0 ns for basic and 840.0 ns for sequence; median
-p99 RTT was 825.0 ns and 851.5 ns. Raw CSV, stdout/stderr, sidecars, temperature/frequency
-observations, throttle counters, and analysis remain in ignored `results/l1/l1c-sequence/` on both
-hosts.
+p99 RTT was 825.0 ns and 851.5 ns. Working output was collected under ignored
+`results/l1/l1c-sequence/`.
 
 ## Interpretation
 
