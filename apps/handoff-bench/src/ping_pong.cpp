@@ -32,12 +32,6 @@ struct LatencySummary {
   double p99_ns;
 };
 
-void wait_retry(const Options& options) {
-  if (!options.spin_wait) {
-    std::this_thread::yield();
-  }
-}
-
 template <QueueOperation Operation, std::size_t Bytes> auto make_message(std::uint64_t sequence) {
   if constexpr (Operation == QueueOperation::byte_record ||
                 Operation == QueueOperation::descriptor_record) {
@@ -148,10 +142,8 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
     for (std::uint64_t sequence = 0; sequence < options.warmup; ++sequence) {
       auto request = make_message<Operation, Bytes>(sequence);
       while (!try_send<Operation>(requests, request)) {
-        wait_retry(options);
       }
       while (!try_receive<Operation>(responses, response)) {
-        wait_retry(options);
       }
       if (!observe_message<Operation>(response, sequence, warmup_checksum)) {
         control.valid.store(false, std::memory_order_relaxed);
@@ -166,10 +158,8 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
       auto request = make_message<Operation, Bytes>(sequence);
       const auto sample_start = Clock::now();
       while (!try_send<Operation>(requests, request)) {
-        wait_retry(options);
       }
       while (!try_receive<Operation>(responses, response)) {
-        wait_retry(options);
       }
       const auto sample_stop = Clock::now();
       rtt_samples[static_cast<std::size_t>(sequence)] =
@@ -193,13 +183,11 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
     std::uint64_t ignored_checksum = 0;
     for (std::uint64_t sequence = 0; sequence < options.warmup; ++sequence) {
       while (!try_receive<Operation>(requests, request)) {
-        wait_retry(options);
       }
       if (!observe_message<Operation>(request, sequence, ignored_checksum)) {
         control.valid.store(false, std::memory_order_relaxed);
       }
       while (!try_send<Operation>(responses, request)) {
-        wait_retry(options);
       }
     }
     signal_count(control.warmed);
@@ -209,13 +197,11 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
 
     for (std::uint64_t sequence = 0; sequence < options.iterations; ++sequence) {
       while (!try_receive<Operation>(requests, request)) {
-        wait_retry(options);
       }
       if (!observe_message<Operation>(request, sequence, ignored_checksum)) {
         control.valid.store(false, std::memory_order_relaxed);
       }
       while (!try_send<Operation>(responses, request)) {
-        wait_retry(options);
       }
     }
   });

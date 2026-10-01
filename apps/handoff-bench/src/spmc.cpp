@@ -37,7 +37,6 @@ template <typename Queue, std::size_t Bytes> void publish_phase(Queue& ring, std
         if (attempt) {
           return std::move(*attempt);
         }
-        std::this_thread::yield();
       }
     }();
     token.value() = make_payload<Bytes>(index);
@@ -53,7 +52,6 @@ void consume_phase(Queue& ring, std::uint64_t target, std::uint64_t phase_base,
   while (released.load(std::memory_order_acquire) < target) {
     auto item = ring.try_acquire();
     if (!item) {
-      std::this_thread::yield();
       continue;
     }
     auto token = std::move(item.value());
@@ -112,7 +110,6 @@ TrialResult run_trial(const Options& options, unsigned int trial,
     publish_phase<Ring<Route, Bytes, Capacity>, Bytes>(ring, options.warmup);
     while (released.load(std::memory_order_acquire) != options.warmup ||
            ring.reusable_prefix() != options.warmup) {
-      std::this_thread::yield();
     }
     signal_count(control.warmed);
     if (!wait_for_phase(control.begin_timed, control.cancel)) {
@@ -120,7 +117,6 @@ TrialResult run_trial(const Options& options, unsigned int trial,
     }
     publish_phase<Ring<Route, Bytes, Capacity>, Bytes>(ring, options.iterations);
     while (released.load(std::memory_order_acquire) != total || ring.reusable_prefix() != total) {
-      std::this_thread::yield();
     }
     stop = Clock::now();
     signal_done(control.done);

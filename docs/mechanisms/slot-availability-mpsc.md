@@ -24,7 +24,7 @@ recovery. A stalled owner blocks FIFO observation at its position, but later
 publication calls can return until capacity fills. Closing the hole makes the
 already-ready prefix discoverable by the consumer alone. Claim CAS may starve;
 an acquire release-cursor read may conservatively report full. No wait-free or
-operation-wide lock-free guarantee is made; harness retries yield.
+operation-wide lock-free guarantee is made; the current benchmark harness busy-retries.
 
 The producer's payload writes precede its release tag store, which the consumer's
 acquire tag load observes before reading the slot. The consumer's final read

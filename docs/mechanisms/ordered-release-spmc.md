@@ -18,7 +18,7 @@ consumer acquisition. Destroying an active token terminates. The ring must
 outlive every token and participating thread.
 
 `try_release()` returns false across an earlier release hole while retaining
-the token; `release()` yields until that attempt succeeds. At its turn, the
+the token; `release()` busy-spins until that attempt succeeds. At its turn, the
 owner release-stores `position + 1` to `released`. Later owners can process
 concurrently but cannot return from `release()` before predecessors. A stalled
 or abandoned owner prevents their calls from returning and eventually fills

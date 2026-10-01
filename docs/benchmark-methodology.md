@@ -65,9 +65,9 @@ Threads should synchronize immediately before a timed phase so startup skew is n
 phase boundaries belong in each workload's mechanism or experiment note.
 
 Harness phase and completion waits use portable atomic blocking notifications so the coordinator
-does not consume a worker or housekeeping core during the timed phase. This control-plane choice
-does not change the current mechanism-side `yield` loops used when publication or observation is
-temporarily unavailable.
+does not consume a worker or housekeeping core during the timed phase. Timed worker retries busy
+spin when a claim, publication, observation, or reclamation attempt is unavailable. The blocked
+coordinator is outside the timed handoff path.
 
 ## Warmup and trials
 
@@ -103,6 +103,10 @@ minimal checksum so consumer work and payload reads remain observable to the opt
 
 Keep equivalent benchmark-side work, payload generation, validation, and termination conditions
 consistent across implementations.
+Current throughput routes busy spin on an unavailable claim, publication, observation, or
+reclamation attempt. This includes single-pair, MPSC, SPMC, fan-out, and pipeline routes. This
+policy consumes a dedicated core and may change queue occupancy and complete-route rate relative
+to the historical yield-based revisions; do not pool results from the two policies.
 
 The two-producer `mpsc-serialized` and `mpsc-ordered` throughput modes compare complete
 implementations with one consumer and fixed inline payloads. Both generate each payload from its
@@ -118,7 +122,7 @@ access, publication waiting, and cache traffic all differ. This is an implementa
 not an isolated frontier cost.
 
 `mpsc-count` and `mpsc-slot` use the same two-producer payload work, scalar claims,
-FIFO validation, completed-handoff numerator, placement, and yield retries. The
+FIFO validation, completed-handoff numerator, placement, and busy retries. The
 count route adds one shared completion RMW per publication and occasional group-tail
 CAS; the slot route release-marks one generation tag and makes the consumer check
 that tag. These are complete-route comparisons with different progress semantics,
@@ -126,7 +130,7 @@ not isolated instruction costs.
 
 The `spmc-serialized`, `spmc-ordered`, and `spmc-slot` throughput routes use
 one producer and two competing workers. Each publication has one owner. All
-three use identical position-derived bytes, scalar direct-slot access, yield
+three use identical position-derived bytes, scalar direct-slot access, busy
 retries, a per-position seen count, and per-worker acquisition counts. The
 producer stops timing only after every release and its verification of the
 final reusable prefix. This includes reclamation work in the complete-route
@@ -168,11 +172,10 @@ a separate progress schema so those counts cannot be mistaken for rates.
 Collect repeated round-trip time samples and report their distribution. A value derived as RTT/2 is
 only a proxy under symmetry assumptions; it is not an exact one-way latency measurement. Avoid
 mixing queueing latency from an offered-load test into the minimum-ish ping-pong interpretation.
-The default `--wait yield` calls the scheduler on an unavailable request or response. For a
-minimum-ish dedicated-core comparison, `--wait spin` retries immediately without that scheduler
-call. Record the selected policy and compare only rows using the same policy; it changes both CPU
-use and measured latency. The timed request/response work, validation, and RTT clock reads are
-otherwise the same. Neither mode measures offered-load queueing latency.
+Ping-pong busy spins on an unavailable request or response. Historical revisions used scheduler
+yielding; compare only rows with the same waiting policy. The timed request/response work,
+validation, and RTT clock reads are otherwise the same. RTT does not measure offered-load queueing
+latency.
 
 ## Correctness gates
 
@@ -226,7 +229,7 @@ exchange.
 The `sequence` implementation remains scalar in both workloads. Throughput generates into a
 one-element claim and observes through a const token before release. Ping-pong transfers local
 request and response values through one claim and observation at a time. Its completed counts,
-payload validation, phase boundaries, yield waiting, and CSV fields have the same meaning as the
+payload validation, phase boundaries, busy waiting, and CSV fields have the same meaning as the
 other scalar implementations.
 
 The `fan-out` throughput implementation uses one producer and two reliable consumers. A completed
@@ -269,8 +272,9 @@ message capacity across payload sizes or storage layouts.
 
 The `sequence-payload` implementation appears only in `offered-load`. `iterations` is the fixed
 number of timed publications offered by the producer. A zero producer interval is unpaced;
-positive intervals place publications on successive absolute `steady_clock` deadlines so scheduler
-delay does not accumulate through repeated relative sleeps. A consumer stall occurs after every N
+positive intervals place publications on successive absolute `steady_clock` deadlines using busy
+waiting, so scheduler delay does not accumulate through repeated relative waits. A consumer stall
+is also a busy wait and occurs after every N
 successful timed observations and is disabled only when both the interval and duration are zero.
 The same shape applies during untimed warmup, which is fully accounted before the timed phase.
 

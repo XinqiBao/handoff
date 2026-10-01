@@ -25,7 +25,6 @@ template <typename Ring, std::size_t Bytes> void publish_messages(Ring& ring, st
   for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
     auto claim = ring.try_claim();
     while (!claim) {
-      std::this_thread::yield();
       claim = ring.try_claim();
     }
     auto token = std::move(claim).value();
@@ -40,7 +39,6 @@ void observe_messages(Ring& ring, std::size_t consumer_index, std::uint64_t coun
   for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
     auto observation = ring.try_observe(consumer_index);
     while (!observation) {
-      std::this_thread::yield();
       observation = ring.try_observe(consumer_index);
     }
     auto token = std::move(observation).value();

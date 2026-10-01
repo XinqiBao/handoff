@@ -30,7 +30,7 @@ stalled producer after its completion RMW but before tail advancement can also
 delay visibility until another catching finisher advances it. There is no
 operation-wide lock-free or wait-free guarantee: claim CAS can starve, a stale
 release read can conservatively report full, and group visibility depends on
-participating finishers. Harness retries yield.
+participating finishers. The current benchmark harness busy-retries.
 
 The acquire part of each completion RMW reads the preceding RMW's release sequence.
 It therefore carries every earlier finisher's payload write and claim CAS to a

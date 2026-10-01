@@ -48,7 +48,6 @@ void push_messages(Queue& ring, std::uint64_t count) {
       const auto value = make_record_message<Bytes>(sequence);
       auto result = ring.try_push(value.header, value.payload.bytes);
       while (result == PushResult::full) {
-        std::this_thread::yield();
         result = ring.try_push(value.header, value.payload.bytes);
       }
       if (result != PushResult::success) {
@@ -59,14 +58,12 @@ void push_messages(Queue& ring, std::uint64_t count) {
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       const auto record = make_fixed_record<Bytes>(sequence);
       while (!ring.try_push(record)) {
-        std::this_thread::yield();
       }
     }
   } else if constexpr (Operation == GroupOperation::sequence) {
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       auto claim = ring.try_claim();
       while (!claim) {
-        std::this_thread::yield();
         claim = ring.try_claim();
       }
       auto token = std::move(claim).value();
@@ -77,7 +74,6 @@ void push_messages(Queue& ring, std::uint64_t count) {
     for (std::uint64_t first = 0; first < count; first += BatchSize) {
       auto reservation = ring.try_reserve_push(BatchSize);
       while (!reservation) {
-        std::this_thread::yield();
         reservation = ring.try_reserve_push(BatchSize);
       }
       auto token = std::move(reservation).value();
@@ -98,11 +94,9 @@ void push_messages(Queue& ring, std::uint64_t count) {
       }
       if constexpr (Operation == GroupOperation::batch) {
         while (!ring.try_push_batch(std::span<const Payload<Bytes>>(payloads))) {
-          std::this_thread::yield();
         }
       } else if constexpr (Operation == GroupOperation::bulk) {
         while (!ring.try_push_bulk(std::span<const Payload<Bytes>>(payloads))) {
-          std::this_thread::yield();
         }
       } else if constexpr (Operation == GroupOperation::burst) {
         std::size_t completed = 0;
@@ -110,14 +104,10 @@ void push_messages(Queue& ring, std::uint64_t count) {
           const auto pushed =
               ring.try_push_burst(std::span<const Payload<Bytes>>(payloads).subspan(completed));
           completed += pushed;
-          if (pushed == 0) {
-            std::this_thread::yield();
-          }
         }
       } else {
         for (const auto& payload : payloads) {
           while (!ring.try_push(payload)) {
-            std::this_thread::yield();
           }
         }
       }
@@ -135,7 +125,6 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       auto result = ring.try_pop(value.header, value.payload.bytes);
       while (result == PopResult::empty) {
-        std::this_thread::yield();
         result = ring.try_pop(value.header, value.payload.bytes);
       }
       if (result != PopResult::success) {
@@ -149,7 +138,6 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
     typename Queue::value_type record;
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       while (!ring.try_pop(record)) {
-        std::this_thread::yield();
       }
       if (!observe_fixed_record(record, sequence, checksum)) {
         valid.store(false, std::memory_order_relaxed);
@@ -159,7 +147,6 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
     for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
       auto observation = ring.try_observe();
       while (!observation) {
-        std::this_thread::yield();
         observation = ring.try_observe();
       }
       auto token = std::move(observation).value();
@@ -172,7 +159,6 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
     for (std::uint64_t first = 0; first < count; first += BatchSize) {
       auto reservation = ring.try_reserve_pop(BatchSize);
       while (!reservation) {
-        std::this_thread::yield();
         reservation = ring.try_reserve_pop(BatchSize);
       }
       auto token = std::move(reservation).value();
@@ -194,11 +180,9 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
     for (std::uint64_t first = 0; first < count; first += BatchSize) {
       if constexpr (Operation == GroupOperation::batch) {
         while (!ring.try_pop_batch(std::span<Payload<Bytes>>(payloads))) {
-          std::this_thread::yield();
         }
       } else if constexpr (Operation == GroupOperation::bulk) {
         while (!ring.try_pop_bulk(std::span<Payload<Bytes>>(payloads))) {
-          std::this_thread::yield();
         }
       } else if constexpr (Operation == GroupOperation::burst) {
         std::size_t completed = 0;
@@ -206,14 +190,10 @@ void pop_messages(Queue& ring, std::uint64_t count, std::uint64_t& checksum,
           const auto popped =
               ring.try_pop_burst(std::span<Payload<Bytes>>(payloads).subspan(completed));
           completed += popped;
-          if (popped == 0) {
-            std::this_thread::yield();
-          }
         }
       } else {
         for (auto& payload : payloads) {
           while (!ring.try_pop(payload)) {
-            std::this_thread::yield();
           }
         }
       }

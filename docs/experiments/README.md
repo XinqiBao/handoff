@@ -26,6 +26,7 @@ its own record. Keep unrelated research questions separate.
 - [Basic scalar versus all-or-nothing batch SPSC](005-batch-spsc-comparison.md)
 - [Bulk versus staged direct-slot SPSC](007-staged-spsc-comparison.md)
 - [Head/tail SPSC versus sequence publication](008-sequence-publication-comparison.md)
+- [Isolated N150 scalar SPSC measurement stability](023-spsc-measurement-stability.md)
 - [Cost of reliable sequence fan-out](009-sequence-fan-out-comparison.md)
 - [Cost of a fixed sequence dependency](010-sequence-dependency-comparison.md)
 

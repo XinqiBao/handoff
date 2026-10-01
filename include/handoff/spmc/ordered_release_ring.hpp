@@ -9,7 +9,6 @@
 #include <exception>
 #include <limits>
 #include <optional>
-#include <thread>
 #include <utility>
 
 namespace handoff::spmc {
@@ -129,7 +128,6 @@ public:
     }
     void release() noexcept {
       while (!try_release()) {
-        std::this_thread::yield();
       }
     }
 

@@ -24,7 +24,6 @@ template <typename Ring, std::size_t Bytes> void publish_messages(Ring& ring, st
   for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
     auto claim = ring.try_claim();
     while (!claim) {
-      std::this_thread::yield();
       claim = ring.try_claim();
     }
     auto token = std::move(claim).value();
@@ -39,7 +38,6 @@ void observe_upstream(Ring& ring, std::uint64_t count, std::uint64_t& checksum,
   for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
     auto observation = ring.try_observe_upstream();
     while (!observation) {
-      std::this_thread::yield();
       observation = ring.try_observe_upstream();
     }
     auto token = std::move(observation).value();
@@ -56,7 +54,6 @@ void observe_downstream(Ring& ring, std::uint64_t count, std::uint64_t& checksum
   for (std::uint64_t sequence = 0; sequence < count; ++sequence) {
     auto observation = ring.try_observe_downstream();
     while (!observation) {
-      std::this_thread::yield();
       observation = ring.try_observe_downstream();
     }
     auto token = std::move(observation).value();

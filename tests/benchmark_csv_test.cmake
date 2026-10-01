@@ -248,7 +248,24 @@ file(REMOVE "${output_path}")
 
 execute_process(
   COMMAND
-    "${BENCHMARK_EXECUTABLE}" run ping-pong --implementation basic --wait spin --payload-bytes 8
+    "${BENCHMARK_EXECUTABLE}" run throughput --implementation basic --payload-bytes 8
+    --capacity 64 --iterations 1000 --warmup 100 --trials 1 --output "${output_path}"
+  RESULT_VARIABLE result
+  OUTPUT_VARIABLE output
+  ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "spin throughput failed with ${result}\nstdout: ${output}\nstderr: ${error}")
+endif()
+file(READ "${output_path}" contents)
+if(NOT contents MATCHES "# waiting_behavior=spin\n" OR
+   NOT contents MATCHES "throughput,basic,8,64,,1,[0-9]+,1,[0-9]+,[0-9]+\\.[0-9]+,,")
+  message(FATAL_ERROR "spin throughput CSV is missing metadata or rate: ${contents}")
+endif()
+file(REMOVE "${output_path}")
+
+execute_process(
+  COMMAND
+    "${BENCHMARK_EXECUTABLE}" run ping-pong --implementation basic --payload-bytes 8
     --capacity 64 --iterations 1000 --warmup 100 --trials 1 --output "${output_path}"
   RESULT_VARIABLE result
   OUTPUT_VARIABLE output
@@ -302,7 +319,7 @@ foreach(metadata_pattern IN ITEMS
     "# operating_system=[^\n]+"
     "# architecture=[^\n]+"
     "# cpu_model=[^\n]+"
-    "# waiting_behavior=yield"
+    "# waiting_behavior=spin"
     "# control_waiting_behavior=atomic-wait"
     "# producer_cpu_requested=not-requested"
     "# producer_cpu_effective=unavailable"

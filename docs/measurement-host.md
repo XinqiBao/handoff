@@ -43,9 +43,8 @@ For lower timer and RCU interference, add `nohz_full=<workers>` at boot. A kerne
 with `CONFIG_NO_HZ_FULL=y` is required. Linux automatically offloads RCU callbacks
 and excludes these CPUs from the lockup watchdog by default; an additional
 `rcu_nocbs=` list is normally redundant. The full tick stops only when its
-conditions hold, including a single runnable task on the CPU. Mechanism-side
-`yield` calls, syscalls, unavoidable local interrupts, and firmware SMIs can
-still interrupt execution.
+conditions hold, including a single runnable task on the CPU. System calls,
+unavoidable local interrupts, and firmware SMIs can still interrupt execution.
 
 Set `irqaffinity=<housekeeping>` in the boot configuration for default device
 IRQ placement. Bootloader syntax and commands vary by distribution: retain the

@@ -12,6 +12,31 @@ variants; sequence publication, reliable fan-out, and a fixed dependency pipelin
 storage layouts; and lossy sequence-addressed metadata and payload observation. Selected controlled
 Linux comparisons establish conditional observations for one host and workload set, not a ranking.
 
+## Controlled performance reassessment: active boundary
+
+The current question is whether the dedicated N150 profile, busy worker retries, and a qualified
+clock can produce stable, reproducible differences for equivalent workload contracts. First check
+the timing method and repeatability of scalar SPSC throughput and ping-pong RTT across selected
+payload/capacity conditions. Then assess grouped SPSC and the two-reader fan-out/pipeline workload
+as separate comparison groups, each with its own numerator, work, and semantic limits. MPSC and
+SPMC are eligible only for comparably qualified complete-throughput questions. This is not a
+ranking of all mechanisms, a one-way latency claim from RTT, or fine cache-line attribution.
+
+The initial fixed-2400-MHz scalar SPSC group at `9891fd0` repeated a cache-line throughput
+direction at 64 B / 1024 slots, but yield-based RTT showed fast/slow modes. A subsequent `spin`
+RTT group at `7b3c299` reduced that ambiguity for cache-line and cached-index while basic RTT
+still varied. At 8 B / 64 slots, yield-based throughput was too dispersed for a precise rate
+claim despite qualified frequency, placement, IRQ, power, temperature, and throttle observations.
+Diagnostic `perf` rows found millions of yield calls but only tens of context switches per run;
+yield count did not consistently increase in slower rows. These observations justify changing the
+current timed-worker policy to busy retries and calibrating clock-read overhead before extending
+the matrix. The raw groups and aborted qualification remain in ignored `results/`.
+
+At the next checkpoint, compare the same question on the new CI-green busy-retry revision. Stop
+expanding parameters if a route's repeated rows still drift beyond the effect of interest; first
+resolve the timing, scheduler, or mechanism hypothesis. Preserve every row, execution order,
+sidecar, and invalidated group. Historical measurements remain tied to their original exact SHAs.
+
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)
 established publication-call blocking across a hole and recorded one controlled N150 comparison.

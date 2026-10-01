@@ -9,7 +9,6 @@
 #include <exception>
 #include <limits>
 #include <optional>
-#include <thread>
 #include <utility>
 
 namespace handoff::mpsc {
@@ -103,7 +102,6 @@ public:
     }
     void publish() noexcept {
       while (!try_publish()) {
-        std::this_thread::yield();
       }
     }
 

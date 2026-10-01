@@ -39,7 +39,6 @@ void publish_messages(Queue& ring, std::mutex& producer_mutex, std::uint64_t& ne
     if constexpr (Route != Implementation::mpsc_serialized) {
       auto claim = ring.try_claim();
       while (!claim) {
-        std::this_thread::yield();
         claim = ring.try_claim();
       }
       auto token = std::move(claim).value();
@@ -49,7 +48,6 @@ void publish_messages(Queue& ring, std::mutex& producer_mutex, std::uint64_t& ne
       std::lock_guard lock(producer_mutex);
       const auto payload = make_payload<Bytes>(next_serial_position - phase_base);
       while (!ring.try_push(payload)) {
-        std::this_thread::yield();
       }
       ++next_serial_position;
     }
@@ -63,7 +61,6 @@ void observe_messages(Queue& ring, std::uint64_t count, std::uint64_t phase_base
     if constexpr (Route != Implementation::mpsc_serialized) {
       auto observation = ring.try_observe();
       while (!observation) {
-        std::this_thread::yield();
         observation = ring.try_observe();
       }
       auto token = std::move(observation).value();
@@ -75,7 +72,6 @@ void observe_messages(Queue& ring, std::uint64_t count, std::uint64_t phase_base
     } else {
       Payload<Bytes> payload;
       while (!ring.try_pop(payload)) {
-        std::this_thread::yield();
       }
       if (!observe_payload(payload, sequence, checksum)) {
         valid.store(false, std::memory_order_relaxed);

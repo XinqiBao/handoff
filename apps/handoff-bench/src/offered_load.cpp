@@ -35,7 +35,8 @@ void publish_phase(Ring& ring, std::uint64_t count, std::uint64_t interval_ns,
   for (std::uint64_t logical_sequence = 0; logical_sequence < count; ++logical_sequence) {
     if (logical_sequence != 0 && interval_ns != 0) {
       deadline += interval;
-      std::this_thread::sleep_until(deadline);
+      while (Clock::now() < deadline) {
+      }
     }
 
     const auto payload = make_payload<Bytes>(logical_sequence);
@@ -83,8 +84,11 @@ PhaseResult observe_phase(const Ring& ring, std::uint64_t first_sequence, std::u
       ++requested;
       if (options.consumer_stall_every != 0 &&
           result.observed % options.consumer_stall_every == 0 && requested <= last_sequence) {
-        std::this_thread::sleep_for(
-            std::chrono::nanoseconds(static_cast<std::int64_t>(options.consumer_stall_ns)));
+        const auto resume =
+            Clock::now() +
+            std::chrono::nanoseconds(static_cast<std::int64_t>(options.consumer_stall_ns));
+        while (Clock::now() < resume) {
+        }
       }
       break;
     }
@@ -104,7 +108,6 @@ PhaseResult observe_phase(const Ring& ring, std::uint64_t first_sequence, std::u
         valid.store(false, std::memory_order_relaxed);
         return result;
       }
-      std::this_thread::yield();
       break;
     case Ring::ReadResult::invalid_sequence:
     case Ring::ReadResult::output_too_small:

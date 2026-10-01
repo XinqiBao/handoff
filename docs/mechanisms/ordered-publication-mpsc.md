@@ -31,7 +31,7 @@ producer must finish writing it and call `publish()` exactly once. The claim
 token is movable but cannot be cancelled; destroying or overwriting an active
 token terminates the process. `try_publish()` checks whether `published` equals the claim's
 position; it returns false without changing state across a hole, or advances the frontier and
-returns true at its turn. `publish()` retries that check with a thread yield and returns only
+returns true at its turn. `publish()` busy-spins on that check and returns only
 after advancement.
 
 The sole consumer calls `try_observe()` to acquire the next visible position,
@@ -63,8 +63,8 @@ also depends on the number of participating producers or outstanding tokens.
 
 `try_claim()` does not wait for capacity, although CAS retries under contention
 can starve and an older release observation may conservatively report full.
-`try_observe()` returns immediately on empty. `publish()` busy-waits with a thread yield. The harness retries
-failed claims and empty observations with a yield. A stalled producer can block
+`try_observe()` returns immediately on empty. `publish()` busy-spins. The harness busy-retries
+failed claims and empty observations. A stalled producer can block
 later producers and the consumer indefinitely. This route makes no lock-free or
 wait-free progress claim. The serialized control instead blocks every later
 producer operation at its mutex while the owner is delayed; its consumer can
