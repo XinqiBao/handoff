@@ -1,7 +1,7 @@
-# Experiment: Are SPSC rate states generic host noise or sampler effects?
+# Experiment: Controls for SPSC process rate states
 
 - Type: measurement-method diagnostic, not a route ranking
-- Status: complete for the no-handoff and sampling controls; SPSC state cause unresolved
+- Status: complete for no-handoff, sampling, and split-line controls; state cause unresolved
 - Source revision: `c7a89e44d14e3f12b46d2caf9e4fe329dca3d0e2`
 - Date: 2026-10-01 (Asia/Shanghai)
 
@@ -13,7 +13,8 @@ The [process-state](025-spsc-process-state-diagnostic.md) and
 comparably large differences inevitable even for a simple dual-core workload
 on this host? Does the address sampler itself change the queue rate? Neither
 control identifies the cause of the uninstrumented SPSC states or measures
-one-way message latency.
+one-way message latency. A follow-up asks whether separating all four index
+members into distinct cache lines removes the process states.
 
 ## Protocol and host gate
 
@@ -39,6 +40,16 @@ system; the paired contrast cannot isolate interrupt time from a changed
 producer-consumer phase. The local probe's retry counters and segment clocks
 make its rates diagnostic, not canonical benchmark throughput.
 
+The follow-up compiled the same probe source twice with identical compiler
+options. The diagnostic shadow header differs from the tracked cached-index
+class only by `alignas(64)` on `head`, `tail`, `cached_head`, and `cached_tail`.
+It changes the queue's layout and footprint, while retaining its operations
+and memory orders. Both binaries ran as root with the same page-zero queue
+offset and worker placement. Eight independent adjacent pairs alternated
+`original,split` and `split,original`, each with the same warmup and ten
+timed segments. This is a layout intervention on the *whole* queue object,
+not an isolated count of coherence transfers or a new canonical route.
+
 Each materially different workload saved all four original cpufreq policies,
 requested and read back 2400 MHz, and restored the saved policy exactly on
 exit. Under the actual workloads, the no-handoff control passed 46 full-busy
@@ -48,6 +59,11 @@ MHz, 64-68/63-65 C, and 6.18-6.30/6.12-6.43 W. Worker placement snapshots,
 device IRQ, SMI, and thermal-throttle checks passed. The formal groups also
 had no worker device IRQ or throttle delta. These checks narrow external
 causes; they cannot establish that every nanosecond was interruption-free.
+The follow-up original/split qualifications passed 27/18 full-busy windows
+at 2400 MHz, 60-63/62-65 C, and 6.16-6.24/6.37-6.47 W. Placement, device
+IRQ, SMI, and throttle checks passed in both modes, and the formal group had
+no worker device IRQ or throttle delta. Its saved frequency policies were
+also restored exactly.
 
 ## Observations
 
@@ -78,13 +94,26 @@ but it does not account for the persistent cross-process gap. This does not
 prove that 2 million warmup messages establish every possible sustained
 phase or address state.
 
+In the split-line follow-up, eight original processes ranged from 10.931 to
+13.673 million messages/s (median 11.941, CV 9.94%). Eight split processes
+ranged from 17.598 to 19.918 (median 17.812, CV 6.00%). Every adjacent pair
+favored split; the paired median was +57.39%, with a +36.48% to +80.56%
+range. This is a large diagnostic layout effect, but the split variant still
+occupied distinct rate states near 17.6-17.9 and 19.8-19.9 million/s.
+Discarding the first segment left its CV at 6.00%. Therefore separating
+these index members is **not sufficient** to make this workload repeatable
+across processes. It also changes queue size and address placement, so the
+large rate gain alone cannot be assigned to one false-sharing transfer.
+
 Ignored `results/spsc-causality-20261001/` and the earlier
 `results/spsc-retry-diagnostic-20261001/probe-pfn.cpp` retain the local probe
-sources, binaries and hashes, exact scripts, sidecars, all 320 raw formal segments,
+sources, binaries and hashes, exact scripts, sidecars, all 480 raw formal segments,
 global process order, sampler perf binaries and decoded addresses, qualification
 and formal host snapshots, original/fixed/restored policies, assessments,
-and ordered/paired SVGs. No row was excluded. `sampling-pairs/paired-differences.csv`
-and `ordered-metrics.csv` are generated from the retained per-process CSVs.
+and ordered/paired SVGs. No row was excluded. Both `sampling-pairs/` and
+`line-split/` contain paired-difference and ordered-metric CSVs generated
+from the retained per-process rows. The exact shadow header is retained beside
+their scripts in the same ignored parent directory.
 
 ## Interpretation and next gate
 
@@ -112,13 +141,14 @@ granularity and perturb execution. His
 also warns that a statistically tidy benchmark can still measure the wrong
 limiter. Neither article supplies a diagnosis for this queue.
 
-The next discriminating experiment should vary one explicit shared-line or
-worker-address relationship while keeping the same workload, then require
+The next discriminating experiment should vary a more specific queue/worker
+address relationship or sustained phase condition, then require
 multiple independent **canonical, unsampled** processes to repeat below the
-effect of interest. An isolated cache-line layout change is a hypothesis, not
-an established fix: the current cached-index design intentionally places
-both workers' counters on one line, and changing it would also change the
-mechanism being compared. Until that gate passes, the small 8 B / 64-slot
+effect of interest. The split-line variant demonstrates that layout matters
+but is not a stabilization fix. The tracked cached-index design intentionally
+keeps these counters unaligned to isolate cached remote progress from the
+separate cache-line mechanism; silently replacing its layout would change the
+question being compared. Until the repeatability gate passes, small 8 B / 64-slot
 SPSC gaps and an expanded parameter/fan-out matrix have no reliable
 fine-grained ranking interpretation. Busy-retry contention remains part of
 the intended dedicated-core behavior.

@@ -38,19 +38,21 @@ The [process-state](experiments/025-spsc-process-state-diagnostic.md),
 queue page offset, disabling ASLR, and changing initial empty/full occupancy did not remove
 them. Slower processes had about 31% more consumer L2 request misses with nearly identical
 retired instructions; sampled misses addressed the queue, but do not establish a cache cause.
-The [no-handoff and sampler controls](experiments/029-spsc-causality-controls.md) found an
-extremely stable dual-core local workload and a large sampler-associated rate change. Unsampled
-SPSC processes still varied. Neither generic host drift, short clock-read cost, nor the initial
-occupancy condition explains the observed states; shared-line behavior, sustained phase, and
+The [no-handoff, sampler, and split-line controls](experiments/029-spsc-causality-controls.md)
+found an extremely stable dual-core local workload and a large sampler-associated rate change.
+Unsampled SPSC processes still varied. Splitting the four index members into separate cache
+lines made every paired process faster (median +57.39%) but retained 6.00% cross-process CV;
+simple line separation is not a stabilization fix. Neither generic host drift, short clock-read
+cost, nor the initial occupancy condition explains the observed states; sustained phase and
 relative address placement remain hypotheses.
 
 The active measurement gate is to identify or control the process state through one explicit
-queue/worker address or cache-line hypothesis, then demonstrate repeatability across independent
-canonical **unsampled** 8 B / 64-slot processes before estimating small route gaps. Retain busy
-contention as target workload behavior. Do not expand to grouped SPSC, fan-out, pipeline, or a
-broad parameter matrix until this gate passes; preserve raw rows, order, sidecars, and anomalous
-groups. A fine RTT campaign must also retain ordered raw samples and check end-to-end timer
-perturbation before making nanosecond-scale tail claims.
+queue/worker address or sustained-phase hypothesis, then demonstrate repeatability across
+independent canonical **unsampled** 8 B / 64-slot processes before estimating small route gaps.
+Retain busy contention as target workload behavior. Do not expand to grouped SPSC, fan-out,
+pipeline, or a broad parameter matrix until this gate passes. Preserve raw rows, order,
+sidecars, and anomalous groups. A fine RTT campaign must retain ordered raw samples and check
+end-to-end timer perturbation before making nanosecond-scale tail claims.
 
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)
