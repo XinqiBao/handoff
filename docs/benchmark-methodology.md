@@ -107,6 +107,10 @@ rate is `iterations / elapsed_ns` in seconds, using one elapsed interval per tri
 carries a timestamp, and the route does not randomly sample individual handoffs. The interval
 includes phase-release skew and all timed producer/consumer work; its two clock reads are
 amortized over the full run. It is not a per-message latency distribution.
+Payload generation, retries on a full ring, consumer validation, and their interaction all affect
+this complete-workload rate. A slower producer can cap it; the value is not an isolated queue
+operation cost. A long interval reduces boundary-clock overhead but can hide changes between
+sustained rate states. Retain ordered segments when diagnosing such changes.
 
 Keep equivalent benchmark-side work, payload generation, validation, and termination conditions
 consistent across implementations.
@@ -185,10 +189,36 @@ validation, and RTT clock reads are otherwise the same. RTT does not measure off
 latency.
 The producer reads `steady_clock` before sending each request and after receiving its response,
 stores every measured RTT in memory, and summarizes after the timed phase. The timestamps do not
-travel in the message. Current CSV retains the trial median and indexed p95/p99, not the ordered
-individual RTTs, so it cannot independently reanalyze tails or identify when an outlier occurred.
+travel in the message. The summary CSV retains the trial median and indexed p95/p99, not the ordered
+individual RTTs; use the optional raw output to reanalyze tails or locate an outlier in sequence.
 The two clock reads, their placement, and loop work matter at sub-microsecond scale; an isolated
 clock-read cost should not be subtracted from the RTT distribution without an end-to-end check.
+For reanalysis, `--latency-samples FILE` writes `trial,index,rtt_ns` after each timed trial,
+preserving the sample order. The normal CSV still carries each trial's median, p95, and p99.
+Writing the optional file occurs after timing, but the existing two reads and one in-memory store
+remain in the timed loop. Compare paired runs with and without sample output before relying on a
+small tail difference; output does not remove timer perturbation or make RTT a one-way latency.
+
+## Repeatability gate for small comparisons
+
+Check the same route across independently launched processes, then interleave comparable routes
+under one host profile. Inspect ordered rates, within-process segments, RTT distributions, and
+paired differences before summarizing. A small route difference is not resolved when its magnitude
+is comparable to unexplained between-process state changes. A large, consistently signed paired
+difference may support a directional complete-workload claim even if its exact magnitude varies.
+Use equivalent endpoint work and a producer/consumer work-limit control when attributing a rate
+change to a queue design.
+
+Closed-loop ping-pong has at most one outstanding request and responds only after completion. It
+cannot describe latency at a specified offered rate or expose delay hidden by a producer that stops
+sending during a stall. A lossless open-loop latency workload would need a stated send schedule,
+backpressure policy, and timestamps relative to scheduled send times. The constant-rate and
+coordinated-omission discussion in [wrk2](https://github.com/giltene/wrk2#readme) motivates this
+distinction, but its HTTP load-generator timing implementation is not a nanosecond SPSC method.
+Google Benchmark's [CPU versus real-time guidance](https://google.github.io/benchmark/user_guide.html#cpu-timers)
+supports using wall elapsed time for concurrent completion rates. Brendan Gregg's
+[active benchmarking](https://www.brendangregg.com/activebenchmarking.html) emphasizes checking
+which part of the workload actually limits the measured result.
 
 ## Correctness gates
 

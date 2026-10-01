@@ -50,6 +50,7 @@ void print_usage(std::ostream& stream) {
          "      [--iterations N] [--warmup N] [--trials N] [--producer-cpu N] "
          "[--producer-cpus N,N] [--consumer-cpu N] [--consumer-cpus N,N] "
          "[--output FILE]\n"
+         "      [--latency-samples FILE]  (ping-pong ordered RTT samples only)\n"
          "  --impl is an alias for --implementation. Use list/describe for routes and workloads.\n";
 }
 
@@ -69,7 +70,7 @@ bool is_known_option(std::string_view option) {
          option == "--batch-size" || option == "--producer-cpu" || option == "--producer-cpus" ||
          option == "--consumer-cpu" || option == "--consumer-cpus" ||
          option == "--producer-interval-ns" || option == "--consumer-stall-every" ||
-         option == "--consumer-stall-ns";
+         option == "--consumer-stall-ns" || option == "--latency-samples";
 }
 
 std::optional<std::array<unsigned int, 2>> parse_cpu_pair(std::string_view text) {
@@ -133,6 +134,10 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
       errors << "option --batch-size does not apply to ping-pong\n";
       return std::nullopt;
     }
+    if (benchmark != Benchmark::ping_pong && argument == "--latency-samples") {
+      errors << "option --latency-samples applies only to ping-pong\n";
+      return std::nullopt;
+    }
     if (benchmark == Benchmark::offered_load && argument == "--batch-size") {
       errors << "option --batch-size does not apply to offered-load\n";
       return std::nullopt;
@@ -176,6 +181,12 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
         return std::nullopt;
       }
       options.output = std::filesystem::path(value);
+    } else if (argument == "--latency-samples") {
+      if (value.empty()) {
+        errors << "--latency-samples requires a file path\n";
+        return std::nullopt;
+      }
+      options.latency_samples = std::filesystem::path(value);
     } else if (argument == "--implementation" || argument == "--impl") {
       const auto* route = find_route(value);
       if (!route) {
@@ -271,6 +282,12 @@ std::optional<Options> parse_options(std::span<char*> arguments, Benchmark bench
     }
   }
 
+  if (options.output && options.latency_samples &&
+      std::filesystem::weakly_canonical(*options.output) ==
+          std::filesystem::weakly_canonical(*options.latency_samples)) {
+    errors << "--latency-samples and --output must use different files\n";
+    return std::nullopt;
+  }
   if (benchmark == Benchmark::offered_load &&
       options.implementation != Implementation::sequence_payload) {
     errors << "offered-load requires implementation sequence-payload\n";

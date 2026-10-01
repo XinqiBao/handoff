@@ -81,6 +81,12 @@ expect_failure(
   run publication-hole --producer-cpus 1,2)
 expect_failure(2 "option --implementation does not apply to smoke" run smoke --implementation basic)
 expect_failure(2 "option --batch-size does not apply to ping-pong" run ping-pong --batch-size 4)
+expect_failure(
+  2 "option --latency-samples applies only to ping-pong"
+  run throughput --latency-samples samples.csv)
+expect_failure(
+  2 "--latency-samples and --output must use different files"
+  run ping-pong --output samples.csv --latency-samples samples.csv)
 expect_failure(2 "unknown option: --wait" run throughput --wait yield)
 expect_success("throughput / basic" run throughput --iterations 1000 --warmup 100 --trials 1)
 expect_success("throughput / mpsc-slot" run throughput --implementation mpsc-slot --iterations 1000 --warmup 100 --trials 1)

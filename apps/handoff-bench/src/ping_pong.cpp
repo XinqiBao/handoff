@@ -12,8 +12,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -121,7 +123,7 @@ bool try_receive(Queue& queue, Message& value) {
 template <QueueOperation Operation, typename Queue, std::size_t Bytes>
 TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
                                 PlacementResult& producer_placement,
-                                PlacementResult& consumer_placement) {
+                                PlacementResult& consumer_placement, std::ostream* samples_output) {
   Queue requests;
   Queue responses;
   TrialControl control;
@@ -220,6 +222,15 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
     throw std::runtime_error("ping-pong payload validation failed");
   }
   const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+  if (samples_output) {
+    for (std::size_t index = 0; index < rtt_samples.size(); ++index) {
+      *samples_output << trial << ',' << index << ',' << rtt_samples[index] << '\n';
+    }
+    samples_output->flush();
+    if (!*samples_output) {
+      throw std::runtime_error("unable to write latency samples");
+    }
+  }
   const auto latency = summarize_latency(std::move(rtt_samples));
   return {.trial = trial,
           .elapsed_ns = elapsed,
@@ -232,13 +243,23 @@ TrialResult run_ping_pong_trial(const Options& options, unsigned int trial,
 
 template <QueueOperation Operation, typename Queue, std::size_t Bytes>
 RunResults run_spsc(const Options& options) {
+  std::ofstream samples_output;
+  if (options.latency_samples) {
+    samples_output.open(*options.latency_samples);
+    if (!samples_output) {
+      throw std::runtime_error("unable to open latency samples file: " +
+                               options.latency_samples->string());
+    }
+    samples_output << "trial,index,rtt_ns\n";
+  }
   RunResults results;
   results.trials.reserve(options.trials);
   for (unsigned int trial = 1; trial <= options.trials; ++trial) {
     PlacementResult producer_placement;
     PlacementResult consumer_placement;
-    auto result = run_ping_pong_trial<Operation, Queue, Bytes>(options, trial, producer_placement,
-                                                               consumer_placement);
+    auto result = run_ping_pong_trial<Operation, Queue, Bytes>(
+        options, trial, producer_placement, consumer_placement,
+        options.latency_samples ? &samples_output : nullptr);
     if (trial == 1) {
       results.producer_placement = std::move(producer_placement);
       results.consumer_placement = std::move(consumer_placement);

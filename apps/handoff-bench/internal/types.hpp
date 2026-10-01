@@ -58,6 +58,7 @@ struct Options {
   std::optional<unsigned int> consumer_cpu;
   std::optional<std::array<unsigned int, 2>> consumer_cpus;
   std::optional<std::filesystem::path> output;
+  std::optional<std::filesystem::path> latency_samples;
 };
 
 struct TrialResult {
