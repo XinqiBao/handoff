@@ -54,6 +54,8 @@ TEST_CASE("sequence payload ring copies zero and maximum payloads from direct ch
 
   const std::array<std::byte, 0> empty{};
   CHECK(ring.try_publish(11, 21, empty) == Ring::PublishResult::success);
+  CHECK(ring.available_range().oldest == 1);
+  CHECK(ring.available_range().latest == 1);
 
   Metadata metadata{};
   auto output = payload_for<16>(99);
@@ -181,6 +183,22 @@ TEST_CASE("sequence payload ring concurrent observers never accept torn records"
       while (requested <= publication_count) {
         Metadata metadata{.signature = 0, .chunk = 0, .length = 0, .control = 0};
         auto output = payload_for<Ring::chunk_size()>(0);
+        // Exercise sizing revalidation while overwrite can change the copied metadata.
+        // Keep the full read below so this probe does not replace payload-integrity evidence.
+        if (requested % 5 == 0) {
+          Metadata short_metadata{};
+          const auto short_result = ring.try_read(requested, short_metadata, {});
+          if (short_result == Ring::ReadResult::success) {
+            if (short_metadata.signature != requested || short_metadata.length != 0 ||
+                short_metadata.chunk != ((requested - 1) & (Ring::capacity() - 1)) ||
+                short_metadata.control != control_for(requested)) {
+              valid.store(false, std::memory_order_relaxed);
+            }
+          } else if (short_metadata != Metadata{} ||
+                     short_result == Ring::ReadResult::invalid_sequence) {
+            valid.store(false, std::memory_order_relaxed);
+          }
+        }
         const auto result = ring.try_read(requested, metadata, output);
         if (result == Ring::ReadResult::success) {
           const auto expected_length =

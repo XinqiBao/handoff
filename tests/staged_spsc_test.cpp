@@ -127,6 +127,12 @@ TEST_CASE("staged SPSC cancellation and token moves preserve reservations") {
   auto first = require_reservation(first_ring.try_reserve_push(1));
   auto second = require_reservation(second_ring.try_reserve_push(1));
   auto moved = std::move(second);
+  // Inactive moved-from tokens explicitly support empty spans and harmless finish.
+  // NOLINTNEXTLINE(bugprone-use-after-move)
+  CHECK(second.first().empty());
+  CHECK(second.second().empty());
+  second.finish(); // Inactive completion must not publish the transferred reservation.
+  CHECK_FALSE(second_ring.try_reserve_pop(1));
   CHECK(moved.active());
   first = std::move(moved);
   CHECK(first.active());
@@ -144,6 +150,9 @@ TEST_CASE("staged SPSC cancellation and token moves preserve reservations") {
   CHECK_FALSE(first_ring.try_reserve_push(2));
   auto released = require_reservation(first_ring.try_reserve_pop(1));
   released.finish();
+  CHECK(released.first().empty());
+  CHECK(released.second().empty());
+  released.finish(); // Repeated inactive completion must not return credit twice.
   CHECK(first_ring.try_reserve_push(2));
 }
 

@@ -69,6 +69,19 @@ TEST_CASE("merge selection need not follow cross-producer publication order", "[
   second.release();
 }
 
+TEST_CASE("a missing preferred second path falls back to the first", "[topology]") {
+  handoff::topology::TwoPathMerge<Message, 1> merge;
+  for (std::uint64_t sequence = 0; sequence < 3; ++sequence) {
+    publish(merge, MergeSource::first, {sequence, ~sequence});
+    auto observed = required(merge.try_acquire());
+    CHECK(observed.source() == MergeSource::first);
+    CHECK(observed.value().sequence == sequence);
+    CHECK(observed.value().inverse == ~sequence);
+    observed.release();
+    CHECK_FALSE(merge.try_acquire());
+  }
+}
+
 TEST_CASE("an unpublished first path does not block the second", "[topology]") {
   handoff::topology::TwoPathMerge<Message, 2> merge;
   std::latch first_reserved{1};

@@ -1,4 +1,5 @@
 #include "handoff/mpsc/completion_count_ring.hpp"
+#include "handoff/mpsc/ordered_publication_ring.hpp"
 #include "handoff/mpsc/slot_availability_ring.hpp"
 
 #include <atomic>
@@ -86,7 +87,44 @@ template <typename Ring> void check_finite_limit() {
   CHECK_FALSE(ring.try_observe());
 }
 
+template <typename Ring> void check_observation_cancellation() {
+  Ring ring;
+  auto claim = required(ring.try_claim());
+  claim.value() = {0, ~std::uint64_t{0}};
+  claim.publish();
+  {
+    auto held = required(ring.try_observe());
+    CHECK_FALSE(ring.try_observe());
+    CHECK_FALSE(ring.try_claim());
+    CHECK(held.value().position == 0);
+  } // Destruction cancels observation, returning no slot credit.
+  CHECK_FALSE(ring.try_claim());
+  auto held = required(ring.try_observe());
+  CHECK(held.position() == 0);
+  CHECK(held.value().inverse == ~std::uint64_t{0});
+  held.cancel();
+  CHECK_FALSE(ring.try_claim());
+  held = required(ring.try_observe());
+  CHECK(held.position() == 0);
+  held.release();
+  claim = required(ring.try_claim());
+  CHECK(claim.position() == 1);
+  claim.value() = {1, ~std::uint64_t{1}};
+  claim.publish();
+  held = required(ring.try_observe());
+  CHECK(held.value().position == 1);
+  CHECK(held.value().inverse == ~std::uint64_t{1});
+  held.release();
+  CHECK_FALSE(ring.try_observe());
+}
+
 } // namespace
+
+TEST_CASE("MPSC observation cancellation retains credit and retries the same position", "[mpsc]") {
+  check_observation_cancellation<handoff::mpsc::OrderedPublicationRing<Message, 1>>();
+  check_observation_cancellation<handoff::mpsc::CompletionCountRing<Message, 1>>();
+  check_observation_cancellation<handoff::mpsc::SlotAvailabilityRing<Message, 1>>();
+}
 
 TEST_CASE("completion count returns across a hole but waits for the whole claim group", "[mpsc]") {
   handoff::mpsc::CompletionCountRing<Message, 3> ring;
