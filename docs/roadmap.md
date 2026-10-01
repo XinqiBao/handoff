@@ -64,12 +64,15 @@ that slow `cached-index` processes retired nearly identical consumer instruction
 the affected line or whether the misses cause or follow the rate state. The
 [page and address diagnostic](experiments/027-spsc-address-state-diagnostic.md) found that
 queue PFN residue modulo 32 does not label the rate states; sampled consumer L2 load misses all
-addressed the queue, but sampling itself changed the observed rates. A bounded next test should
-control initial occupancy or worker start phase within and across processes, or validate a more
-specific placement hypothesis with lower-impact counters. Any proposed protocol must repeat
-across independent processes in the canonical, uninstrumented 8 B / 64-slot group before
-ranking small gaps or expanding the matrix. Retain busy retries as the intended dedicated-core
-condition.
+addressed the queue, but sampling itself changed the observed rates. The
+[initial-occupancy diagnostic](experiments/028-spsc-initial-occupancy-diagnostic.md) found
+full/empty block effects within +/-0.13% inside each of two processes, while those processes
+ran at about 13.44 and 11.60 million/s. This rules out that single initialization condition
+as a sufficient explanation; it leaves sustained phase, occupancy, and placement unresolved.
+The current package ends at this measurement gate: a next package must identify or control the
+process state and repeat in the canonical, uninstrumented 8 B / 64-slot group before ranking
+small gaps or expanding to SPSC parameter, fan-out, or pipeline matrices. Retain busy retries
+as the intended dedicated-core condition.
 
 The first multi-producer package compared whole-operation producer serialization with concurrent
 claims and one ordered publication tail. Its [Experiment 015](experiments/015-mpsc-ordered-publication.md)
