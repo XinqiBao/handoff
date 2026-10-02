@@ -23,7 +23,7 @@ jobs:
         os: [ubuntu-24.04, macos-15]
     steps:
       - uses: actions/checkout@v5
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v5
         with:
           version: 2026.9.18
       - name: Show toolchain
@@ -79,7 +79,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v5
         with:
           version: 2026.9.18
       - name: Detect native profile
@@ -109,7 +109,7 @@ jobs:
       TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
     steps:
       - uses: actions/checkout@v5
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v5
         with:
           version: 2026.9.18
       - name: Detect native profile
