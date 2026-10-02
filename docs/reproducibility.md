@@ -5,9 +5,62 @@
 Linux is the primary platform for controlled performance analysis. macOS supports development,
 correctness validation, normal timing code, and benchmark plumbing. Windows is unsupported.
 
-The supported toolchain is Clang with C++23, CMake 3.28 or newer, and Ninja. The first test-enabled
-configuration needs network access and Git to fetch the pinned Catch2 revision. clang-format and
-clang-tidy are needed only for their corresponding checks.
+The supported toolchain is Clang with C++23, CMake 3.28 or newer, Ninja, and Conan 2.
+`mise.toml` pins Clang, clang-format, clang-tidy, CMake, Ninja, Python, uv, and Conan.
+Python and uv support isolated PyPI installations. First-time installation needs network access.
+Clang uses the standard mise `conda:clang-22` package; `CC=clang-22` and `CXX=clang++-22`
+select its drivers for CMake and Conan. This package exposes the C++ driver missing from the
+default `clang` entry. Host SDK and development files remain platform prerequisites.
+clang-tidy uses the standard `pypi:clang-tidy` binary package, which includes its built-in headers.
+Other tools use mise's default entries.
+Install `build-essential` on Ubuntu or Xcode Command Line Tools on macOS for host development
+files. Record the actual compiler, SDK, and standard library when measuring.
+
+## Tool and dependency setup
+
+Install [mise](https://mise.jdx.dev/getting-started.html), then:
+
+```sh
+mise trust
+mise install
+mise exec -- conan profile detect --name handoff --force
+```
+
+The commands below assume mise is activated in the shell. Otherwise prefix each command with
+`mise exec --`, as in the README. Install dependencies for the build mode before configuring CMake:
+
+```sh
+conan install . -pr:a handoff -s:a compiler.cppstd=23 -s:a build_type=Debug \
+  -of build/conan/debug --build=missing
+conan install . -pr:a handoff -s:a compiler.cppstd=23 -s:a build_type=Release \
+  -of build/conan/release --build=missing
+```
+
+The detected `handoff` profile records the native toolchain without changing the global default
+profile. The install commands select C++23 explicitly; no repository profile file is needed.
+Conan automatically loads `conan.lock`, which pins dependency versions and recipe revisions;
+package binaries are selected or built for the active profile. The host SDK and system libraries
+remain part of the measurement environment.
+
+Debug, correctness-only, sanitizer, and tidy presets share the Debug dependency installation;
+Release uses the Release installation. Generated dependencies stay under ignored `build/`;
+Conan also creates an ignored root `CMakeUserPresets.json`. When migrating an old build tree,
+use `cmake --fresh --preset <name>`.
+
+## Updating versions
+
+Add libraries to `conanfile.txt` under `[requires]`, or `[test_requires]` for test-only dependencies,
+and consume their imported CMake targets. After changing dependencies, regenerate the lock:
+
+```sh
+conan lock create . -pr:a handoff -s:a compiler.cppstd=23 --lockfile="" --lockfile-out=conan.lock
+```
+
+Reinstall dependencies and rerun the affected checks. Tool upgrades change the exact pins in
+`mise.toml`. When changing Clang's major version, update its versioned package name and `CC`/`CXX`
+driver names as well. Redetect the `handoff` profile and reinstall dependencies after changing
+compilers. To move from C++23 to a newer baseline, change the Conan install setting, CMake's
+`cxx_std_23` requirement, and benchmark's recorded standard together, then validate both platforms.
 
 ## Linux measurement capability
 

@@ -13,6 +13,7 @@ option(HANDOFF_ENABLE_CLANG_TIDY "Run clang-tidy while compiling project targets
 option(HANDOFF_BUILD_BENCHMARK "Build benchmark executable and harness checks" ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(HandoffProjectOptions)

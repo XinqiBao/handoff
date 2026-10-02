@@ -11,8 +11,8 @@
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/build/conan/debug/conan_toolchain.cmake",
       "cacheVariables": {
-        "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "BUILD_TESTING": "ON"
       }
@@ -35,6 +35,7 @@
       "name": "release",
       "displayName": "Release",
       "inherits": "base",
+      "toolchainFile": "${sourceDir}/build/conan/release/conan_toolchain.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_TESTING": "ON"

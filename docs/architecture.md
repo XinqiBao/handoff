@@ -80,8 +80,10 @@ as formatting may use configure-aware recursive globs because their purpose is e
 not definition of a linkable target boundary.
 
 `HANDOFF_BUILD_BENCHMARK=OFF` omits the benchmark and its tests for correctness-only work.
-Default builds and CI retain benchmark verification. Catch2 is fetched only for test-enabled builds
-and pinned to a commit. The project does not use a general package manager.
+Default builds and CI retain benchmark verification. Conan 2 owns third-party dependencies through
+the root consumer recipe and lockfile; CMake consumes imported targets through `find_package`.
+Catch2 is a test-only requirement. mise pins build tools; CMake presets own project build modes.
+The project uses headers and translation units; C++ module scanning is disabled.
 
 ## Benchmark data flow
 

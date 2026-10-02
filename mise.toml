@@ -1,0 +1,13 @@
+[tools]
+"conda:clang-22" = "22.1.8"
+"pypi:clang-tidy" = "22.1.8"
+clang-format = "22.1.8"
+cmake = "4.4.3"
+ninja = "1.13.2"
+python = "3.14.8"
+uv = "0.12.22"
+conan = "2.33.0"
+
+[env]
+CC = "clang-22"
+CXX = "clang++-22"

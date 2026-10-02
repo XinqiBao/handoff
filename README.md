@@ -12,19 +12,26 @@ history, not a required reading order.
 
 ## Build
 
-Requires Clang with C++23 support, CMake 3.28+, Ninja, and Git for the pinned Catch2 dependency.
-Linux is the primary performance-analysis platform; macOS supports normal development, correctness
-tests, and benchmark plumbing. Optional quality checks need clang-format and clang-tidy.
+Uses Clang with C++23. [mise.toml](mise.toml) pins Clang, clang-format, clang-tidy, CMake,
+Ninja, and Conan. The platform provides the system SDK and standard library.
+[conanfile.txt](conanfile.txt) declares dependencies, and [conan.lock](conan.lock) pins their recipe
+revisions. Linux is the primary performance-analysis platform; macOS supports development,
+correctness tests, and benchmark plumbing.
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug
-ctest --preset debug --no-tests=error
+mise trust
+mise install
+mise exec -- conan profile detect --name handoff --force
+mise exec -- conan install . -pr:a handoff -s:a compiler.cppstd=23 -s:a build_type=Debug \
+  -of build/conan/debug --build=missing
+mise exec -- cmake --preset debug
+mise exec -- cmake --build --preset debug
+mise exec -- ctest --preset debug --no-tests=error
 ```
 
 For a correctness-only build that omits benchmark compilation, use the `debug-correctness` configure,
-build, and test presets. The first test-enabled configuration fetches pinned Catch2. Release and
-sanitizer procedures are in
+build, and test presets. Conan installs Catch2 before CMake configuration. Host prerequisites,
+Release and sanitizer procedures, and dependency updates are in
 [reproducibility](docs/reproducibility.md).
 
 ## Explore

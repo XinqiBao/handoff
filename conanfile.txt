@@ -1,0 +1,6 @@
+[test_requires]
+catch2/3.16.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
